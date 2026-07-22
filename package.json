@@ -1,6 +1,6 @@
 {
   "name": "zhihu-beautification",
-  "version": "5.0.3",
+  "version": "5.0.16",
   "description": "A maintainable userscript for improving the Zhihu browsing experience.",
   "private": true,
   "type": "module",

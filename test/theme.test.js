@@ -89,6 +89,25 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-za-detail-view-path-module="RightSideBar"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-home-sidebar] .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea :where(section, div, span)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("--zb-text-secondary");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-searchButton\n    .SearchBar-searchIcon");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-searchIcon.isFocus");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchBar-input--focus\n    .SearchBar-searchButton",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-askDropdownButton\n    .ZDI--PlusFill24");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-menu .Menu-item.is-active");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskTitle-input");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskDetail-input");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AskDetail-input:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .Editable-toolbar");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Editable-control[aria-pressed="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicInputAlias-suggestionContainer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".MentionSuggestions-menu .AutoComplete-UserName");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".MentionSuggestions-menu .Menu-item.is-active");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Editable-videoModal-uploader");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Editable-videoModal .Modal-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem .RichContent-inner .RichText");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea > div > section");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .WritePinV2-Form");
     expect(CATPPUCCIN_THEME_STYLE).toContain("max-width: 100% !important");
@@ -96,8 +115,24 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .TitleArea");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .InputLike.Editable");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .public-DraftEditor-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea:has(.WritePinV2-Form) .TitleArea");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-top: 11px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".EditorArea\n    .InputLike.Editable:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea:has(.WritePinV2-Form)\n    .EditorArea");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".InputLike.Editable\n    .public-DraftEditorPlaceholder-inner",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".InputLike.Editable::-webkit-scrollbar-track");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".InputLike.Editable::-webkit-scrollbar-thumb:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-block: 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("background-clip: content-box !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("scrollbar-color: var(--zb-text-subtle) transparent");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Editable-languageSuggestions");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicSuggestion-TopicItem");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicSuggestion-TopicItem .topic-name");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicSuggestion-Popover .Menu-item.is-active");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".EmoticonPopover > svg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".EmoticonPopover li:hover");

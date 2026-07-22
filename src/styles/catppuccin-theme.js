@@ -36,6 +36,7 @@ ${createPaletteVariables(flavors.mocha)}
     --zb-border: var(--ctp-surface0);
     --zb-border-strong: var(--ctp-surface1);
     --zb-text: var(--ctp-text);
+    --zb-text-secondary: var(--ctp-subtext1);
     --zb-text-muted: var(--ctp-subtext0);
     --zb-text-subtle: var(--ctp-overlay0);
     --zb-primary: var(--ctp-blue);
@@ -90,6 +91,46 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-primary) !important;
   }
 
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-searchButton
+    .SearchBar-searchIcon {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-searchButton
+    .SearchBar-searchIcon.isFocus {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-input--focus
+    .SearchBar-searchButton {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-askDropdownButton
+    .ZDI--PlusFill24 {
+    color: var(--ctp-crust) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .SearchBar-menu .Menu-item:hover,
+  html[data-zb-theme] .SearchBar-menu .Menu-item.is-active,
+  html[data-zb-theme] .SearchBar-menu .Menu-item:focus,
+  html[data-zb-theme] .SearchBar-menu .Menu-item:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
   html[data-zb-theme] .SearchBar-input,
   html[data-zb-theme] .Input-wrapper,
   html[data-zb-theme] input,
@@ -106,6 +147,106 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme] textarea::placeholder,
   html[data-zb-theme] [contenteditable="true"]:empty::before {
     color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input,
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input {
+    min-height: 46px !important;
+    padding: 9px 12px !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+    min-height: 104px !important;
+    padding: 11px 12px !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input:focus-within,
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea,
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content,
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .DraftEditor-root,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .AskDetail-input
+    .DraftEditor-editorContainer,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .AskDetail-input
+    .public-DraftEditor-content,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .AskDetail-input
+    .public-DraftEditorPlaceholder-root,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .AskDetail-input
+    .public-DraftEditorPlaceholder-inner {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea {
+    width: 100% !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content {
+    min-height: 80px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .public-DraftEditorPlaceholder-inner {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-controls {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control:hover,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .Editable-toolbar
+    .Editable-control.is-active,
+  html[data-zb-theme]
+    .Modal:has(.Ask-form)
+    .Editable-toolbar
+    .Editable-control[aria-pressed="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-separator {
+    background-color: var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme] .WriteArea :where(section, div, span) {
@@ -145,6 +286,141 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .WriteArea .InputLike.Editable:focus-within {
     border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea,
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea {
+    min-height: 46px !important;
+    padding: 8px 12px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar {
+    align-self: flex-start !important;
+    margin-top: 11px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea {
+    margin-top: 10px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
+    min-height: 84px !important;
+    padding: 10px 12px !important;
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar {
+    width: 8px !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-track {
+    background-color: transparent !important;
+    margin-block: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-thumb {
+    background-color: var(--zb-text-subtle) !important;
+    background-clip: content-box !important;
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-thumb:hover {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-corner {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea:focus-within,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea textarea,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .Editable-content,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .DraftEditor-root,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .DraftEditor-editorContainer,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditor-content,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-root,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-inner {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .Editable-content {
+    min-height: 62px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-inner {
+    color: var(--zb-text-subtle) !important;
   }
 
   html[data-zb-theme] .Card,
@@ -188,6 +464,11 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme] .TopstoryItem .RichContent-inner,
+  html[data-zb-theme] .TopstoryItem .RichContent-inner .RichText {
+    color: var(--zb-text-secondary) !important;
+  }
+
   html[data-zb-theme] .ContentItem-meta,
   html[data-zb-theme] .ContentItem-time,
   html[data-zb-theme] .AuthorInfo-badgeText,
@@ -226,10 +507,14 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme] .Editable-languageSuggestions .Menu-item,
-  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item,
+  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
   html[data-zb-theme] .TopicSuggestion-TopicItem,
   html[data-zb-theme] .TopicSuggestion-TopicItem .topic-name {
-    background-color: var(--zb-surface) !important;
+    background-color: transparent !important;
     color: var(--zb-text) !important;
   }
 
@@ -238,6 +523,50 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme] .TopicSuggestion-TopicItem .new-topic {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer,
+  html[data-zb-theme] .MentionSuggestions-menu {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .AutoComplete-DefaultItem,
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserItem,
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserDetail {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:hover,
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:focus,
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item.is-active,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:hover,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:focus,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item.is-active {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserName {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserHeadline {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserSocialTag {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
     color: var(--zb-primary) !important;
   }
 
@@ -448,6 +777,51 @@ ${createPaletteVariables(flavors.mocha)}
     > div:last-child
     a {
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-inner,
+  html[data-zb-theme] .Editable-videoModal .Modal-content {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-title,
+  html[data-zb-theme] .Editable-videoModal-uploader-text {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader:hover {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader-icon {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader-tip,
+  html[data-zb-theme] .Editable-videoModal .Modal-footer,
+  html[data-zb-theme] .Editable-videoModal .Modal-footer p {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-footer {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-footer a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-closeButton {
+    color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme] .VoteTypeSelectorPopover,
