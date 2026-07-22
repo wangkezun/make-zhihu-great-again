@@ -1,0 +1,22 @@
+import { createHomeSidebarFeature, HOME_SIDEBAR_STORAGE_KEY } from "./features/home-sidebar.js";
+import { createThemeFeature, THEME_STORAGE_KEY } from "./features/theme.js";
+
+const createMenuAdapter = () => ({
+  register: (label, callback) => GM_registerMenuCommand(label, callback),
+  unregister: (commandId) => GM_unregisterMenuCommand(commandId),
+});
+
+const userscriptSettings = {
+  getPreference: (defaultValue) => GM_getValue(HOME_SIDEBAR_STORAGE_KEY, defaultValue),
+  menu: createMenuAdapter(),
+  setPreference: (value) => GM_setValue(HOME_SIDEBAR_STORAGE_KEY, value),
+};
+
+const themeSettings = {
+  getMode: (defaultValue) => GM_getValue(THEME_STORAGE_KEY, defaultValue),
+  menu: createMenuAdapter(),
+  setMode: (value) => GM_setValue(THEME_STORAGE_KEY, value),
+};
+
+createThemeFeature(window, themeSettings).start();
+createHomeSidebarFeature(window, userscriptSettings).start();

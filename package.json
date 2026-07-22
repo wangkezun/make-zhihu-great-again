@@ -1,0 +1,34 @@
+{
+  "name": "zhihu-beautification",
+  "version": "5.0.3",
+  "description": "A maintainable userscript for improving the Zhihu browsing experience.",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "rollup --config",
+    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "dev": "rollup --config --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.9.5",
+    "rollup": "^4.62.2",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "@catppuccin/palette": "^1.8.0"
+  }
+}
