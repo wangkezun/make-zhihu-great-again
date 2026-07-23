@@ -74,6 +74,12 @@ describe("home sidebar feature", () => {
     expect(HOME_SIDEBAR_STYLE).toContain("var(--zb-home-main-width, 694px)");
     expect(HOME_SIDEBAR_STYLE).toContain('html[data-zb-question-page="true"]');
     expect(HOME_SIDEBAR_STYLE).toContain(".Question-sideColumn");
+    expect(HOME_SIDEBAR_STYLE).toContain(".QuestionHeader-side");
+    expect(HOME_SIDEBAR_STYLE).toContain(".QuestionHeader-content");
+    expect(HOME_SIDEBAR_STYLE).toContain(".QuestionHeader-footer-inner");
+    expect(HOME_SIDEBAR_STYLE).toContain(".QuestionHeader-footer-main");
+    expect(HOME_SIDEBAR_STYLE).toContain("box-sizing: border-box !important");
+    expect(HOME_SIDEBAR_STYLE).toContain("padding-inline: 16px !important");
     expect(HOME_SIDEBAR_STYLE).toContain(".QuestionPage\n    > div:has(.Question-mainColumn)");
     expect(HOME_SIDEBAR_STYLE).not.toContain(":has(> .Question-sideColumn)");
   });

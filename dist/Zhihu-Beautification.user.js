@@ -259,6 +259,30 @@
   }
 
   html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-side {
+    display: none !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-content,
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-footer-inner {
+    box-sizing: border-box !important;
+    width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
+    margin-inline: auto !important;
+    padding-inline: 16px !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-content
+    > .QuestionHeader-main,
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-footer-main {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
     .QuestionPage
     > div:has(.Question-mainColumn) {
     box-sizing: border-box !important;
