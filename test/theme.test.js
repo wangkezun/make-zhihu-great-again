@@ -87,8 +87,16 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.BounceLoading[style*="width: 60px"][style*="height: 18px"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".BounceLoading-child");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       ":is(.LinkCard-title.loading, .LinkCard-desc.loading)",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText a.LinkCard");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard-image");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard .tag");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":not(.LinkCard):not(.tag)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-za-detail-view-path-module="RightSideBar"]');
@@ -266,6 +274,10 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ":is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)\n    .FollowButton",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AnswerAuthor-buttons\n    .Button:not(.FollowButton)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:not(.FollowButton):focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--grey");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -283,6 +295,7 @@ describe("Catppuccin theme feature", () => {
       ".Question-sideColumn\n    footer\n    :where(a, button, div, span, p, svg)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard");
     expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 16px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("top: -8px !important");
@@ -295,6 +308,21 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:hover");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons .Button");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .HoverCard-buttons");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("gap: 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 1 1 0 !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .NumberBoard-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage img.Avatar");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.AnswerItem .AuthorInfo, .AnswerAuthor)\n    img.Avatar",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .FollowButton.Button--grey");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .Button:not(.FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons:has(> .Button:only-child)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消关注" !important');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("height: 34px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("position: absolute !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("inset: 0 !important");
 
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -334,6 +362,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ":is(a, .TopicLink, .Tag-content)\n    :where(span, div)",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("a\n    > svg:first-child");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("a\n    > svg:last-child");
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.BrandQuestionSymbol-name,[\s\S]*?\.UserLink-link[\s\S]*?\)[^{]*\{\s*color: var\(--zb-text\) !important;/,
     );

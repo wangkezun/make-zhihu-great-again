@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎美化 v5
 // @namespace    https://github.com/wangkezun/zhihu-beautification
-// @version      5.2.42
+// @version      5.2.50
 // @description  提供可自由开关的知乎页面美化功能
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
@@ -5566,6 +5566,108 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"]) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    > svg {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > div:first-of-type {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > div:last-of-type {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > svg:first-child {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > svg:last-child {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
     .QuestionPage
     :is(
       .BrandQuestionSymbol-brandLink,
@@ -5603,7 +5705,7 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme]
     .QuestionPage
     :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink),
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag),
   html[data-zb-theme] .QuestionHeader-detail .RichText a,
   html[data-zb-theme] .QuestionPage a.RichContent-EntityWord {
     color: var(--zb-primary) !important;
@@ -5615,11 +5717,11 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme]
     .QuestionPage
     :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):hover,
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):hover,
   html[data-zb-theme]
     .QuestionPage
     :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):focus-visible,
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):focus-visible,
   html[data-zb-theme] .QuestionHeader-detail .RichText a:hover,
   html[data-zb-theme] .QuestionHeader-detail .RichText a:focus-visible,
   html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:hover,
@@ -5629,6 +5731,44 @@ ${createPaletteVariables(flavors.mocha)}
     text-decoration-color: currentColor !important;
     text-decoration-thickness: 1px !important;
     text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .RichText
+    a.LinkCard:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-desc {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard .tag {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
   }
 
   html[data-zb-theme]
@@ -5652,6 +5792,27 @@ ${createPaletteVariables(flavors.mocha)}
     .BrandQuestionSymbol-brandLink:is(:hover, :focus-visible)
     .BrandQuestionSymbol-name {
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem .AuthorInfo, .AnswerAuthor)
+    img.Avatar {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AuthorInfo
+    .UserLink:focus-visible {
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
@@ -5874,6 +6035,11 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
   html[data-zb-theme] .Question-sideColumn .HotSearchCard-heat {
     color: var(--zb-text-muted) !important;
   }
@@ -6027,7 +6193,7 @@ ${createPaletteVariables(flavors.mocha)}
     background-clip: padding-box !important;
     padding-right: 16px !important;
     padding-left: 16px !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
     color: var(--zb-text) !important;
     box-shadow: var(--zb-shadow) !important;
@@ -6076,8 +6242,126 @@ ${createPaletteVariables(flavors.mocha)}
     background-color: var(--zb-surface-raised) !important;
   }
 
+  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
   html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons .Button {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
     border-radius: 6px !important;
+    flex: 1 1 0 !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .NumberBoard-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons
+    .FollowButton.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons
+    .Button:not(.FollowButton) {
+    background-color: transparent !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons
+    .Button:not(.FollowButton):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons:has(> .Button:only-child)
+    > .Button.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons:has(> .Button:only-child)
+    > .Button.Button--grey {
+    position: relative !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons:has(> .Button:only-child)
+    > .Button.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .HoverCard-buttons:has(> .Button:only-child)
+    > .Button.Button--grey:is(:hover, :focus-visible)::after {
+    content: "取消关注" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-danger) !important;
+    font-size: 14px !important;
+    line-height: normal !important;
   }
 
   html[data-zb-theme] .AnswerList .List-headerOptions .Button,
@@ -6346,6 +6630,44 @@ ${createPaletteVariables(flavors.mocha)}
     .QuestionPage
     :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
     .FollowButton
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton) {
+    min-height: 34px !important;
+    background-color: transparent !important;
+    border-color: var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton):hover {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton)
     svg {
     color: inherit !important;
     fill: currentColor !important;
@@ -6892,6 +7214,24 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme] .LoadingBar {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(
+      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(
+      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
+    )
+    .BounceLoading-child {
     background-color: var(--zb-primary) !important;
   }
 
