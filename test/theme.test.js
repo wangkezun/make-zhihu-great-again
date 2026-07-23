@@ -188,6 +188,15 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-home-page="true"]\n    .Topstory-mainColumnCard,\n',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard\n    > .Topstory-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-recommend\n    > .TopstoryItem {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-bottom: 10px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:hover {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:focus-visible {");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".TopstoryItem:is(:hover, :focus-within)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem\n    .ContentItem-more {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".TopstoryItem\n    .ContentItem-more:is(:hover, :focus-visible)",
@@ -381,6 +390,7 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .AnswersNavWrapper > .List");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item:hover");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain("display: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .MoreAnswers .List-headerText");

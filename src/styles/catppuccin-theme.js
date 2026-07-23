@@ -3436,11 +3436,22 @@ ${createPaletteVariables("mocha")}
     .Question-mainColumn
     .AnswersNavWrapper
     .List-item {
+    box-sizing: border-box !important;
     margin-bottom: 10px !important;
     background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item:hover {
+    border-color: var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme]
@@ -5367,6 +5378,48 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .ShareMenu-qrcodeText {
     color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumnCard,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumnCard
+    > .Topstory-content {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem {
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
