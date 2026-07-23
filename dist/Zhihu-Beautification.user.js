@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎美化 v5
 // @namespace    https://github.com/wangkezun/zhihu-beautification
-// @version      5.2.51
+// @version      5.2.67
 // @description  提供可自由开关的知乎页面美化功能
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
@@ -12,6 +12,128 @@
 // ==/UserScript==
 (function () {
   'use strict';
+
+  const COMMENT_MODAL_SELECTOR = ".Modal-content:has(.InputLike.Editable):has(img.Avatar)";
+  const BOTTOM_COMPOSER_SELECTOR = ":scope > div > div:last-child .InputLike.Editable";
+  const COMPOSER_CONTAINER_SELECTOR = "div:has(> div > div > .InputLike.Editable)";
+  const COLLAPSED_ATTRIBUTE = "data-zb-comment-composer-collapsed";
+
+  const createCommentComposerFeature = (browserWindow) => {
+    const browserDocument = browserWindow.document;
+    const interactedModals = new WeakSet();
+    const pendingModals = new WeakSet();
+    const processedModals = new WeakSet();
+    const pendingTimers = new Set();
+    let pendingInlineComposer;
+    let observer;
+    let started = false;
+
+    const blurProgrammaticFocus = (modal, activeElement = browserDocument.activeElement) => {
+      const composer = modal.querySelector(BOTTOM_COMPOSER_SELECTOR);
+      const editor = composer?.querySelector('[contenteditable="true"]');
+      if (
+        !interactedModals.has(modal) &&
+        !editor?.textContent.trim() &&
+        composer?.contains(activeElement)
+      ) {
+        composer.closest(COMPOSER_CONTAINER_SELECTOR)?.setAttribute(COLLAPSED_ATTRIBUTE, "");
+        activeElement.blur();
+      }
+    };
+
+    const collapseAutofocusedComposer = (modal) => {
+      if (processedModals.has(modal) || pendingModals.has(modal)) return;
+
+      const composer = modal.querySelector(BOTTOM_COMPOSER_SELECTOR);
+      if (!composer) return;
+
+      pendingModals.add(modal);
+      blurProgrammaticFocus(modal);
+
+      const timerId = browserWindow.setTimeout(() => {
+        pendingTimers.delete(timerId);
+        pendingModals.delete(modal);
+        if (!started) return;
+
+        blurProgrammaticFocus(modal);
+        processedModals.add(modal);
+      }, 250);
+      pendingTimers.add(timerId);
+    };
+
+    const handlePointerDown = (event) => {
+      const modal = event.target.closest?.(COMMENT_MODAL_SELECTOR);
+      if (modal) {
+        interactedModals.add(modal);
+        event.target.closest?.(COMPOSER_CONTAINER_SELECTOR)?.removeAttribute(COLLAPSED_ATTRIBUTE);
+        return;
+      }
+
+      const inlineComposer = event.target.closest?.(".InputLike.Editable");
+      const comments = inlineComposer?.closest(".Comments-container");
+      const footer = comments?.firstElementChild?.firstElementChild;
+      const editor = inlineComposer?.querySelector('[contenteditable="true"]');
+      if (!editor || !footer?.contains(inlineComposer) || inlineComposer.matches(":focus-within"))
+        return;
+
+      event.preventDefault();
+      pendingInlineComposer = { editor, inlineComposer };
+    };
+
+    const handlePointerUp = (event) => {
+      const pendingComposer = pendingInlineComposer;
+      pendingInlineComposer = undefined;
+      if (!pendingComposer?.inlineComposer.contains(event.target)) return;
+
+      browserWindow.requestAnimationFrame(() => pendingComposer.editor.focus());
+    };
+
+    const handlePointerCancel = () => {
+      pendingInlineComposer = undefined;
+    };
+
+    const handleFocusIn = (event) => {
+      const modal = event.target.closest?.(COMMENT_MODAL_SELECTOR);
+      if (modal && pendingModals.has(modal)) {
+        blurProgrammaticFocus(modal, event.target);
+      }
+    };
+
+    const refresh = () => {
+      browserDocument.querySelectorAll(COMMENT_MODAL_SELECTOR).forEach(collapseAutofocusedComposer);
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      refresh();
+
+      const target = browserDocument.body ?? browserDocument.documentElement;
+      if (!target) return;
+
+      browserDocument.addEventListener("pointerdown", handlePointerDown, true);
+      browserDocument.addEventListener("pointerup", handlePointerUp, true);
+      browserDocument.addEventListener("pointercancel", handlePointerCancel, true);
+      browserDocument.addEventListener("focusin", handleFocusIn, true);
+      observer = new browserWindow.MutationObserver(refresh);
+      observer.observe(target, { childList: true, subtree: true });
+    };
+
+    const destroy = () => {
+      browserDocument.removeEventListener("pointerdown", handlePointerDown, true);
+      browserDocument.removeEventListener("pointerup", handlePointerUp, true);
+      browserDocument.removeEventListener("pointercancel", handlePointerCancel, true);
+      browserDocument.removeEventListener("focusin", handleFocusIn, true);
+      pendingTimers.forEach((timerId) => browserWindow.clearTimeout(timerId));
+      pendingTimers.clear();
+      observer?.disconnect();
+      observer = undefined;
+      pendingInlineComposer = undefined;
+      started = false;
+    };
+
+    return { destroy, start };
+  };
 
   const HOME_COMPOSER_STYLE = `
   html[data-zb-home-page="true"][data-zb-show-home-composer="false"]
@@ -4620,6 +4742,40 @@ ${createPaletteVariables(flavors.mocha)}
     border-color: var(--zb-border-strong) !important;
   }
 
+  html[data-zb-theme] .Popover-content > .Popover-arrow::after {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .TooltipContent,
+  html[data-zb-theme] .TooltipContent.TooltipContent--white {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .TooltipContent
+    :where(.TooltipContent-children, div, span, p, strong) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme] body .TooltipContent.TooltipContent--white,
+  html[data-zb-theme] body .TooltipContent.TooltipContent--white * {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme] .TooltipContent .TooltipContent-arrow::after,
+  html[data-zb-theme]
+    .TooltipContent.TooltipContent--white
+    .TooltipContent-arrow::after {
+    background: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
   html[data-zb-theme]
     :is(
       .PushNotifications-menu,
@@ -4900,7 +5056,9 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme] .EmoticonPopover {
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
     color: var(--zb-text) !important;
+    overflow: hidden !important;
   }
 
   html[data-zb-theme] .EmoticonPopover > svg {
@@ -4908,9 +5066,53 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-surface) !important;
   }
 
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:first-child
+    li {
+    padding-block: 2px !important;
+    padding-inline: 3px !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul
+    > li {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul
+    > .css-1c21y8s {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
   html[data-zb-theme] .EmoticonPopover li:hover,
   html[data-zb-theme] .EmoticonPopover li:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
+    background-color: var(--zb-surface-hover) !important;
     outline-color: var(--zb-primary) !important;
   }
 
@@ -5012,6 +5214,191 @@ ${createPaletteVariables(flavors.mocha)}
     > div
     > div:last-child {
     color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder):is(
+      :hover,
+      :focus-within
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Modal .MaterialLibraryNav-Folder .nav-name {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder)
+    .nav-num {
+    min-width: 20px !important;
+    padding-inline: 6px !important;
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active
+    .nav-num {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .ReferenceModal :is(.InputLike, .Select-button) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .ReferenceModal
+    :is(.InputLike, .Select-button):is(:hover, :focus, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:first-child
+    :where(h1, h2, h3, p, div, span, label) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:first-child
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    > div:first-child,
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    > div:first-child
+    :where(div, span, label) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [dir="auto"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"] {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"]
+    [dir="auto"] {
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme] .Modal:has(canvas[alt="二维码"]) .Modal-content div {
@@ -6879,6 +7266,486 @@ ${createPaletteVariables(flavors.mocha)}
     fill: currentColor !important;
   }
 
+  html[data-zb-theme] .Comments-container::before,
+  html[data-zb-theme] .Comments-container::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .ContentItem-action:has(.ZDI--ChatBubbleFill24)::after {
+    border: 0 !important;
+    content: none !important;
+    display: none !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichContent--hasHotComment {
+    padding-bottom: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)),
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)) {
+    color: var(--zb-primary) !important;
+    cursor: pointer !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)):is(
+      :hover,
+      :focus-visible
+    ),
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: transparent !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .List-item:has(.Comments-container) {
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    img:is(.lazy, .origin_image.zh-lightbox-thumb) {
+    animation: none !important;
+    opacity: 1 !important;
+    transition: none !important;
+  }
+
+  html[data-zb-theme] .Comments-container,
+  html[data-zb-theme] .Comments-container > div {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Comments-container {
+    border: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Comments-container > div:first-child {
+    border: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    outline: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:has(.InputLike.Editable) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:first-child:has(.InputLike.Editable) {
+    bottom: 0 !important;
+    border-top: 0 !important;
+    box-shadow: 0 -6px 12px
+      color-mix(in srgb, var(--ctp-crust) 14%, transparent) !important;
+    margin-bottom: 0 !important;
+    margin-inline: -20px !important;
+    order: 100 !important;
+    padding: 10px 20px !important;
+    position: sticky !important;
+    top: auto !important;
+    transform: none !important;
+    z-index: 3 !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:first-child:has(.InputLike.Editable)
+    > div:first-child {
+    margin-bottom: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:has(.InputLike.Editable):not(:has([data-id])):not(:first-child) {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2) {
+    border: 1px solid var(--zb-border-strong) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:has(> .ZDI--ArrowRightSmall24) {
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    color: var(--zb-text-muted) !important;
+    cursor: pointer !important;
+    margin: 10px auto !important;
+    min-height: 44px !important;
+    padding: 6px 10px !important;
+    width: fit-content !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:has(> .ZDI--ArrowRightSmall24)::before {
+    border: 0 !important;
+    content: none !important;
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:has(> .ZDI--ArrowRightSmall24):is(
+      :hover,
+      :focus-within,
+      :active
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child {
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child
+    > div:last-child
+    > .css-m0zh86,
+  html[data-zb-theme]
+    .Comments-container
+    > div:first-child
+    > div:nth-child(2)
+    > div:first-child
+    > div:last-child
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme] .Comments-container .CommentContent {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    a:not(:has(img.Avatar)) {
+    color: var(--zb-primary) !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+    cursor: pointer !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:is(.Button--withLabel, .Button--secondary) {
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+    min-height: 32px !important;
+    padding-inline: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:is(.Button--withLabel, .Button--secondary):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    outline-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:is(.Button--withLabel, .Button--secondary):is(
+      :hover,
+      :focus-visible
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:has(.ZDI--HeartFill24):is(
+      :hover,
+      :focus-visible,
+      .Button--red,
+      .is-active,
+      [aria-pressed="true"]
+    ) {
+    background-color: color-mix(in srgb, var(--ctp-red) 16%, transparent) !important;
+    color: var(--ctp-red) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .Button:has(.ZDI--HeartFill24):is(
+      :hover,
+      :focus-visible,
+      .Button--red,
+      .is-active,
+      [aria-pressed="true"]
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .Comments-container [data-id] {
+    border-bottom: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .Comments-container [data-id] [data-id] {
+    border-bottom-color: transparent !important;
+    position: relative !important;
+  }
+
+  html[data-zb-theme] .Comments-container [data-id] [data-id]::before {
+    border-top: 1px solid var(--zb-border-strong) !important;
+    content: "" !important;
+    left: 34px !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+  }
+
+  html[data-zb-theme] .Comments-container img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div > div > .InputLike.Editable) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div > div > .InputLike.Editable)
+    > div:first-child {
+    border-radius: 6px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Comments-container .InputLike.Editable {
+    background-color: var(--zb-surface) !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    color: var(--zb-text) !important;
+    padding-inline: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
+    background-color: transparent !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    .InputLike.Editable:focus-within {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div > div > .InputLike.Editable:focus-within) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    :is(
+      .Skeleton,
+      [class*="skeleton" i],
+      .PlaceHolder,
+      .PlaceHolder-inner,
+      [class*="placeholder" i]:not([class*="DraftEditorPlaceholder"]),
+      [aria-busy="true"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Comments-container .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div + svg[width="656"][height="44"]) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div + svg[width="656"][height="44"])
+    > div:first-child {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div + svg[width="656"][height="44"])
+    > svg,
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div + svg[width="656"][height="44"])
+    > svg
+    path {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(
+      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--zb-text-muted) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Comments-container .BounceLoading {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme] .Comments-container .BounceLoading-child {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    button:has(.ZDI--ArrowUpSmall24)
+    > span:has(.ZDI--ArrowUpSmall24),
+  html[data-zb-theme] .Comments-container .ZDI--ArrowUpSmall24 {
+    display: none !important;
+  }
+
   html[data-zb-theme] .Modal-content:has(.CommentContent) {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
@@ -6915,6 +7782,53 @@ ${createPaletteVariables(flavors.mocha)}
     > div
     > div:first-child
     > div:last-child
+    > .css-m0zh86 {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:first-child
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div:has(> div:nth-child(2) > div:nth-child(3) [data-id])
+    > div:first-child
+    > div:only-child {
+    box-sizing: border-box !important;
+    padding: 4px 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:nth-child(2):has(> div:nth-child(3) [data-id])
+    > div:nth-child(2)
+    > div:only-child {
+    color: var(--zb-text-muted) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:last-child
     > div:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary) !important;
@@ -6922,8 +7836,16 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme]
     .Modal-content:has(.CommentContent)
-    :is(.CommentContent, a) {
+    .CommentContent {
     color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    a:not(:has(img.Avatar)) {
+    color: var(--zb-primary) !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
   }
 
   html[data-zb-theme]
@@ -6931,14 +7853,141 @@ ${createPaletteVariables(flavors.mocha)}
     .Button:not(.Button--blue) {
     background-color: transparent !important;
     color: var(--zb-text-muted) !important;
+    cursor: pointer !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:is(.Button--withLabel, .Button--secondary) {
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+    min-height: 32px !important;
+    padding-inline: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:is(.Button--withLabel, .Button--secondary):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    outline-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:is(.Button--withLabel, .Button--secondary):is(
+      :hover,
+      :focus-visible
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:has(.ZDI--HeartFill24):is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:has(.ZDI--HeartFill24):is(
+      .Button--red,
+      .is-active,
+      [aria-pressed="true"]
+    ) {
+    background-color: color-mix(in srgb, var(--ctp-red) 16%, transparent) !important;
+    color: var(--ctp-red) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:has(.ZDI--HeartFill24):is(
+      :hover,
+      :focus-visible,
+      .Button--red,
+      .is-active,
+      [aria-pressed="true"]
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    [data-id] {
+    border-bottom: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    [data-id]
+    > div:first-child {
+    animation: none !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    [data-id]
+    [data-id] {
+    border-bottom-color: transparent !important;
+    position: relative !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    [data-id]
+    [data-id]::before {
+    border-top: 1px solid var(--zb-border-strong) !important;
+    content: "" !important;
+    left: 34px !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    div:has(> div > div > .InputLike.Editable) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    div:has(> div > div > .InputLike.Editable)
+    > div:first-child {
+    border-radius: 6px !important;
+    overflow: hidden !important;
   }
 
   html[data-zb-theme]
     .Modal-content:has(.CommentContent)
     .InputLike.Editable {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
+    background-color: var(--zb-surface) !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
     color: var(--zb-text) !important;
+    padding-inline: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button.Button--primary {
+    border-radius: 6px !important;
   }
 
   html[data-zb-theme]
@@ -6951,14 +8000,183 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme]
     .Modal-content:has(.CommentContent)
     .InputLike.Editable:focus-within {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    div:has(> div > div > .InputLike.Editable:focus-within) {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    div[data-zb-comment-composer-collapsed]
+    > div:nth-child(2) {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
     .Modal-content:has(.CommentContent)
     :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
+    background-color: transparent !important;
     color: var(--zb-text-subtle) !important;
+  }
+
+  /* Keep the comment theme active while sorting temporarily unmounts CommentContent. */
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:first-child
+    > div:first-child
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:first-child
+    > div:last-child
+    > .css-m0zh86 {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    :is(
+      .Skeleton,
+      [class*="skeleton" i],
+      .PlaceHolder,
+      .PlaceHolder-inner,
+      [class*="placeholder" i]:not([class*="DraftEditorPlaceholder"]),
+      [class*="loading" i],
+      [aria-busy="true"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"]) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"])
+    > div:first-child {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"])
+    > svg,
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"])
+    > svg
+    path {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    .comment_img {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
   }
 
   html[data-zb-theme] .QuestionPage .AnswerFormPortalContainer,
@@ -6974,6 +8192,120 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer {
     background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    > div:first-child
+    > div:first-child {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    > div:first-child
+    > div:first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title {
+    color: var(--zb-text-subtle) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title
+    > div {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-radius: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title::before {
+    background-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title:is(:hover, :focus-within)::before {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer:has(.Catalog)
+    .toolbarV3
+    .ToolbarButton:has(.ZDI--Catalog24) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer:has(.Catalog)
+    .toolbarV3
+    .ToolbarButton:has(.ZDI--Catalog24)
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:first-child
+    :where(div, span, button, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:nth-child(2) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
   }
 
   html[data-zb-theme] .QuestionPage .toolbarV3,
@@ -7009,6 +8341,16 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .QuestionPage .ToolbarDivider {
     background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .ToolbarV3Menu-container
+    .Button
+    > span:last-child {
+    padding: 2px 6px !important;
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
   }
 
   html[data-zb-theme]
@@ -7061,6 +8403,529 @@ ${createPaletteVariables(flavors.mocha)}
     background-color: var(--zb-surface-raised) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div
+    > div:first-child
+    :where(div, span, svg) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div
+    > :last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:first-child
+    :where(div, span, button, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    :where(div, span, svg, button) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    button {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    button
+    :is(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(2) {
+    padding: 8px 10px !important;
+    background-color: var(--zb-surface) !important;
+    border-left: 3px solid var(--zb-primary) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    > div {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    > div:is(:hover, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    img {
+    border-radius: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(4)
+    > div {
+    padding: 2px 6px !important;
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    .CircleLoadingBar
+    .path {
+    stroke: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:nth-child(2) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div:is(:hover, :focus-within) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> div > textarea[placeholder="请描述你想要配图的内容"])
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"]) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(
+      > textarea[placeholder="请描述你想要配图的内容"]
+    ):focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    textarea[placeholder="请描述你想要配图的内容"] {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    textarea[placeholder="请描述你想要配图的内容"]::placeholder {
+    color: var(--zb-text-subtle) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    [role="button"][aria-label^="选择"] {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    color: var(--zb-primary) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    [role="button"][aria-label^="选择"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"])
+    > div:last-child
+    > div:last-child
+    > div {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"])
+    > div:last-child
+    > div:last-child
+    > div
+    > div {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content:has(.Menu-item > div > div:first-child:empty)
+    .Menu-item
+    > div
+    > div:last-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content:has(.Menu-item > div > div:first-child:empty)
+    .Menu-item:is(:hover, :focus-visible)
+    > div
+    > div:last-child {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-main {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side {
+    border-right: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-title,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-versionDate {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .DraftHistory-history
+    > div:not(:empty):is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .DraftHistory-history
+    .DraftHistory-versionDate[style*="rgb(23, 114, 246)"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-draft {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .PreviewEditableInstance.InputLike.Editable {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .PreviewEditableInstance
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-actions {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc > div {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    :where(div, h1, h2, h3, p, span) {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    :where(h1, h2, h3, p, div, span, svg) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc button {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    button:is(:hover, :focus, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    div:has(> svg.ZDI)
+    > div:nth-child(n + 3) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 4px !important;
   }
 
   html[data-zb-theme] .Answers-select,
@@ -7292,6 +9157,84 @@ ${createPaletteVariables(flavors.mocha)}
     > svg {
     color: var(--zb-surface) !important;
     fill: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > svg {
+    color: var(--zb-surface-raised) !important;
+    fill: var(--zb-surface-raised) !important;
+    filter: drop-shadow(0 1px 0 var(--zb-border-strong)) !important;
+    left: 50% !important;
+    margin-top: 4px !important;
+    stroke: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div {
+    background-color: transparent !important;
+    padding-block: 4px !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > svg
+    + div {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div
+    > div {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    box-sizing: border-box !important;
+    color: var(--zb-text-muted) !important;
+    cursor: pointer !important;
+    margin-inline: 4px !important;
+    min-height: 36px !important;
+    padding-inline: 10px !important;
+    width: calc(100% - 8px) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div
+    > div:is(:hover, :focus, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme]
@@ -7580,6 +9523,7 @@ ${createPaletteVariables(flavors.mocha)}
   };
 
   createThemeFeature(window, themeSettings).start();
+  createCommentComposerFeature(window).start();
   createHomeSidebarFeature(window, userscriptSettings).start();
   createHomeWidthFeature(window, homeWidthSettings).start();
   createHomeComposerFeature(window, homeComposerSettings).start();

@@ -173,6 +173,13 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicSuggestion-Popover .Menu-item.is-active");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".EmoticonPopover > svg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".EmoticonPopover li:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".EmoticonPopover\n    > div:last-child\n    > div:last-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".EmoticonPopover\n    > div:last-child\n    > div:first-child\n    li {\n    padding-block: 2px !important;\n    padding-inline: 3px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> .css-1c21y8s");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.MaterialLibrary-SearchInputContainer)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> button.Button--primary)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -324,9 +331,161 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("position: absolute !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("inset: 0 !important");
 
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container::before");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("content: none !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ContentItem-action:has(.ZDI--ChatBubbleFill24)::after",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichContent--hasHotComment");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.QuestionPage\n    a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar))',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "color: var(--zb-primary) !important;\n    cursor: pointer !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: transparent !important;\n    color: var(--zb-primary-hover) !important;\n    outline: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionPage\n    .List-item:has(.Comments-container) {\n    overflow: clip !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionPage\n    img:is(.lazy, .origin_image.zh-lightbox-thumb) {\n    animation: none !important;\n    opacity: 1 !important;\n    transition: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:nth-child(2)\n    > div:first-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container .CommentContent");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container\n    a:not(:has(img.Avatar))");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container {\n    border: 0 !important;\n    border-radius: 8px !important;\n    box-shadow: none !important;\n    outline: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container > div:first-child {\n    border: 0 !important;\n    display: flex !important;\n    flex-direction: column !important;\n    outline: 0 !important;\n    padding-bottom: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:has(.InputLike.Editable) {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:first-child:has(.InputLike.Editable) {\n    bottom: 0 !important;\n    border-top: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin-bottom: 0 !important;\n    margin-inline: -20px !important;\n    order: 100 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "position: sticky !important;\n    top: auto !important;\n    transform: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:first-child:has(.InputLike.Editable)\n    > div:first-child {\n    margin-bottom: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:has(.InputLike.Editable):not(:has([data-id])):not(:first-child) {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:nth-child(2) {\n    border: 1px solid var(--zb-border-strong) !important;\n    outline: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    > div:first-child\n    > div:nth-child(2)\n    > div:has(> .ZDI--ArrowRightSmall24) {\n    border-radius: 6px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> .ZDI--ArrowRightSmall24)::before {\n    border: 0 !important;\n    content: none !important;\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> .ZDI--ArrowRightSmall24):is(\n      :hover,\n      :focus-within,\n      :active\n    ) {\n    background-color: var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container\n    .InputLike.Editable");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container [data-id] [data-id]::before");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Comments-container\n    div:has(> div + svg[width="656"][height="44"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container .PlaceHolder-bg");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("opacity: 1 !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Comments-container\n    div:has(\n      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]\n    ) {\n    background-color: var(--zb-surface) !important;\n    border: 0 !important;\n    box-shadow: none !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      '.Comments-container\n    :is(\n      .Skeleton,\n      [class*="skeleton" i],\n      .PlaceHolder,\n      .PlaceHolder-inner,\n      [class*="placeholder" i]:not([class*="DraftEditorPlaceholder"]),\n      [class*="loading" i]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container .BounceLoading {\n    background: transparent !important;\n    border: 0 !important;\n    box-shadow: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container .BounceLoading-child");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container .ZDI--ArrowUpSmall24");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("button:has(.ZDI--ArrowUpSmall24)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'body\n    > div\n    > div\n    > div:has(> svg[width="26"][height="10"] + div) {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "fill: var(--zb-surface-raised) !important;\n    filter: drop-shadow(0 1px 0 var(--zb-border-strong)) !important;\n    left: 50% !important;\n    margin-top: 4px !important;\n    stroke: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(> svg[width="26"][height="10"] + div)\n    > div\n    > div:is(:hover, :focus, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(> svg[width="26"][height="10"] + div)\n    > svg\n    + div {\n    color: var(--zb-text) !important;',
+    );
+
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.CommentContent)\n    [data-id]\n    > div:first-child {\n    animation: none !important;\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Modal-content:has(.CommentContent)\n    .InputLike.Editable",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-inline: 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)\n    [data-id]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "border-bottom: 1px solid var(--zb-border-strong) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-id]\n    [data-id]::before");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("left: 34px !important");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("[data-id]:last-child {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)\n    img.Avatar");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.CommentContent)\n    div:has(> div > div > .InputLike.Editable)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.CommentContent)\n    .Button.Button--primary",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button:is(.Button--withLabel, .Button--secondary):is(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> div:nth-child(2) > div:nth-child(3) [data-id])\n    > div:first-child\n    > div:only-child {\n    box-sizing: border-box !important;\n    padding: 4px 8px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2):has(> div:nth-child(3) [data-id])\n    > div:nth-child(2)\n    > div:only-child {\n    color: var(--zb-text-muted) !important;\n    opacity: 1 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.CommentContent)\n    .Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button:has(.ZDI--HeartFill24):is(:hover, :focus-visible)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.InputLike.Editable):has(img.Avatar)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> .css-m0zh86");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[class*="placeholder" i]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-mask path");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('div:has(> div + svg[width="656"][height="44"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.InputLike.Editable):has(img.Avatar)\n    img.Avatar",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".comment_img");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[class*="placeholder" i]:not([class*="DraftEditorPlaceholder"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "div:has(> div > div > .InputLike.Editable:focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div[data-zb-comment-composer-collapsed]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "div:has(> div > div > .InputLike.Editable)\n    > div:first-child",
     );
 
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .AnswerFormPortalContainer");
@@ -336,6 +495,77 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .toolbarV3");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .ToolbarButton");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .ToolbarDivider");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionAnswers-answerAdd\n    > .AnswerAdd\n    > div:first-child {\n    background-color: var(--zb-surface) !important;\n    border-bottom: 1px solid var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionAnswers-answerAdd\n    > .AnswerAdd\n    > div:nth-child(2) {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child {\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child\n    > div:last-child\n    > div {\n    background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div\n    > div:first-child\n    :where(div, span, svg) {\n    color: var(--zb-text) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div\n    > :last-child {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AnswerFormPortalContainer\n    .Catalog\n    > div:first-child\n    > div:first-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Catalog\n    .Catalog-Title:is(:hover, :focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Catalog\n    .Catalog-Title\n    > div {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Catalog\n    .Catalog-Title:is(:hover, :focus-within)::before",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AnswerFormPortalContainer:has(.Catalog)\n    .toolbarV3\n    .ToolbarButton:has(.ZDI--Catalog24)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ToolbarV3Menu-container\n    .Button\n    > span:last-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ReferenceModal :is(.InputLike, .Select-button)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "div:has(> div:first-child > h1):has(\n      > div:last-child button.Button--primary",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Modal:has(.Modal-content > div[class*="r-"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".DraftHistoryModal\n    .PreviewEditableInstance.InputLike.Editable",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .EditorHelpDoc");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".EditorHelpDoc\n    div:has(> svg.ZDI)\n    > div:nth-child(n + 3)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('textarea[placeholder="请描述你想要配图的内容"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[role="button"][aria-label^="选择"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Popover-content:has(.Menu-item > div > div:first-child:empty)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('img[src*="editor_ai_image"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ZDI--ExclamationCircle24");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AIAssistantPanelV2-container\n    .CircleLoadingBar\n    .path",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TooltipContent.TooltipContent--white");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TooltipContent-arrow::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TooltipContent\n    :where(.TooltipContent-children, div, span, p, strong)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("body .TooltipContent.TooltipContent--white *");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("-webkit-text-fill-color: var(--zb-text) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "button\n    :is(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;",
+    );
 
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Answers-select .Select-option");
     expect(CATPPUCCIN_THEME_STYLE).toContain(

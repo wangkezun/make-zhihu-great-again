@@ -1,3 +1,4 @@
+import { createCommentComposerFeature } from "./features/comment-composer.js";
 import { createHomeComposerFeature, HOME_COMPOSER_STORAGE_KEY } from "./features/home-composer.js";
 import { createHomeSidebarFeature, HOME_SIDEBAR_STORAGE_KEY } from "./features/home-sidebar.js";
 import { createHomeWidthFeature, HOME_WIDTH_STORAGE_KEY } from "./features/home-width.js";
@@ -33,6 +34,7 @@ const homeComposerSettings = {
 };
 
 createThemeFeature(window, themeSettings).start();
+createCommentComposerFeature(window).start();
 createHomeSidebarFeature(window, userscriptSettings).start();
 createHomeWidthFeature(window, homeWidthSettings).start();
 createHomeComposerFeature(window, homeComposerSettings).start();
