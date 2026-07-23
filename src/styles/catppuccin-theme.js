@@ -2703,7 +2703,14 @@ ${createPaletteVariables("mocha")}
     margin: 0 !important;
   }
 
-  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions .Button {
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button {
     box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -2722,24 +2729,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     .QuestionHeader-footer
     .QuestionHeader-actions
-    > .Button {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 34px !important;
-    margin: 0 !important;
-    padding: 0 10px !important;
-    border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    line-height: 32px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
     > .Button:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
@@ -2749,13 +2738,25 @@ ${createPaletteVariables("mocha")}
     .QuestionHeader-footer
     .QuestionHeader-actions
     > .Button
+    svg,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button
     svg {
     width: 16px !important;
     height: 16px !important;
-    margin-left: 4px !important;
     color: inherit !important;
     fill: currentColor !important;
     flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button
+    svg {
+    margin-left: 4px !important;
   }
 
   html[data-zb-theme]
@@ -2771,12 +2772,7 @@ ${createPaletteVariables("mocha")}
     .QuestionHeaderActions
     .Button
     svg {
-    width: 16px !important;
-    height: 16px !important;
     margin-right: 6px !important;
-    color: inherit !important;
-    fill: currentColor !important;
-    flex: 0 0 16px !important;
   }
 
   html[data-zb-theme]
@@ -3269,10 +3265,13 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button {
-    display: inline-flex !important;
+    .QuestionRichText-more.Button,
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
     box-sizing: border-box !important;
-    align-items: center !important;
     min-height: 28px !important;
     padding: 3px 8px !important;
     border-radius: 6px !important;
@@ -3284,7 +3283,29 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button:is(:hover, :focus-visible) {
+    .QuestionRichText-more.Button {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
+    display: block !important;
+    width: max-content !important;
+    margin: 8px auto 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary) !important;
     -webkit-text-fill-color: var(--zb-primary) !important;
@@ -3299,7 +3320,12 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button:focus-visible {
+    .QuestionRichText-more.Button:focus-visible,
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
   }
@@ -3314,43 +3340,6 @@ ${createPaletteVariables("mocha")}
     color: inherit !important;
     fill: currentColor !important;
     flex: 0 0 16px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button {
-    display: block !important;
-    box-sizing: border-box !important;
-    width: max-content !important;
-    min-height: 28px !important;
-    margin: 8px auto 0 !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
   }
 
   html[data-zb-theme] .QuestionPage .VoteButton {

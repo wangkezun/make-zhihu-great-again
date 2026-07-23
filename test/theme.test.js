@@ -228,7 +228,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("> svg {\n    color: var(--zb-surface)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("box-shadow: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem .RichContent-inner .RichText");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionRichText-more.Button {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionRichText-more.Button,");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".QuestionRichText-more.Button:is(:hover, :focus-visible)",
     );
@@ -336,7 +336,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("background-color: transparent !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-color: var(--zb-primary) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionHeader-footer .QuestionHeaderActions .Button",
+      ".QuestionHeader-footer\n    .QuestionHeaderActions\n    .Button,",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-actions\n    > .Button {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(

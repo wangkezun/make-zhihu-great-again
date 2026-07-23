@@ -1,4 +1,5 @@
 import { CATPPUCCIN_THEME_STYLE } from "../styles/catppuccin-theme.js";
+import { clearMenuCommands, ensureStyle, persistMode, readStoredMode } from "./shared.js";
 
 export const THEME_STORAGE_KEY = "zhihu-beautification:theme";
 export const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
@@ -26,27 +27,6 @@ export const createThemeFeature = (browserWindow, settings) => {
   let observer;
   let mode;
   let started = false;
-
-  const readMode = () => {
-    try {
-      const storedMode = settings?.getMode?.("system") ?? "system";
-      return isThemeMode(storedMode) ? storedMode : "system";
-    } catch {
-      return "system";
-    }
-  };
-
-  const injectStyle = () => {
-    if (browserDocument.getElementById(STYLE_ID)) return;
-
-    const target = browserDocument.head ?? browserDocument.documentElement;
-    if (!target) return;
-
-    const style = browserDocument.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = CATPPUCCIN_THEME_STYLE;
-    target.append(style);
-  };
 
   const markArrowPanelFromIcon = (icon) => {
     const button = icon.closest("button");
@@ -113,20 +93,10 @@ export const createThemeFeature = (browserWindow, settings) => {
     Array.from(body.children).forEach(observePortalRoot);
   };
 
-  const clearMenuCommands = () => {
-    if (settings?.menu?.unregister) {
-      menuCommandIds.splice(0).forEach((commandId) => {
-        settings.menu.unregister(commandId);
-      });
-      return;
-    }
-    menuCommandIds.length = 0;
-  };
-
   const updateMenuCommands = () => {
     if (!settings?.menu?.register) return;
 
-    clearMenuCommands();
+    clearMenuCommands(settings.menu, menuCommandIds);
     THEME_MODES.forEach((themeMode) => {
       const marker = themeMode === mode ? "✓" : "○";
       const commandId = settings.menu.register(`${marker} 主题：${THEME_LABELS[themeMode]}`, () =>
@@ -139,20 +109,16 @@ export const createThemeFeature = (browserWindow, settings) => {
   function setMode(nextMode) {
     mode = isThemeMode(nextMode) ? nextMode : "system";
     browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-    try {
-      settings?.setMode?.(mode);
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
+    persistMode(settings, mode);
     updateMenuCommands();
   }
 
   const start = () => {
     if (started) return;
     started = true;
-    mode = readMode();
+    mode = readStoredMode(settings, isThemeMode, "system");
     browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-    injectStyle();
+    ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
     markArrowPanels();
     setupPortalObserver();
     browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
@@ -163,7 +129,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     observer?.disconnect();
     observer = undefined;
     browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
-    clearMenuCommands();
+    clearMenuCommands(settings?.menu, menuCommandIds);
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
     markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));

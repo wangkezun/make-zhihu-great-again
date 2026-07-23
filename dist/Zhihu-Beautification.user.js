@@ -159,42 +159,85 @@
   }
 `;
 
+  const ensureStyle = (browserDocument, styleId, styleText) => {
+    if (browserDocument.getElementById(styleId)) return;
+
+    const target = browserDocument.head ?? browserDocument.documentElement;
+    if (!target) return;
+
+    const style = browserDocument.createElement("style");
+    style.id = styleId;
+    style.textContent = styleText;
+    target.append(style);
+  };
+
+  const readBooleanPreference = (browserWindow, settings, storageKey, defaultValue = true) => {
+    try {
+      if (settings?.getPreference) return Boolean(settings.getPreference(defaultValue));
+
+      const storedValue = browserWindow.localStorage.getItem(storageKey);
+      return storedValue === null ? defaultValue : storedValue === "true";
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const persistBooleanPreference = (browserWindow, settings, storageKey, value) => {
+    try {
+      if (settings?.setPreference) {
+        settings.setPreference(value);
+      } else {
+        browserWindow.localStorage.setItem(storageKey, String(value));
+      }
+    } catch {
+      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+    }
+  };
+
+  const readStoredMode = (settings, isValidMode, defaultMode) => {
+    try {
+      const storedMode = settings?.getMode?.(defaultMode) ?? defaultMode;
+      return isValidMode(storedMode) ? storedMode : defaultMode;
+    } catch {
+      return defaultMode;
+    }
+  };
+
+  const persistMode = (settings, mode) => {
+    try {
+      settings?.setMode?.(mode);
+    } catch {
+      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+    }
+  };
+
+  const clearMenuCommands = (menu, commandIds) => {
+    if (menu?.unregister) {
+      commandIds.splice(0).forEach((commandId) => {
+        menu.unregister(commandId);
+      });
+      return;
+    }
+    commandIds.length = 0;
+  };
+
   const HOME_COMPOSER_STORAGE_KEY = "zhihu-beautification:show-home-composer";
 
   const ROOT_ATTRIBUTE = "data-zb-show-home-composer";
   const STYLE_ID$3 = "zb-home-composer-style";
 
-  const readPreference$1 = (browserWindow, settings) => {
-    try {
-      if (settings?.getPreference) return Boolean(settings.getPreference(true));
-
-      const storedValue = browserWindow.localStorage.getItem(HOME_COMPOSER_STORAGE_KEY);
-      return storedValue === null ? true : storedValue === "true";
-    } catch {
-      return true;
-    }
-  };
-
   const createHomeComposerFeature = (browserWindow, settings) => {
     const browserDocument = browserWindow.document;
-    let shouldShowComposer = readPreference$1(browserWindow, settings);
+    let shouldShowComposer = readBooleanPreference(
+      browserWindow,
+      settings,
+      HOME_COMPOSER_STORAGE_KEY,
+    );
     let menuCommandId;
     let started = false;
 
     const updateRootState = () => {
       browserDocument.documentElement?.setAttribute(ROOT_ATTRIBUTE, String(shouldShowComposer));
-    };
-
-    const injectStyle = () => {
-      if (browserDocument.getElementById(STYLE_ID$3)) return;
-
-      const target = browserDocument.head ?? browserDocument.documentElement;
-      if (!target) return;
-
-      const style = browserDocument.createElement("style");
-      style.id = STYLE_ID$3;
-      style.textContent = HOME_COMPOSER_STYLE;
-      target.append(style);
     };
 
     const updateMenuCommand = () => {
@@ -212,15 +255,7 @@
 
     const savePreference = (value) => {
       shouldShowComposer = value;
-      try {
-        if (settings?.setPreference) {
-          settings.setPreference(value);
-        } else {
-          browserWindow.localStorage.setItem(HOME_COMPOSER_STORAGE_KEY, String(value));
-        }
-      } catch {
-        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-      }
+      persistBooleanPreference(browserWindow, settings, HOME_COMPOSER_STORAGE_KEY, value);
       updateRootState();
       updateMenuCommand();
     };
@@ -229,7 +264,7 @@
       if (started) return;
       started = true;
       updateRootState();
-      injectStyle();
+      ensureStyle(browserDocument, STYLE_ID$3, HOME_COMPOSER_STYLE);
       updateMenuCommand();
     };
 
@@ -327,20 +362,9 @@
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
   const STYLE_ID$2 = "zb-home-sidebar-style";
 
-  const readPreference = (browserWindow, settings) => {
-    try {
-      if (settings?.getPreference) return Boolean(settings.getPreference(true));
-
-      const storedValue = browserWindow.localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY);
-      return storedValue === null ? true : storedValue === "true";
-    } catch {
-      return true;
-    }
-  };
-
   const createHomeSidebarFeature = (browserWindow, settings) => {
     const browserDocument = browserWindow.document;
-    let shouldHideSidebar = readPreference(browserWindow, settings);
+    let shouldHideSidebar = readBooleanPreference(browserWindow, settings, HOME_SIDEBAR_STORAGE_KEY);
     let observer;
     let questionPositionObserver;
     let animationFrameId;
@@ -471,18 +495,6 @@
       questionPositionObserver.observe(questionContent);
     };
 
-    const injectStyle = () => {
-      if (browserDocument.getElementById(STYLE_ID$2)) return;
-
-      const target = browserDocument.head ?? browserDocument.documentElement;
-      if (!target) return;
-
-      const style = browserDocument.createElement("style");
-      style.id = STYLE_ID$2;
-      style.textContent = HOME_SIDEBAR_STYLE;
-      target.append(style);
-    };
-
     const findHomeSidebar = () => {
       const container = browserDocument.querySelector(".Topstory-container");
       const rightSidebar = container?.querySelector(
@@ -543,15 +555,7 @@
 
     const savePreference = (value) => {
       shouldHideSidebar = value;
-      try {
-        if (settings?.setPreference) {
-          settings.setPreference(value);
-        } else {
-          browserWindow.localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, String(value));
-        }
-      } catch {
-        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-      }
+      persistBooleanPreference(browserWindow, settings, HOME_SIDEBAR_STORAGE_KEY, value);
       updateRootState();
       markSidebar();
       updateMenuCommand();
@@ -584,7 +588,7 @@
 
     const refresh = () => {
       updateRootState();
-      injectStyle();
+      ensureStyle(browserDocument, STYLE_ID$2, HOME_SIDEBAR_STYLE);
       markSidebar();
       setupQuestionPositionObserver();
       configureObserver();
@@ -741,41 +745,10 @@
     let mode;
     let started = false;
 
-    const readMode = () => {
-      try {
-        const storedMode = settings?.getMode?.("standard") ?? "standard";
-        return isWidthMode(storedMode) ? storedMode : "standard";
-      } catch {
-        return "standard";
-      }
-    };
-
-    const injectStyle = () => {
-      if (browserDocument.getElementById(STYLE_ID$1)) return;
-
-      const target = browserDocument.head ?? browserDocument.documentElement;
-      if (!target) return;
-
-      const style = browserDocument.createElement("style");
-      style.id = STYLE_ID$1;
-      style.textContent = HOME_WIDTH_STYLE;
-      target.append(style);
-    };
-
-    const clearMenuCommands = () => {
-      if (settings?.menu?.unregister) {
-        menuCommandIds.splice(0).forEach((commandId) => {
-          settings.menu.unregister(commandId);
-        });
-        return;
-      }
-      menuCommandIds.length = 0;
-    };
-
     const updateMenuCommands = () => {
       if (!settings?.menu?.register) return;
 
-      clearMenuCommands();
+      clearMenuCommands(settings.menu, menuCommandIds);
       HOME_WIDTH_MODES.forEach((widthMode) => {
         const marker = widthMode === mode ? "✓" : "○";
         const commandId = settings.menu.register(
@@ -789,25 +762,21 @@
     function setMode(nextMode) {
       mode = isWidthMode(nextMode) ? nextMode : "standard";
       browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
-      try {
-        settings?.setMode?.(mode);
-      } catch {
-        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-      }
+      persistMode(settings, mode);
       updateMenuCommands();
     }
 
     const start = () => {
       if (started) return;
       started = true;
-      mode = readMode();
+      mode = readStoredMode(settings, isWidthMode, "standard");
       browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
-      injectStyle();
+      ensureStyle(browserDocument, STYLE_ID$1, HOME_WIDTH_STYLE);
       updateMenuCommands();
     };
 
     const destroy = () => {
-      clearMenuCommands();
+      clearMenuCommands(settings?.menu, menuCommandIds);
       browserDocument.getElementById(STYLE_ID$1)?.remove();
       browserDocument.documentElement?.removeAttribute(WIDTH_ATTRIBUTE);
     };
@@ -3520,7 +3489,14 @@ ${createPaletteVariables("mocha")}
     margin: 0 !important;
   }
 
-  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions .Button {
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button {
     box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -3539,24 +3515,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     .QuestionHeader-footer
     .QuestionHeader-actions
-    > .Button {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 34px !important;
-    margin: 0 !important;
-    padding: 0 10px !important;
-    border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    line-height: 32px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
     > .Button:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
@@ -3566,13 +3524,25 @@ ${createPaletteVariables("mocha")}
     .QuestionHeader-footer
     .QuestionHeader-actions
     > .Button
+    svg,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button
     svg {
     width: 16px !important;
     height: 16px !important;
-    margin-left: 4px !important;
     color: inherit !important;
     fill: currentColor !important;
     flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button
+    svg {
+    margin-left: 4px !important;
   }
 
   html[data-zb-theme]
@@ -3588,12 +3558,7 @@ ${createPaletteVariables("mocha")}
     .QuestionHeaderActions
     .Button
     svg {
-    width: 16px !important;
-    height: 16px !important;
     margin-right: 6px !important;
-    color: inherit !important;
-    fill: currentColor !important;
-    flex: 0 0 16px !important;
   }
 
   html[data-zb-theme]
@@ -4086,10 +4051,13 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button {
-    display: inline-flex !important;
+    .QuestionRichText-more.Button,
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
     box-sizing: border-box !important;
-    align-items: center !important;
     min-height: 28px !important;
     padding: 3px 8px !important;
     border-radius: 6px !important;
@@ -4101,7 +4069,29 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button:is(:hover, :focus-visible) {
+    .QuestionRichText-more.Button {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
+    display: block !important;
+    width: max-content !important;
+    margin: 8px auto 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary) !important;
     -webkit-text-fill-color: var(--zb-primary) !important;
@@ -4116,7 +4106,12 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionHeader
-    .QuestionRichText-more.Button:focus-visible {
+    .QuestionRichText-more.Button:focus-visible,
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
   }
@@ -4131,43 +4126,6 @@ ${createPaletteVariables("mocha")}
     color: inherit !important;
     fill: currentColor !important;
     flex: 0 0 16px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button {
-    display: block !important;
-    box-sizing: border-box !important;
-    width: max-content !important;
-    min-height: 28px !important;
-    margin: 8px auto 0 !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
   }
 
   html[data-zb-theme] .QuestionPage .VoteButton {
@@ -6722,27 +6680,6 @@ ${createPaletteVariables("mocha")}
     let mode;
     let started = false;
 
-    const readMode = () => {
-      try {
-        const storedMode = settings?.getMode?.("system") ?? "system";
-        return isThemeMode(storedMode) ? storedMode : "system";
-      } catch {
-        return "system";
-      }
-    };
-
-    const injectStyle = () => {
-      if (browserDocument.getElementById(STYLE_ID)) return;
-
-      const target = browserDocument.head ?? browserDocument.documentElement;
-      if (!target) return;
-
-      const style = browserDocument.createElement("style");
-      style.id = STYLE_ID;
-      style.textContent = CATPPUCCIN_THEME_STYLE;
-      target.append(style);
-    };
-
     const markArrowPanelFromIcon = (icon) => {
       const button = icon.closest("button");
       const thirdRow = button?.parentElement;
@@ -6808,20 +6745,10 @@ ${createPaletteVariables("mocha")}
       Array.from(body.children).forEach(observePortalRoot);
     };
 
-    const clearMenuCommands = () => {
-      if (settings?.menu?.unregister) {
-        menuCommandIds.splice(0).forEach((commandId) => {
-          settings.menu.unregister(commandId);
-        });
-        return;
-      }
-      menuCommandIds.length = 0;
-    };
-
     const updateMenuCommands = () => {
       if (!settings?.menu?.register) return;
 
-      clearMenuCommands();
+      clearMenuCommands(settings.menu, menuCommandIds);
       THEME_MODES.forEach((themeMode) => {
         const marker = themeMode === mode ? "✓" : "○";
         const commandId = settings.menu.register(`${marker} 主题：${THEME_LABELS[themeMode]}`, () =>
@@ -6834,20 +6761,16 @@ ${createPaletteVariables("mocha")}
     function setMode(nextMode) {
       mode = isThemeMode(nextMode) ? nextMode : "system";
       browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-      try {
-        settings?.setMode?.(mode);
-      } catch {
-        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-      }
+      persistMode(settings, mode);
       updateMenuCommands();
     }
 
     const start = () => {
       if (started) return;
       started = true;
-      mode = readMode();
+      mode = readStoredMode(settings, isThemeMode, "system");
       browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-      injectStyle();
+      ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
       markArrowPanels();
       setupPortalObserver();
       browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
@@ -6858,7 +6781,7 @@ ${createPaletteVariables("mocha")}
       observer?.disconnect();
       observer = undefined;
       browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
-      clearMenuCommands();
+      clearMenuCommands(settings?.menu, menuCommandIds);
       browserDocument.getElementById(STYLE_ID)?.remove();
       browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
       markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));

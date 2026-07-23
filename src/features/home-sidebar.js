@@ -1,4 +1,5 @@
 import { HOME_SIDEBAR_STYLE } from "../styles/home-sidebar.js";
+import { ensureStyle, persistBooleanPreference, readBooleanPreference } from "./shared.js";
 
 export const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar";
 
@@ -9,20 +10,9 @@ const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
 const STYLE_ID = "zb-home-sidebar-style";
 
-const readPreference = (browserWindow, settings) => {
-  try {
-    if (settings?.getPreference) return Boolean(settings.getPreference(true));
-
-    const storedValue = browserWindow.localStorage.getItem(HOME_SIDEBAR_STORAGE_KEY);
-    return storedValue === null ? true : storedValue === "true";
-  } catch {
-    return true;
-  }
-};
-
 export const createHomeSidebarFeature = (browserWindow, settings) => {
   const browserDocument = browserWindow.document;
-  let shouldHideSidebar = readPreference(browserWindow, settings);
+  let shouldHideSidebar = readBooleanPreference(browserWindow, settings, HOME_SIDEBAR_STORAGE_KEY);
   let observer;
   let questionPositionObserver;
   let animationFrameId;
@@ -153,18 +143,6 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     questionPositionObserver.observe(questionContent);
   };
 
-  const injectStyle = () => {
-    if (browserDocument.getElementById(STYLE_ID)) return;
-
-    const target = browserDocument.head ?? browserDocument.documentElement;
-    if (!target) return;
-
-    const style = browserDocument.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = HOME_SIDEBAR_STYLE;
-    target.append(style);
-  };
-
   const findHomeSidebar = () => {
     const container = browserDocument.querySelector(".Topstory-container");
     const rightSidebar = container?.querySelector(
@@ -225,15 +203,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
 
   const savePreference = (value) => {
     shouldHideSidebar = value;
-    try {
-      if (settings?.setPreference) {
-        settings.setPreference(value);
-      } else {
-        browserWindow.localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, String(value));
-      }
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
+    persistBooleanPreference(browserWindow, settings, HOME_SIDEBAR_STORAGE_KEY, value);
     updateRootState();
     markSidebar();
     updateMenuCommand();
@@ -266,7 +236,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
 
   const refresh = () => {
     updateRootState();
-    injectStyle();
+    ensureStyle(browserDocument, STYLE_ID, HOME_SIDEBAR_STYLE);
     markSidebar();
     setupQuestionPositionObserver();
     configureObserver();

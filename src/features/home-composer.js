@@ -1,41 +1,23 @@
 import { HOME_COMPOSER_STYLE } from "../styles/home-composer.js";
+import { ensureStyle, persistBooleanPreference, readBooleanPreference } from "./shared.js";
 
 export const HOME_COMPOSER_STORAGE_KEY = "zhihu-beautification:show-home-composer";
 
 const ROOT_ATTRIBUTE = "data-zb-show-home-composer";
 const STYLE_ID = "zb-home-composer-style";
 
-const readPreference = (browserWindow, settings) => {
-  try {
-    if (settings?.getPreference) return Boolean(settings.getPreference(true));
-
-    const storedValue = browserWindow.localStorage.getItem(HOME_COMPOSER_STORAGE_KEY);
-    return storedValue === null ? true : storedValue === "true";
-  } catch {
-    return true;
-  }
-};
-
 export const createHomeComposerFeature = (browserWindow, settings) => {
   const browserDocument = browserWindow.document;
-  let shouldShowComposer = readPreference(browserWindow, settings);
+  let shouldShowComposer = readBooleanPreference(
+    browserWindow,
+    settings,
+    HOME_COMPOSER_STORAGE_KEY,
+  );
   let menuCommandId;
   let started = false;
 
   const updateRootState = () => {
     browserDocument.documentElement?.setAttribute(ROOT_ATTRIBUTE, String(shouldShowComposer));
-  };
-
-  const injectStyle = () => {
-    if (browserDocument.getElementById(STYLE_ID)) return;
-
-    const target = browserDocument.head ?? browserDocument.documentElement;
-    if (!target) return;
-
-    const style = browserDocument.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = HOME_COMPOSER_STYLE;
-    target.append(style);
   };
 
   const updateMenuCommand = () => {
@@ -53,15 +35,7 @@ export const createHomeComposerFeature = (browserWindow, settings) => {
 
   const savePreference = (value) => {
     shouldShowComposer = value;
-    try {
-      if (settings?.setPreference) {
-        settings.setPreference(value);
-      } else {
-        browserWindow.localStorage.setItem(HOME_COMPOSER_STORAGE_KEY, String(value));
-      }
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
+    persistBooleanPreference(browserWindow, settings, HOME_COMPOSER_STORAGE_KEY, value);
     updateRootState();
     updateMenuCommand();
   };
@@ -70,7 +44,7 @@ export const createHomeComposerFeature = (browserWindow, settings) => {
     if (started) return;
     started = true;
     updateRootState();
-    injectStyle();
+    ensureStyle(browserDocument, STYLE_ID, HOME_COMPOSER_STYLE);
     updateMenuCommand();
   };
 

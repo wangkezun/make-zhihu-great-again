@@ -1,4 +1,5 @@
 import { HOME_WIDTH_STYLE } from "../styles/home-width.js";
+import { clearMenuCommands, ensureStyle, persistMode, readStoredMode } from "./shared.js";
 
 export const HOME_WIDTH_STORAGE_KEY = "zhihu-beautification:home-width";
 export const HOME_WIDTH_MODES = ["standard", "comfortable", "wide", "fluid"];
@@ -20,41 +21,10 @@ export const createHomeWidthFeature = (browserWindow, settings) => {
   let mode;
   let started = false;
 
-  const readMode = () => {
-    try {
-      const storedMode = settings?.getMode?.("standard") ?? "standard";
-      return isWidthMode(storedMode) ? storedMode : "standard";
-    } catch {
-      return "standard";
-    }
-  };
-
-  const injectStyle = () => {
-    if (browserDocument.getElementById(STYLE_ID)) return;
-
-    const target = browserDocument.head ?? browserDocument.documentElement;
-    if (!target) return;
-
-    const style = browserDocument.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = HOME_WIDTH_STYLE;
-    target.append(style);
-  };
-
-  const clearMenuCommands = () => {
-    if (settings?.menu?.unregister) {
-      menuCommandIds.splice(0).forEach((commandId) => {
-        settings.menu.unregister(commandId);
-      });
-      return;
-    }
-    menuCommandIds.length = 0;
-  };
-
   const updateMenuCommands = () => {
     if (!settings?.menu?.register) return;
 
-    clearMenuCommands();
+    clearMenuCommands(settings.menu, menuCommandIds);
     HOME_WIDTH_MODES.forEach((widthMode) => {
       const marker = widthMode === mode ? "✓" : "○";
       const commandId = settings.menu.register(
@@ -68,25 +38,21 @@ export const createHomeWidthFeature = (browserWindow, settings) => {
   function setMode(nextMode) {
     mode = isWidthMode(nextMode) ? nextMode : "standard";
     browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
-    try {
-      settings?.setMode?.(mode);
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
+    persistMode(settings, mode);
     updateMenuCommands();
   }
 
   const start = () => {
     if (started) return;
     started = true;
-    mode = readMode();
+    mode = readStoredMode(settings, isWidthMode, "standard");
     browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
-    injectStyle();
+    ensureStyle(browserDocument, STYLE_ID, HOME_WIDTH_STYLE);
     updateMenuCommands();
   };
 
   const destroy = () => {
-    clearMenuCommands();
+    clearMenuCommands(settings?.menu, menuCommandIds);
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(WIDTH_ATTRIBUTE);
   };
