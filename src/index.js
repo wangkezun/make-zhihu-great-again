@@ -3,6 +3,7 @@ import { createHomeComposerFeature, HOME_COMPOSER_STORAGE_KEY } from "./features
 import { createHomeSidebarFeature, HOME_SIDEBAR_STORAGE_KEY } from "./features/home-sidebar.js";
 import { createHomeWidthFeature, HOME_WIDTH_STORAGE_KEY } from "./features/home-width.js";
 import { createThemeFeature, THEME_STORAGE_KEY } from "./features/theme.js";
+import { startWhenDocumentElementReady } from "./start.js";
 
 const createMenuAdapter = () => ({
   register: (label, callback) => GM_registerMenuCommand(label, callback),
@@ -33,8 +34,10 @@ const homeComposerSettings = {
   setPreference: (value) => GM_setValue(HOME_COMPOSER_STORAGE_KEY, value),
 };
 
-createThemeFeature(window, themeSettings).start();
-createCommentComposerFeature(window).start();
-createHomeSidebarFeature(window, userscriptSettings).start();
-createHomeWidthFeature(window, homeWidthSettings).start();
-createHomeComposerFeature(window, homeComposerSettings).start();
+startWhenDocumentElementReady(window, () => {
+  createThemeFeature(window, themeSettings).start();
+  createCommentComposerFeature(window).start();
+  createHomeSidebarFeature(window, userscriptSettings).start();
+  createHomeWidthFeature(window, homeWidthSettings).start();
+  createHomeComposerFeature(window, homeComposerSettings).start();
+});

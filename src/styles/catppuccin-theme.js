@@ -1683,6 +1683,69 @@ ${createPaletteVariables(flavors.mocha)}
     outline: 0 !important;
   }
 
+  /* Latest-progress cards use generated class names and receive analytics
+     attributes during hydration. Anchor to the server-rendered semantic icon
+     so the title color applies on the first paint instead of after hydration. */
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child,
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child
+    svg {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible)
+    > div:last-child,
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible)
+    > div:last-child
+    :where(div, span, svg) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
   /* Question and answer page links follow semantic roles instead of Zhihu's
      native blue palette. Keep identity links calm, metadata subdued, and
      reserve the accent color for topics, content links, and interaction. */

@@ -260,6 +260,15 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionFollowStatus-people:focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-left: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme]\n    .Card:has(> div:first-child .Zi--LabelSpecial)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      `.Card[data-za-extra-module*='"type":"SpecialTopic"']`,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> a:is(:hover, :focus-visible)\n    > div:last-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme][data-zb-question-content-under-header="true"]',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AppHeader:has(.PageHeader.is-shown)");

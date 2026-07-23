@@ -74,7 +74,8 @@ describe("home sidebar feature", () => {
     expect(HOME_SIDEBAR_STYLE).toContain("var(--zb-home-main-width, 694px)");
     expect(HOME_SIDEBAR_STYLE).toContain('html[data-zb-question-page="true"]');
     expect(HOME_SIDEBAR_STYLE).toContain(".Question-sideColumn");
-    expect(HOME_SIDEBAR_STYLE).toContain(":has(> .Question-sideColumn)");
+    expect(HOME_SIDEBAR_STYLE).toContain(".QuestionPage\n    > div:has(.Question-mainColumn)");
+    expect(HOME_SIDEBAR_STYLE).not.toContain(":has(> .Question-sideColumn)");
   });
 
   it("hides the semantic right column by default", () => {

@@ -9,6 +9,7 @@ const userscriptMetadata = `// ==UserScript==
 // @description  提供可自由开关的知乎页面美化功能
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
+// @early-start
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand

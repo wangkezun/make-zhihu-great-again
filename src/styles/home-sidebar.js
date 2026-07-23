@@ -30,7 +30,7 @@ export const HOME_SIDEBAR_STYLE = `
 
   html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
     .QuestionPage
-    > div:has(> .Question-sideColumn) {
+    > div:has(.Question-mainColumn) {
     box-sizing: border-box !important;
     justify-content: center !important;
     width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
@@ -39,7 +39,7 @@ export const HOME_SIDEBAR_STYLE = `
 
   html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
     .QuestionPage
-    > div:has(> .Question-sideColumn)
+    > div:has(.Question-mainColumn)
     > div:has(.Question-mainColumn),
   html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
     .Question-mainColumn {
