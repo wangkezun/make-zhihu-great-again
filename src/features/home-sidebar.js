@@ -24,9 +24,18 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   const browserDocument = browserWindow.document;
   let shouldHideSidebar = readPreference(browserWindow, settings);
   let observer;
+  let questionPositionObserver;
   let animationFrameId;
   let positionAnimationFrameId;
   let menuCommandId;
+  let markedSidebar;
+  let observedPageHeader;
+  let observedQuestionContent;
+  let pageKind;
+  let originalPushState;
+  let originalReplaceState;
+  let wrappedPushState;
+  let wrappedReplaceState;
   let positionScheduled = false;
   let scheduled = false;
   let started = false;
@@ -38,30 +47,110 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
 
-  const updateRootState = () => {
-    const root = browserDocument.documentElement;
-    if (!root) return;
+  const getPageKind = () => {
+    if (isHomePage()) return "home";
+    if (isQuestionPage()) return "question";
+    return "other";
+  };
 
-    root.setAttribute(ROOT_HOME_ATTRIBUTE, String(isHomePage()));
-    root.setAttribute(ROOT_QUESTION_ATTRIBUTE, String(isQuestionPage()));
-    root.setAttribute(ROOT_ENABLED_ATTRIBUTE, String(shouldHideSidebar));
+  const setRootAttribute = (name, value) => {
+    const root = browserDocument.documentElement;
+    const nextValue = String(value);
+    if (root?.getAttribute(name) !== nextValue) {
+      root?.setAttribute(name, nextValue);
+    }
+  };
+
+  const updateRootState = () => {
+    const nextPageKind = getPageKind();
+    if (nextPageKind !== pageKind) {
+      markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
+      markedSidebar = undefined;
+    }
+    pageKind = nextPageKind;
+    setRootAttribute(ROOT_HOME_ATTRIBUTE, pageKind === "home");
+    setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
+    setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
 
   const updateQuestionContentPosition = () => {
-    const root = browserDocument.documentElement;
-    if (!root) return;
+    if (getPageKind() !== "question") {
+      observedPageHeader = undefined;
+      observedQuestionContent = undefined;
+      setRootAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, false);
+      return;
+    }
 
     const pageHeader = browserDocument.querySelector(".PageHeader.is-shown");
     const questionContent = browserDocument.querySelector(
       ".Question-mainColumn :is(.AnswersNavWrapper, .AnswerCard, .MoreAnswers)",
     );
+    observedPageHeader = pageHeader;
+    observedQuestionContent = questionContent;
     const isUnderHeader =
-      isQuestionPage() &&
       pageHeader &&
       questionContent &&
       questionContent.getBoundingClientRect().top <= pageHeader.getBoundingClientRect().bottom + 10;
 
-    root.setAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, String(Boolean(isUnderHeader)));
+    setRootAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, Boolean(isUnderHeader));
+  };
+
+  const findQuestionContent = () =>
+    browserDocument.querySelector(
+      ".Question-mainColumn :is(.AnswersNavWrapper, .AnswerCard, .MoreAnswers)",
+    );
+
+  const setupQuestionPositionObserver = (force = false) => {
+    if (!browserWindow.IntersectionObserver) {
+      updateQuestionContentPosition();
+      return;
+    }
+
+    if (pageKind !== "question") {
+      questionPositionObserver?.disconnect();
+      questionPositionObserver = undefined;
+      observedPageHeader = undefined;
+      observedQuestionContent = undefined;
+      setRootAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, false);
+      return;
+    }
+
+    const pageHeader = browserDocument.querySelector(".PageHeader.is-shown");
+    const questionContent = findQuestionContent();
+    if (
+      !force &&
+      questionPositionObserver &&
+      pageHeader === observedPageHeader &&
+      questionContent === observedQuestionContent
+    ) {
+      return;
+    }
+
+    questionPositionObserver?.disconnect();
+    questionPositionObserver = undefined;
+    observedPageHeader = pageHeader;
+    observedQuestionContent = questionContent;
+    if (!pageHeader || !questionContent) {
+      setRootAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, false);
+      return;
+    }
+
+    const headerBoundary = Math.max(0, Math.ceil(pageHeader.getBoundingClientRect().bottom + 10));
+    questionPositionObserver = new browserWindow.IntersectionObserver(
+      (entries) => {
+        const entry = entries.find(({ target }) => target === observedQuestionContent);
+        if (!entry) return;
+
+        const boundary = entry.rootBounds?.top ?? headerBoundary;
+        setRootAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, entry.boundingClientRect.top <= boundary);
+      },
+      {
+        root: null,
+        rootMargin: `-${headerBoundary}px 0px 0px 0px`,
+        threshold: [0, 1],
+      },
+    );
+    questionPositionObserver.observe(questionContent);
   };
 
   const injectStyle = () => {
@@ -96,14 +185,28 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
 
   const markSidebar = () => {
-    browserDocument.querySelectorAll(`[${SIDEBAR_ATTRIBUTE}]`).forEach((element) => {
-      element.removeAttribute(SIDEBAR_ATTRIBUTE);
-    });
+    let nextSidebar;
+    if (pageKind === "home") {
+      nextSidebar = findHomeSidebar();
+    } else if (pageKind === "question") {
+      nextSidebar = findQuestionSidebar();
+    }
 
-    if (isHomePage()) {
-      findHomeSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
-    } else if (isQuestionPage()) {
-      findQuestionSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+    if (nextSidebar === markedSidebar) return;
+
+    markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
+    markedSidebar = nextSidebar;
+    markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+  };
+
+  const handleMutations = () => {
+    const needsSidebar = pageKind === "home" || pageKind === "question";
+    const needsQuestionContent = pageKind === "question";
+    if (
+      (needsSidebar && !markedSidebar?.isConnected) ||
+      (needsQuestionContent && !observedQuestionContent?.isConnected)
+    ) {
+      scheduleRefresh();
     }
   };
 
@@ -136,19 +239,37 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     updateMenuCommand();
   };
 
-  const ensureObserver = () => {
-    if (observer || !browserDocument.documentElement) return;
+  const configureObserver = () => {
+    observer?.disconnect();
+    observer = undefined;
+    if (pageKind === "other" || !browserDocument.documentElement) return;
 
-    observer = new browserWindow.MutationObserver(scheduleRefresh);
-    observer.observe(browserDocument.documentElement, { childList: true, subtree: true });
+    observer = new browserWindow.MutationObserver(handleMutations);
+    const needsSidebarDiscovery = !markedSidebar?.isConnected;
+    const needsContentDiscovery = pageKind === "question" && !observedQuestionContent?.isConnected;
+    if (needsSidebarDiscovery || needsContentDiscovery) {
+      observer.observe(browserDocument.documentElement, { childList: true, subtree: true });
+      return;
+    }
+
+    if (markedSidebar?.parentElement) {
+      observer.observe(markedSidebar.parentElement, { childList: true });
+    }
+    if (
+      pageKind === "question" &&
+      observedQuestionContent?.parentElement &&
+      observedQuestionContent.parentElement !== markedSidebar?.parentElement
+    ) {
+      observer.observe(observedQuestionContent.parentElement, { childList: true });
+    }
   };
 
   const refresh = () => {
     updateRootState();
-    updateQuestionContentPosition();
     injectStyle();
     markSidebar();
-    ensureObserver();
+    setupQuestionPositionObserver();
+    configureObserver();
   };
 
   function scheduleRefresh() {
@@ -165,9 +286,47 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     positionScheduled = true;
     positionAnimationFrameId = browserWindow.requestAnimationFrame(() => {
       positionScheduled = false;
-      updateQuestionContentPosition();
+      setupQuestionPositionObserver(true);
     });
   }
+
+  const installRouteListeners = () => {
+    browserWindow.addEventListener("popstate", scheduleRefresh);
+    if (browserWindow.navigation?.addEventListener) {
+      browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
+      return;
+    }
+
+    const history = browserWindow.history;
+    if (!history?.pushState || !history?.replaceState) return;
+
+    originalPushState = history.pushState;
+    originalReplaceState = history.replaceState;
+    wrappedPushState = function (...args) {
+      const result = originalPushState.apply(this, args);
+      scheduleRefresh();
+      return result;
+    };
+    wrappedReplaceState = function (...args) {
+      const result = originalReplaceState.apply(this, args);
+      scheduleRefresh();
+      return result;
+    };
+    history.pushState = wrappedPushState;
+    history.replaceState = wrappedReplaceState;
+  };
+
+  const removeRouteListeners = () => {
+    browserWindow.removeEventListener("popstate", scheduleRefresh);
+    browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
+    const history = browserWindow.history;
+    if (history && wrappedPushState && history.pushState === wrappedPushState) {
+      history.pushState = originalPushState;
+    }
+    if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
+      history.replaceState = originalReplaceState;
+    }
+  };
 
   const start = () => {
     if (started) return;
@@ -175,13 +334,18 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     refresh();
     updateMenuCommand();
     browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
-    browserWindow.addEventListener("popstate", scheduleRefresh);
+    installRouteListeners();
     browserWindow.addEventListener("resize", schedulePositionRefresh);
-    browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
+    if (!browserWindow.IntersectionObserver) {
+      browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
+    }
   };
 
   const destroy = () => {
     observer?.disconnect();
+    observer = undefined;
+    questionPositionObserver?.disconnect();
+    questionPositionObserver = undefined;
     if (animationFrameId !== undefined) {
       browserWindow.cancelAnimationFrame(animationFrameId);
     }
@@ -189,20 +353,22 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
       browserWindow.cancelAnimationFrame(positionAnimationFrameId);
     }
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
-    browserWindow.removeEventListener("popstate", scheduleRefresh);
+    removeRouteListeners();
     browserWindow.removeEventListener("resize", schedulePositionRefresh);
     browserWindow.removeEventListener("scroll", schedulePositionRefresh);
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }
     browserDocument.getElementById(STYLE_ID)?.remove();
-    browserDocument.querySelectorAll(`[${SIDEBAR_ATTRIBUTE}]`).forEach((element) => {
-      element.removeAttribute(SIDEBAR_ATTRIBUTE);
-    });
+    markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
+    markedSidebar = undefined;
+    observedPageHeader = undefined;
+    observedQuestionContent = undefined;
     browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
+    started = false;
   };
 
   return { destroy, refresh, start };

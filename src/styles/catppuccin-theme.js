@@ -1,14 +1,31 @@
-import { flavors } from "@catppuccin/palette";
+const PALETTE_HEX = {
+  latte:
+    "rosewater:#dc8a78,flamingo:#dd7878,pink:#ea76cb,mauve:#8839ef,red:#d20f39,maroon:#e64553,peach:#fe640b,yellow:#df8e1d,green:#40a02b,teal:#179299,sky:#04a5e5,sapphire:#209fb5,blue:#1e66f5,lavender:#7287fd,text:#4c4f69,subtext1:#5c5f77,subtext0:#6c6f85,overlay2:#7c7f93,overlay1:#8c8fa1,overlay0:#9ca0b0,surface2:#acb0be,surface1:#bcc0cc,surface0:#ccd0da,base:#eff1f5,mantle:#e6e9ef,crust:#dce0e8",
+  frappe:
+    "rosewater:#f2d5cf,flamingo:#eebebe,pink:#f4b8e4,mauve:#ca9ee6,red:#e78284,maroon:#ea999c,peach:#ef9f76,yellow:#e5c890,green:#a6d189,teal:#81c8be,sky:#99d1db,sapphire:#85c1dc,blue:#8caaee,lavender:#babbf1,text:#c6d0f5,subtext1:#b5bfe2,subtext0:#a5adce,overlay2:#949cbb,overlay1:#838ba7,overlay0:#737994,surface2:#626880,surface1:#51576d,surface0:#414559,base:#303446,mantle:#292c3c,crust:#232634",
+  macchiato:
+    "rosewater:#f4dbd6,flamingo:#f0c6c6,pink:#f5bde6,mauve:#c6a0f6,red:#ed8796,maroon:#ee99a0,peach:#f5a97f,yellow:#eed49f,green:#a6da95,teal:#8bd5ca,sky:#91d7e3,sapphire:#7dc4e4,blue:#8aadf4,lavender:#b7bdf8,text:#cad3f5,subtext1:#b8c0e0,subtext0:#a5adcb,overlay2:#939ab7,overlay1:#8087a2,overlay0:#6e738d,surface2:#5b6078,surface1:#494d64,surface0:#363a4f,base:#24273a,mantle:#1e2030,crust:#181926",
+  mocha:
+    "rosewater:#f5e0dc,flamingo:#f2cdcd,pink:#f5c2e7,mauve:#cba6f7,red:#f38ba8,maroon:#eba0ac,peach:#fab387,yellow:#f9e2af,green:#a6e3a1,teal:#94e2d5,sky:#89dceb,sapphire:#74c7ec,blue:#89b4fa,lavender:#b4befe,text:#cdd6f4,subtext1:#bac2de,subtext0:#a6adc8,overlay2:#9399b2,overlay1:#7f849c,overlay0:#6c7086,surface2:#585b70,surface1:#45475a,surface0:#313244,base:#1e1e2e,mantle:#181825,crust:#11111b",
+};
 
-const createPaletteVariables = (flavor) =>
-  Object.entries(flavor.colors)
-    .map(([name, color]) => `    --ctp-${name}: ${color.hex};`)
-    .join("\n");
+const paletteVariables = Object.fromEntries(
+  Object.entries(PALETTE_HEX).map(([flavor, colors]) => [
+    flavor,
+    colors
+      .split(",")
+      .map((color) => color.split(":"))
+      .map(([name, hex]) => `    --ctp-${name}: ${hex};`)
+      .join("\n"),
+  ]),
+);
+
+const createPaletteVariables = (name) => paletteVariables[name];
 
 const createFlavorRule = (name) => `
   html[data-zb-theme="${name}"] {
-${createPaletteVariables(flavors[name])}
-    color-scheme: ${flavors[name].dark ? "dark" : "light"};
+${createPaletteVariables(name)}
+    color-scheme: ${name === "latte" ? "light" : "dark"};
   }`;
 
 const flavorRules = ["latte", "frappe", "macchiato", "mocha"].map(createFlavorRule).join("\n");
@@ -17,13 +34,13 @@ export const CATPPUCCIN_THEME_STYLE = `
 ${flavorRules}
 
   html[data-zb-theme="system"] {
-${createPaletteVariables(flavors.latte)}
+${createPaletteVariables("latte")}
     color-scheme: light;
   }
 
   @media (prefers-color-scheme: dark) {
     html[data-zb-theme="system"] {
-${createPaletteVariables(flavors.mocha)}
+${createPaletteVariables("mocha")}
       color-scheme: dark;
     }
   }
@@ -819,10 +836,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div > div:first-child > span:only-child):has(
-      > div > div:nth-child(2):empty
-    ):has(> div > div:nth-child(3) > button .ZDI--ArrowRight24) {
+    [data-zb-arrow-action-panel-wrapper] {
     background-color: transparent !important;
     border-radius: 8px !important;
   }
@@ -831,10 +845,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24) {
+    [data-zb-arrow-action-panel] {
     background-color: var(--zb-surface-raised) !important;
     border: 1px solid var(--zb-border-strong) !important;
     border-radius: 8px !important;
@@ -847,10 +858,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    [data-zb-arrow-action-panel]
     > div:nth-child(2) {
     background-color: transparent !important;
   }
@@ -859,10 +867,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    [data-zb-arrow-action-panel]
     :is(span, button) {
     color: var(--zb-primary) !important;
     -webkit-text-fill-color: var(--zb-primary) !important;
@@ -872,10 +877,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    [data-zb-arrow-action-panel]
     button {
     box-sizing: border-box !important;
     min-width: max-content !important;
@@ -888,10 +890,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    [data-zb-arrow-action-panel]
     button:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     border-radius: 6px !important;
@@ -903,10 +902,7 @@ ${createPaletteVariables(flavors.mocha)}
       [data-zb-question-page="true"],
       [data-zb-home-page="true"]
     )
-    body
-    div:has(> div:first-child > span:only-child):has(
-      > div:nth-child(2):empty
-    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    [data-zb-arrow-action-panel]
     :is(svg, path) {
     color: var(--zb-primary) !important;
     fill: currentColor !important;
@@ -2725,6 +2721,45 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme]
     .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button
+    svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin-left: 4px !important;
+    color: inherit !important;
+    fill: currentColor !important;
+    flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
     .QuestionHeaderActions
     .Button--iconOnly {
     width: 34px !important;
@@ -3230,6 +3265,55 @@ ${createPaletteVariables(flavors.mocha)}
     min-height: 28px !important;
     padding: 4px 6px !important;
     border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button {
+    display: inline-flex !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText--collapsed:is(:hover, :focus-within) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button
+    svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin-left: 4px !important;
+    color: inherit !important;
+    fill: currentColor !important;
+    flex: 0 0 16px !important;
   }
 
   html[data-zb-theme]

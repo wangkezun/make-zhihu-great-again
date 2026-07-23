@@ -1,6 +1,6 @@
 import { flavors } from "@catppuccin/palette";
 import { JSDOM } from "jsdom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createThemeFeature, THEME_MODES } from "../src/features/theme.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
@@ -73,6 +73,44 @@ describe("Catppuccin theme feature", () => {
     feature.start();
 
     expect(page.window.document.documentElement.dataset.zbTheme).toBe("system");
+    feature.destroy();
+  });
+
+  it("marks arrow action panels incrementally instead of styling them with broad :has selectors", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const wrapper = page.window.document.createElement("div");
+    wrapper.innerHTML = `
+      <div>
+        <div><span>操作</span></div>
+        <div></div>
+        <div><button><svg class="ZDI--ArrowRight24"></svg></button></div>
+      </div>
+    `;
+
+    page.window.document.body.append(wrapper);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(wrapper.hasAttribute("data-zb-arrow-action-panel-wrapper")).toBe(true);
+    expect(wrapper.firstElementChild.hasAttribute("data-zb-arrow-action-panel")).toBe(true);
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> div:first-child > span:only-child)");
+    feature.destroy();
+  });
+
+  it("does not inspect mutations inside the main application root", async () => {
+    const page = createPage();
+    const root = page.window.document.createElement("div");
+    root.id = "root";
+    page.window.document.body.append(root);
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const queryAll = vi.spyOn(page.window.Element.prototype, "querySelectorAll");
+
+    root.append(page.window.document.createElement("article"));
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(queryAll).not.toHaveBeenCalled();
     feature.destroy();
   });
 
@@ -190,6 +228,14 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("> svg {\n    color: var(--zb-surface)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("box-shadow: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem .RichContent-inner .RichText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionRichText-more.Button {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionRichText-more.Button:is(:hover, :focus-visible)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionRichText--collapsed:is(:hover, :focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionRichText-more.Button\n    svg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerItem\n    .ContentItem-expandButton.Button {");
     expect(CATPPUCCIN_THEME_STYLE).toContain("width: max-content !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin: 8px auto 0 !important");
@@ -292,6 +338,12 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".QuestionHeader-footer .QuestionHeaderActions .Button",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-actions\n    > .Button {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionHeader-actions\n    > .Button:focus-visible",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-actions\n    > .Button\n    svg");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-left: 4px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".QuestionHeader-footer\n    .QuestionHeaderActions\n    .Button--iconOnly",
     );
@@ -735,23 +787,22 @@ describe("Catppuccin theme feature", () => {
         </div>
       </div>
     `;
-    const promptWrapperSelector =
-      "div:has(> div > div:first-child > span:only-child):has(> div > div:nth-child(2):empty):has(> div > div:nth-child(3) > button .ZDI--ArrowRight24)";
+    const feature = createThemeFeature(page.window);
+    feature.start();
 
-    expect(page.window.document.querySelector(promptWrapperSelector)?.className).toBe(
-      "prompt-wrapper",
-    );
+    expect(
+      page.window.document
+        .querySelector(".prompt-wrapper")
+        .hasAttribute("data-zb-arrow-action-panel-wrapper"),
+    ).toBe(true);
+    expect(
+      page.window.document.querySelector(".prompt").hasAttribute("data-zb-arrow-action-panel"),
+    ).toBe(true);
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme]:is(\n      [data-zb-question-page="true"],\n      [data-zb-home-page="true"]',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> div:first-child > span:only-child):has(");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "div:has(> div > div:first-child > span:only-child):has(",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      "div:has(\n      > div:has(> div:first-child > span:only-child)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:nth-child(3) > button .ZDI--ArrowRight24");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-arrow-action-panel-wrapper]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-arrow-action-panel]");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "background-color: var(--zb-surface-raised) !important",
     );
@@ -765,5 +816,6 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /> div:nth-child\(2\) \{\s*background-color: transparent !important;/,
     );
+    feature.destroy();
   });
 });

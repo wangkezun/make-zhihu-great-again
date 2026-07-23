@@ -1,4 +1,3 @@
-const COMMENT_MODAL_SELECTOR = ".Modal-content:has(.InputLike.Editable):has(img.Avatar)";
 const BOTTOM_COMPOSER_SELECTOR = ":scope > div > div:last-child .InputLike.Editable";
 const COMPOSER_CONTAINER_SELECTOR = "div:has(> div > div > .InputLike.Editable)";
 const COLLAPSED_ATTRIBUTE = "data-zb-comment-composer-collapsed";
@@ -8,10 +7,14 @@ export const createCommentComposerFeature = (browserWindow) => {
   const interactedModals = new WeakSet();
   const pendingModals = new WeakSet();
   const processedModals = new WeakSet();
+  const scheduledModals = new WeakSet();
+  const pendingAnimationFrames = new Set();
   const pendingTimers = new Set();
   let pendingInlineComposer;
-  let observer;
   let started = false;
+
+  const isCommentModal = (modal) =>
+    modal?.querySelector(".InputLike.Editable") && modal.querySelector("img.Avatar");
 
   const blurProgrammaticFocus = (modal, activeElement = browserDocument.activeElement) => {
     const composer = modal.querySelector(BOTTOM_COMPOSER_SELECTOR);
@@ -27,10 +30,10 @@ export const createCommentComposerFeature = (browserWindow) => {
   };
 
   const collapseAutofocusedComposer = (modal) => {
-    if (processedModals.has(modal) || pendingModals.has(modal)) return;
+    if (processedModals.has(modal) || pendingModals.has(modal)) return true;
 
     const composer = modal.querySelector(BOTTOM_COMPOSER_SELECTOR);
-    if (!composer) return;
+    if (!composer) return false;
 
     pendingModals.add(modal);
     blurProgrammaticFocus(modal);
@@ -44,11 +47,12 @@ export const createCommentComposerFeature = (browserWindow) => {
       processedModals.add(modal);
     }, 250);
     pendingTimers.add(timerId);
+    return true;
   };
 
   const handlePointerDown = (event) => {
-    const modal = event.target.closest?.(COMMENT_MODAL_SELECTOR);
-    if (modal) {
+    const modal = event.target.closest?.(".Modal-content");
+    if (isCommentModal(modal)) {
       interactedModals.add(modal);
       event.target.closest?.(COMPOSER_CONTAINER_SELECTOR)?.removeAttribute(COLLAPSED_ATTRIBUTE);
       return;
@@ -78,20 +82,27 @@ export const createCommentComposerFeature = (browserWindow) => {
   };
 
   const handleFocusIn = (event) => {
-    const modal = event.target.closest?.(COMMENT_MODAL_SELECTOR);
-    if (modal && pendingModals.has(modal)) {
-      blurProgrammaticFocus(modal, event.target);
-    }
-  };
+    const modal = event.target.closest?.(".Modal-content");
+    if (!isCommentModal(modal)) return;
 
-  const refresh = () => {
-    browserDocument.querySelectorAll(COMMENT_MODAL_SELECTOR).forEach(collapseAutofocusedComposer);
+    if (pendingModals.has(modal)) {
+      blurProgrammaticFocus(modal, event.target);
+      return;
+    }
+
+    if (scheduledModals.has(modal)) return;
+    scheduledModals.add(modal);
+    const animationFrameId = browserWindow.requestAnimationFrame(() => {
+      pendingAnimationFrames.delete(animationFrameId);
+      if (!started) return;
+      if (!collapseAutofocusedComposer(modal)) scheduledModals.delete(modal);
+    });
+    pendingAnimationFrames.add(animationFrameId);
   };
 
   const start = () => {
     if (started) return;
     started = true;
-    refresh();
 
     const target = browserDocument.body ?? browserDocument.documentElement;
     if (!target) return;
@@ -100,8 +111,11 @@ export const createCommentComposerFeature = (browserWindow) => {
     browserDocument.addEventListener("pointerup", handlePointerUp, true);
     browserDocument.addEventListener("pointercancel", handlePointerCancel, true);
     browserDocument.addEventListener("focusin", handleFocusIn, true);
-    observer = new browserWindow.MutationObserver(refresh);
-    observer.observe(target, { childList: true, subtree: true });
+
+    const activeModal = browserDocument.activeElement?.closest?.(".Modal-content");
+    if (isCommentModal(activeModal)) {
+      collapseAutofocusedComposer(activeModal);
+    }
   };
 
   const destroy = () => {
@@ -111,8 +125,10 @@ export const createCommentComposerFeature = (browserWindow) => {
     browserDocument.removeEventListener("focusin", handleFocusIn, true);
     pendingTimers.forEach((timerId) => browserWindow.clearTimeout(timerId));
     pendingTimers.clear();
-    observer?.disconnect();
-    observer = undefined;
+    pendingAnimationFrames.forEach((animationFrameId) =>
+      browserWindow.cancelAnimationFrame(animationFrameId),
+    );
+    pendingAnimationFrames.clear();
     pendingInlineComposer = undefined;
     started = false;
   };

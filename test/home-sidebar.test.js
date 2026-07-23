@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createHomeSidebarFeature,
@@ -172,6 +172,66 @@ describe("home sidebar feature", () => {
     ).toBeUndefined();
   });
 
+  it("uses IntersectionObserver instead of polling scroll position when available", () => {
+    const page = createQuestionPage();
+    const pageHeader = page.window.document.querySelector(".PageHeader");
+    const questionContent = page.window.document.querySelector(".AnswersNavWrapper");
+    pageHeader.getBoundingClientRect = () => ({ bottom: 62 });
+    let positionObserver;
+    page.window.IntersectionObserver = class {
+      constructor(callback, options) {
+        this.callback = callback;
+        this.options = options;
+        this.disconnected = false;
+        positionObserver = this;
+      }
+
+      observe(target) {
+        this.target = target;
+      }
+
+      disconnect() {
+        this.disconnected = true;
+      }
+    };
+    const addEventListener = vi.spyOn(page.window, "addEventListener");
+    const feature = createHomeSidebarFeature(page.window);
+
+    feature.start();
+
+    expect(positionObserver.target).toBe(questionContent);
+    expect(positionObserver.options.rootMargin).toBe("-72px 0px 0px 0px");
+    expect(addEventListener.mock.calls.some(([eventName]) => eventName === "scroll")).toBe(false);
+
+    positionObserver.callback([
+      {
+        target: questionContent,
+        boundingClientRect: { top: 70 },
+        rootBounds: { top: 72 },
+      },
+    ]);
+    expect(page.window.document.documentElement.dataset.zbQuestionContentUnderHeader).toBe("true");
+
+    feature.destroy();
+    expect(positionObserver.disconnected).toBe(true);
+  });
+
+  it("refreshes route state after history.pushState and restores history on destroy", async () => {
+    const page = createPage();
+    const originalPushState = page.window.history.pushState;
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    page.window.history.pushState({}, "", "/question/123");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbHomePage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbQuestionPage).toBe("true");
+
+    feature.destroy();
+    expect(page.window.history.pushState).toBe(originalPushState);
+  });
+
   it("registers a userscript menu command and keeps its status in sync", () => {
     const page = createPage();
     const commands = new Map();
@@ -205,5 +265,35 @@ describe("home sidebar feature", () => {
 
     feature.destroy();
     expect(commands.size).toBe(0);
+  });
+
+  it("does not refresh an already marked sidebar for unrelated mutations", async () => {
+    const page = createPage();
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    const query = vi.spyOn(page.window.document, "querySelector");
+
+    page.window.document.body.append(page.window.document.createElement("section"));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(query).not.toHaveBeenCalled();
+    feature.destroy();
+  });
+
+  it("skips question-page queries while scrolling on the home page", async () => {
+    const page = createPage();
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    const query = vi.spyOn(page.window.document, "querySelector");
+
+    page.window.dispatchEvent(new page.window.Event("scroll"));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(query).not.toHaveBeenCalled();
+    feature.destroy();
   });
 });

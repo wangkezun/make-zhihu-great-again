@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>RUNNING</title>
+    <script>
+      window.GM_getValue = (_key, defaultValue) => defaultValue;
+      window.GM_setValue = () => {};
+      window.GM_registerMenuCommand = () => Math.random();
+      window.GM_unregisterMenuCommand = () => {};
+
+      window.__documentQueryCount = 0;
+      const querySelectorAll = Document.prototype.querySelectorAll;
+      Document.prototype.querySelectorAll = function (...args) {
+        window.__documentQueryCount += 1;
+        return querySelectorAll.apply(this, args);
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"><div id="feed"></div></div>
+    <div id="prompt-wrapper">
+      <div id="prompt">
+        <div><span>收藏成功</span></div>
+        <div></div>
+        <div>
+          <button>选择收藏夹 <svg class="ZDI--ArrowRight24"></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../dist/Zhihu-Beautification.user.js"></script>
+    <script>
+      const baselineDocumentQueries = window.__documentQueryCount;
+      const feed = document.getElementById("feed");
+      const fragment = document.createDocumentFragment();
+      for (let index = 0; index < 500; index += 1) {
+        const item = document.createElement("article");
+        item.textContent = `信息流节点 ${index}`;
+        fragment.append(item);
+      }
+      feed.append(fragment);
+
+      const modal = document.createElement("div");
+      modal.className = "Modal-content";
+      modal.innerHTML = `
+        <div>
+          <div></div>
+          <div></div>
+          <div>
+            <img class="Avatar" alt="">
+            <div><div><div>
+              <div class="InputLike Editable">
+                <div contenteditable="true" tabindex="0"></div>
+              </div>
+            </div></div></div>
+          </div>
+        </div>
+      `;
+      document.body.append(modal);
+      const editor = modal.querySelector('[contenteditable="true"]');
+      editor.focus();
+
+      setTimeout(() => {
+        const result = {
+          unrelatedMutationDocumentQueries: window.__documentQueryCount - baselineDocumentQueries,
+          commentEditorBlurred: document.activeElement !== editor,
+          commentComposerCollapsed: Boolean(
+            modal.querySelector("[data-zb-comment-composer-collapsed]"),
+          ),
+          arrowPanelMarked: document
+            .getElementById("prompt")
+            .hasAttribute("data-zb-arrow-action-panel"),
+          arrowWrapperMarked: document
+            .getElementById("prompt-wrapper")
+            .hasAttribute("data-zb-arrow-action-panel-wrapper"),
+          themeStyleBytes:
+            document.getElementById("zb-catppuccin-theme-style")?.textContent.length ?? 0,
+        };
+        window.__performanceProbeResult = result;
+        document.documentElement.dataset.probeResult = JSON.stringify(result);
+        document.title =
+          result.unrelatedMutationDocumentQueries === 0 &&
+          result.commentEditorBlurred &&
+          result.commentComposerCollapsed &&
+          result.arrowPanelMarked &&
+          result.arrowWrapperMarked &&
+          result.themeStyleBytes > 0
+            ? "PASS"
+            : "FAIL";
+      }, 350);
+    </script>
+  </body>
+</html>

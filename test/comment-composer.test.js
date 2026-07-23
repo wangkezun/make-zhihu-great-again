@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createCommentComposerFeature } from "../src/features/comment-composer.js";
 
@@ -140,6 +140,32 @@ describe("comment composer feature", () => {
     await flushMutations();
 
     expect(page.window.document.activeElement).toBe(editor);
+    feature.destroy();
+  });
+
+  it("does not rescan the document for unrelated DOM mutations", async () => {
+    const page = createPage();
+    const feature = createCommentComposerFeature(page.window);
+    feature.start();
+    const queryAll = vi.spyOn(page.window.document, "querySelectorAll");
+
+    page.window.document.body.append(page.window.document.createElement("section"));
+    await flushMutations();
+
+    expect(queryAll).not.toHaveBeenCalled();
+    feature.destroy();
+  });
+
+  it("does not create a MutationObserver", () => {
+    const page = createPage();
+    page.window.MutationObserver = class {
+      constructor() {
+        throw new Error("comment feature should be event-driven");
+      }
+    };
+    const feature = createCommentComposerFeature(page.window);
+
+    expect(() => feature.start()).not.toThrow();
     feature.destroy();
   });
 });

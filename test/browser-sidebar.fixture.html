@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>RUNNING</title>
+    <script>
+      window.__documentQueryCount = 0;
+      const querySelector = Document.prototype.querySelector;
+      Document.prototype.querySelector = function (...args) {
+        window.__documentQueryCount += 1;
+        return querySelector.apply(this, args);
+      };
+    </script>
+  </head>
+  <body>
+    <main>
+      <div class="Topstory-container">
+        <div class="Topstory-mainColumn">信息流</div>
+        <div id="home-sidebar" data-za-detail-view-path-module="RightSideBar">右侧栏</div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { createHomeSidebarFeature } from "../src/features/home-sidebar.js";
+
+      const browserLocation = { hostname: "www.zhihu.com", pathname: "/" };
+      let intersectionObserverCount = 0;
+      let scrollListenerCount = 0;
+      const browserWindow = {
+        document,
+        location: browserLocation,
+        localStorage,
+        MutationObserver,
+        IntersectionObserver: class {
+          constructor(...args) {
+            intersectionObserverCount += 1;
+            return new IntersectionObserver(...args);
+          }
+        },
+        requestAnimationFrame: window.requestAnimationFrame.bind(window),
+        cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+        addEventListener(eventName, ...args) {
+          if (eventName === "scroll") scrollListenerCount += 1;
+          window.addEventListener(eventName, ...args);
+        },
+        removeEventListener: window.removeEventListener.bind(window),
+      };
+      const feature = createHomeSidebarFeature(browserWindow);
+      feature.start();
+
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          const baselineDocumentQueries = window.__documentQueryCount;
+          const fragment = document.createDocumentFragment();
+          for (let index = 0; index < 500; index += 1) {
+            fragment.append(document.createElement("article"));
+          }
+          document.querySelector("main").append(fragment);
+          window.dispatchEvent(new Event("scroll"));
+
+          requestAnimationFrame(() => {
+            const homeSidebar = document.getElementById("home-sidebar");
+            const homeResult = {
+              unrelatedMutationDocumentQueries:
+                window.__documentQueryCount - baselineDocumentQueries - 1,
+              homePage: document.documentElement.dataset.zbHomePage === "true",
+              sidebarMarked: homeSidebar.hasAttribute("data-zb-home-sidebar"),
+              sidebarHidden: getComputedStyle(homeSidebar).display === "none",
+            };
+
+            browserLocation.pathname = "/question/123";
+            document.querySelector("main").innerHTML = `
+              <div class="PageHeader is-shown">吸顶标题</div>
+              <div class="QuestionPage">
+                <div class="Question-mainColumn">
+                  <div class="AnswersNavWrapper">答案</div>
+                </div>
+                <div id="question-sidebar" class="Question-sideColumn">右侧栏</div>
+              </div>
+            `;
+            window.dispatchEvent(new PopStateEvent("popstate"));
+
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                const questionSidebar = document.getElementById("question-sidebar");
+                const result = {
+                  ...homeResult,
+                  questionPage: document.documentElement.dataset.zbQuestionPage === "true",
+                  questionSidebarMarked: questionSidebar.hasAttribute("data-zb-home-sidebar"),
+                  questionSidebarHidden: getComputedStyle(questionSidebar).display === "none",
+                  intersectionObserverUsed: intersectionObserverCount > 0,
+                  scrollListenerCount,
+                };
+                document.documentElement.dataset.probeResult = JSON.stringify(result);
+                document.title =
+                  result.unrelatedMutationDocumentQueries === 0 &&
+                  Object.entries(result)
+                    .filter(
+                      ([name]) =>
+                        name !== "unrelatedMutationDocumentQueries" &&
+                        name !== "scrollListenerCount",
+                    )
+                    .every(([, value]) => value) &&
+                  result.scrollListenerCount === 0
+                    ? "PASS"
+                    : "FAIL";
+                feature.destroy();
+              });
+            });
+          });
+        });
+      }, 50);
+    </script>
+  </body>
+</html>
