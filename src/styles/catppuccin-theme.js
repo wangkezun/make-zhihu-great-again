@@ -457,6 +457,234 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div + div > .SendGiftModal-GiftListWrapper),
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
+    > button {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
+    > button:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-GiftListWrapper),
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .SendGiftModal-GiftListWrapper
+    > div
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-GiftListWrapper
+    > div
+    > div:not(:last-child),
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-RedpacketListWrapper
+    > div
+    > div {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-RedpacketListWrapper
+    > div:not(:empty) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:not(:last-child) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:not(:last-child)
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:first-child
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:nth-child(2)
+    span {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(> button):last-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    a[href*="/grapp/protocol/payment"] {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(> button):last-child
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:first-child
+    > div:last-child {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    )
+    .Modal-closeIcon {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    .Modal-content
+    > div
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    input[placeholder="0"] {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    input[placeholder="0"]::placeholder {
+    color: var(--zb-text-subtle) !important;
+    -webkit-text-fill-color: var(--zb-text-subtle) !important;
+  }
+
   html[data-zb-theme] .FavlistsModal .Modal-inner {
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border-strong) !important;
@@ -3004,6 +3232,43 @@ ${createPaletteVariables(flavors.mocha)}
     border-radius: 6px !important;
   }
 
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: max-content !important;
+    min-height: 28px !important;
+    margin: 8px auto 0 !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
   html[data-zb-theme] .QuestionPage .VoteButton {
     border-radius: 6px !important;
   }
@@ -5064,6 +5329,32 @@ ${createPaletteVariables(flavors.mocha)}
     min-height: 28px !important;
     padding: 4px 6px !important;
     border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]

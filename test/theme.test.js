@@ -122,6 +122,17 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AskDetail-input:focus-within");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .Editable-toolbar");
     expect(CATPPUCCIN_THEME_STYLE).toContain('.Editable-control[aria-pressed="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.SendGiftModal-GiftListWrapper)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SendGiftModal-GiftListWrapper\n    > div\n    > div:last-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SendGiftModal-RedpacketListWrapper");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SendGiftModal-RedpacketListWrapper\n    > div:not(:empty)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href*="/grapp/protocol/payment"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Modal:has(input[placeholder="0"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('input[placeholder="0"]::placeholder');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicInputAlias-suggestionContainer");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".MentionSuggestions-menu .AutoComplete-UserName");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".MentionSuggestions-menu .Menu-item.is-active");
@@ -138,6 +149,10 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem\n    .ContentItem-more {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopstoryItem\n    .ContentItem-more:is(:hover, :focus-visible)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
@@ -175,6 +190,12 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("> svg {\n    color: var(--zb-surface)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("box-shadow: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem .RichContent-inner .RichText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerItem\n    .ContentItem-expandButton.Button {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("width: max-content !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin: 8px auto 0 !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ContentItem-expandButton.Button:is(:hover, :focus-visible)",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea > div > section");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .WritePinV2-Form");
     expect(CATPPUCCIN_THEME_STYLE).toContain("max-width: 100% !important");
