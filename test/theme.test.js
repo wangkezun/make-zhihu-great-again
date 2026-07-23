@@ -130,6 +130,36 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 999px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):hover",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Button[aria-label="收藏"]:is(:hover, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Button[aria-label="已收藏"]\n    .Zi--Star');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-warning) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))\n    svg",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Button:is([aria-label="取消喜欢"], [aria-pressed="true"]):has(',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-danger) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Card:has(.FollowButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("> div:has(> div > div > .FollowButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 100% !important");
@@ -473,7 +503,7 @@ describe("Catppuccin theme feature", () => {
       ".Modal-content:has(.CommentContent)\n    .Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Button:has(.ZDI--HeartFill24):is(:hover, :focus-visible)",
+      ".Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Modal-content:has(.InputLike.Editable):has(img.Avatar)",
@@ -648,6 +678,71 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 6px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "box-shadow: 0 0 0 2px var(--zb-primary-soft) !important",
+    );
+  });
+
+  it("presents saved favorite-list buttons as cancel actions on hover and focus", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Modal-inner");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-items");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-bottom-color: var(--zb-border) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Favlists-item:is(:hover, :focus-within)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-itemInner");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-itemNameText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 76px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-updateButton.Button--blue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-actions");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Modal-closeButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Favlists-updateButton.Button--grey:is(:hover, :focus-visible)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消收藏" !important');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("-webkit-text-fill-color: transparent !important");
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.FavlistsModal[\s\S]*?\.Favlists-updateButton\.Button--grey:is\(:hover, :focus-visible\)[^{]*\{[\s\S]*?background-color: var\(--zb-danger-soft\) !important;[\s\S]*?color: transparent !important;[\s\S]*?-webkit-text-fill-color: transparent !important;/,
+    );
+  });
+
+  it("themes the transient favorite success prompt", () => {
+    const page = createPage();
+    page.window.document.body.innerHTML = `
+      <div class="prompt-wrapper">
+        <div class="prompt">
+          <div><span>收藏成功</span></div>
+          <div></div>
+          <div><button>选择收藏夹 <svg class="ZDI--ArrowRight24"></svg></button></div>
+        </div>
+      </div>
+    `;
+    const promptWrapperSelector =
+      "div:has(> div > div:first-child > span:only-child):has(> div > div:nth-child(2):empty):has(> div > div:nth-child(3) > button .ZDI--ArrowRight24)";
+
+    expect(page.window.document.querySelector(promptWrapperSelector)?.className).toBe(
+      "prompt-wrapper",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme]:is(\n      [data-zb-question-page="true"],\n      [data-zb-home-page="true"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> div:first-child > span:only-child):has(");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "div:has(> div > div:first-child > span:only-child):has(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      "div:has(\n      > div:has(> div:first-child > span:only-child)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:nth-child(3) > button .ZDI--ArrowRight24");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-surface-raised) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("background-color: var(--zb-primary-soft) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("overflow: hidden !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("min-width: max-content !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 4px 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "box-shadow: inset 0 0 0 1px var(--zb-primary) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:nth-child\(2\) \{\s*background-color: transparent !important;/,
     );
   });
 });

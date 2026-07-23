@@ -4720,6 +4720,233 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme] .FavlistsModal .Modal-inner {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal :is(.Modal-title, .Favlists-itemNameText) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    :is(.Modal-subtitle, .Favlists-itemContent, .Favlists-itemIcon) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-items {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-item {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px 10px !important;
+    background-color: transparent !important;
+    border-bottom-color: var(--zb-border) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemInner {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemName {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemNameText {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-updateButton {
+    flex: 0 0 76px !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-updateButton.Button--blue,
+  html[data-zb-theme] .FavlistsModal .Favlists-addButton {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    :is(.Favlists-updateButton.Button--blue, .Favlists-addButton):hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    :is(.Favlists-updateButton, .Favlists-addButton):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-actions {
+    background-color: var(--zb-surface) !important;
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Modal-closeButton {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Modal-closeButton:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey {
+    position: relative !important;
+    border-radius: 6px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible)::after {
+    content: "取消收藏" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    font-size: 14px !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div > div:first-child > span:only-child):has(
+      > div > div:nth-child(2):empty
+    ):has(> div > div:nth-child(3) > button .ZDI--ArrowRight24) {
+    background-color: transparent !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    > div:nth-child(2) {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    :is(span, button) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    button {
+    box-sizing: border-box !important;
+    min-width: max-content !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]:is(
+      [data-zb-question-page="true"],
+      [data-zb-home-page="true"]
+    )
+    body
+    div:has(> div:first-child > span:only-child):has(
+      > div:nth-child(2):empty
+    ):has(> div:nth-child(3) > button .ZDI--ArrowRight24)
+    :is(svg, path) {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
   html[data-zb-theme] .WriteArea,
   html[data-zb-theme] .Topstory-mainColumnCard {
     background-clip: padding-box !important;
@@ -7071,6 +7298,41 @@ ${createPaletteVariables(flavors.mocha)}
     outline: 0 !important;
   }
 
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))
+    svg,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(
+      :hover,
+      :focus-visible,
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    )
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
+  }
+
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
     background-color: transparent !important;
@@ -7614,28 +7876,16 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme]
     .Comments-container
-    .Button:has(.ZDI--HeartFill24):is(
+    .Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(
       :hover,
       :focus-visible,
       .Button--red,
       .is-active,
-      [aria-pressed="true"]
-    ) {
-    background-color: color-mix(in srgb, var(--ctp-red) 16%, transparent) !important;
-    color: var(--ctp-red) !important;
-  }
-
-  html[data-zb-theme]
-    .Comments-container
-    .Button:has(.ZDI--HeartFill24):is(
-      :hover,
-      :focus-visible,
-      .Button--red,
-      .is-active,
+      [aria-label="取消喜欢"],
       [aria-pressed="true"]
     )
     svg {
-    color: inherit !important;
+    color: var(--zb-danger) !important;
     fill: currentColor !important;
   }
 
@@ -7954,29 +8204,16 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme]
     .Modal-content:has(.CommentContent)
-    .Button:has(.ZDI--HeartFill24):is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
-    .Button:has(.ZDI--HeartFill24):is(
-      .Button--red,
-      .is-active,
-      [aria-pressed="true"]
-    ) {
-    background-color: color-mix(in srgb, var(--ctp-red) 16%, transparent) !important;
-    color: var(--ctp-red) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
-    .Button:has(.ZDI--HeartFill24):is(
+    .Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(
       :hover,
       :focus-visible,
       .Button--red,
       .is-active,
+      [aria-label="取消喜欢"],
       [aria-pressed="true"]
     )
     svg {
-    color: inherit !important;
+    color: var(--zb-danger) !important;
     fill: currentColor !important;
   }
 
@@ -9080,6 +9317,72 @@ ${createPaletteVariables(flavors.mocha)}
     .Topstory-container
     .FollowButton.Button--blue:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))
+    svg,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(
+      :hover,
+      :focus-visible
+    )
+    svg,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:is([aria-label="取消喜欢"], [aria-pressed="true"]):has(
+      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
+    )
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme] .VoteButton {
