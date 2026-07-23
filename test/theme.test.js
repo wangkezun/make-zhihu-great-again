@@ -205,6 +205,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-itemContent");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-footer");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Notifications-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Popover-content .Menu > .Menu-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("width: calc(100% - 12px) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-right: 6px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 14px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Menu\n    > .Menu-item:focus-visible");
   });
 
   it("styles question page headers, sidebars, overlays, editors, and floating controls", () => {
@@ -214,6 +219,10 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".PageHeader\n    .QuestionButtonGroup\n    :is(.FollowButton, .WriteAnswerButton)",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .WriteAnswerButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("background-color: transparent !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-color: var(--zb-primary) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".QuestionHeader-footer .QuestionHeaderActions .Button",
     );
@@ -224,6 +233,17 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 16px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PageHeader .QuestionHeader-title");
     expect(CATPPUCCIN_THEME_STYLE).toContain("font-size: 22px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .NumberBoard-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .NumberBoard-item.Button:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".NumberBoard-item.Button:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .QuestionFollowStatus-counts");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("column-gap: 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionFollowStatus-counts\n    .NumberBoard-itemInner",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .QuestionFollowStatus-people");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionFollowStatus-people:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-left: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme][data-zb-question-content-under-header="true"]',
     );
@@ -244,6 +264,17 @@ describe("Catppuccin theme feature", () => {
       ".Question-sideColumn .AnswerAuthor .Card-section::after",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)\n    .FollowButton",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--grey");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".FollowButton.Button--grey:is(:hover, :focus-visible)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("background-color: var(--zb-danger-soft) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-color: var(--zb-danger) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--ctp-crust) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.Question-sideColumn\n    > div[style*="position: sticky"][style*="overflow: auto"]::-webkit-scrollbar',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain("scrollbar-width: none !important");
@@ -252,6 +283,18 @@ describe("Catppuccin theme feature", () => {
       ".Question-sideColumn\n    footer\n    :where(a, button, div, span, p, svg)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 16px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("top: -8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) div:has(> .Avatar)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-bottom: 21px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .HoverCard-description");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".NumberBoard-itemValue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-itemName");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-itemValue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons .Button");
 
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -282,5 +325,49 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-qrcodeBox");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".CornerButton");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".CornerButton:hover");
+  });
+
+  it("styles question and answer links according to their semantic roles", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.QuestionHeader-topics[\s\S]*?:is\(a, \.TopicLink, \.Tag-content\)[\s\S]*?color: var\(--zb-primary\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(a, .TopicLink, .Tag-content)\n    :where(span, div)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.BrandQuestionSymbol-name,[\s\S]*?\.UserLink-link[\s\S]*?\)[^{]*\{\s*color: var\(--zb-text\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /:is\(\.ContentItem-time, \.ContentItem-time a\)[^{]*\{\s*color: var\(--zb-text-muted\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /:is\(\.RichText, \.RichContent-inner\)[\s\S]*?a:not\(\.UserLink-link\):not\(\.TopicLink\)[\s\S]*?color: var\(--zb-primary\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /a\.RichContent-EntityWord:focus-visible[^{]*\{[\s\S]*?color: var\(--zb-primary-hover\) !important;[\s\S]*?text-decoration: underline !important;[\s\S]*?text-underline-offset: 2px !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.QuestionPage[\s\S]*?:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.QuestionHeader-topics a,[\s\S]*?\.NumberBoard-item[\s\S]*?\):focus-visible[^{]*\{[\s\S]*?outline: 2px solid var\(--zb-primary\) !important;[\s\S]*?outline-offset: 2px !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-itemLink:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-item:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin: 6px -8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 6px 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 10px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemLink");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-tag");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("width: auto !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("min-width: 24px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 0 5px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("white-space: nowrap !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.ContentItem-actions, .RichContent-actions)\n    .Button:not(.VoteButton)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("min-height: 28px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 6px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "box-shadow: 0 0 0 2px var(--zb-primary-soft) !important",
+    );
   });
 });

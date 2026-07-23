@@ -634,6 +634,26 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme] .Popover-content .Menu > .Menu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content
+    .Menu
+    > .Menu-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
   html[data-zb-theme] .Editable-languageSuggestions,
   html[data-zb-theme] .Editable-languageSuggestions .Popover-content,
   html[data-zb-theme] .Editable-languageSuggestionsMenu,
@@ -1337,6 +1357,163 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text-muted) !important;
   }
 
+  html[data-zb-theme] .QuestionHeader .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts {
+    column-gap: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionFollowStatus-counts
+    .NumberBoard-itemInner {
+    border-left-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .NumberBoard-item.Button:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .NumberBoard-item.Button:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionFollowStatus-people:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  /* Question and answer page links follow semantic roles instead of Zhihu's
+     native blue palette. Keep identity links calm, metadata subdued, and
+     reserve the accent color for topics, content links, and interaction. */
+  html[data-zb-theme] .QuestionHeader-topics :is(a, .TopicLink, .Tag-content),
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content)
+    :where(span, div) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content):hover,
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content):hover
+    :where(span, div) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .BrandQuestionSymbol-name,
+      .AuthorInfo-name a,
+      .UserLink-link
+    ) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .BrandQuestionSymbol-name,
+      .AuthorInfo-name a,
+      .UserLink-link
+    ):hover {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-time, .ContentItem-time a) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-time
+    a:hover {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink),
+  html[data-zb-theme] .QuestionHeader-detail .RichText a,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord {
+    color: var(--zb-primary) !important;
+    text-decoration-color: transparent !important;
+    text-decoration-thickness: 1px !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink):hover,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink):focus-visible,
+  html[data-zb-theme] .QuestionHeader-detail .RichText a:hover,
+  html[data-zb-theme] .QuestionHeader-detail .RichText a:focus-visible,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:hover,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:focus-visible {
+    color: var(--zb-primary-hover) !important;
+    text-decoration: underline !important;
+    text-decoration-color: currentColor !important;
+    text-decoration-thickness: 1px !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .AuthorInfo-name a,
+      .UserLink-link,
+      .ContentItem-time a,
+      .QuestionHeader-topics a,
+      .RelatedQuestions-item a,
+      .NumberBoard-item
+    ):focus-visible {
+    color: var(--zb-primary) !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .BrandQuestionSymbol-brandLink:is(:hover, :focus-visible)
+    .BrandQuestionSymbol-name {
+    color: var(--zb-primary) !important;
+  }
+
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
   html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
     background-color: transparent !important;
@@ -1352,35 +1529,105 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme]
     .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton),
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
     :is(.FollowButton, .WriteAnswerButton) {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid
-      color-mix(in srgb, var(--zb-primary) 38%, transparent) !important;
+    min-height: 34px !important;
     border-radius: 6px !important;
-    color: var(--zb-text) !important;
     font-weight: 500 !important;
   }
 
+  html[data-zb-theme] .QuestionHeader .FollowButton.Button--blue,
   html[data-zb-theme]
-    .QuestionHeader
-    :is(.FollowButton, .WriteAnswerButton):hover {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 26%,
-      transparent
-    ) !important;
+    .PageHeader
+    .QuestionButtonGroup
+    .FollowButton.Button--blue {
+    background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
-    color: var(--zb-text) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .FollowButton.Button--blue:hover,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .FollowButton.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .WriteAnswerButton,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .WriteAnswerButton {
+    background-color: transparent !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .WriteAnswerButton:hover,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .WriteAnswerButton:hover {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .FollowButton.Button--grey,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme]
     .QuestionHeader
+    .FollowButton.Button--grey:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton):focus-visible,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
     :is(.FollowButton, .WriteAnswerButton):focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme]
     .QuestionHeader
+    .FollowButton.Button--grey:focus-visible,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton)
+    svg,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
     :is(.FollowButton, .WriteAnswerButton)
     svg {
     color: inherit !important;
@@ -1458,13 +1705,6 @@ ${createPaletteVariables(flavors.mocha)}
     margin-right: 0 !important;
   }
 
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    :is(.FollowButton, .WriteAnswerButton) {
-    color: var(--ctp-crust) !important;
-  }
-
   html[data-zb-theme] .PageHeader .QuestionHeader-title {
     font-size: 22px !important;
     font-weight: 600 !important;
@@ -1488,6 +1728,7 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme] .Question-sideColumn .HotSearchCard-title,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item > a,
   html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText,
   html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText a {
     color: var(--zb-text) !important;
@@ -1499,6 +1740,204 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .Question-sideColumn .HotSearchCard-item:hover {
     background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item {
+    box-sizing: border-box !important;
+    margin: 6px -8px !important;
+    padding: 6px 8px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-tag {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 24px !important;
+    padding: 0 5px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-itemLink:focus-visible {
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:hover
+    .HotSearchCard-itemText,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:hover
+    .HotSearchCard-itemText
+    :where(a, span),
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within
+    .HotSearchCard-itemText,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within
+    .HotSearchCard-itemText
+    :where(a, span) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions-item, .RelatedQuestions-listItem)
+    :is(a, span) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .RelatedQuestions
+    a[href^="/question/"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions-item, .RelatedQuestions-listItem):hover
+    :is(a, span),
+  html[data-zb-theme]
+    .Question-sideColumn
+    .RelatedQuestions
+    a[href^="/question/"]:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.AnswerAuthor, .NumberBoard)
+    .NumberBoard-item {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-itemName {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.AnswerAuthor, .NumberBoard)
+    .NumberBoard-item:hover
+    .NumberBoard-itemValue {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) {
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .Avatar {
+    top: -8px !important;
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) div:has(> .Avatar) {
+    padding-bottom: 21px !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-description {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .UserLink-link {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .UserLink-link:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .NumberBoard-itemName {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .HoverCard-item)
+    .NumberBoard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons .Button {
+    border-radius: 6px !important;
   }
 
   html[data-zb-theme] .AnswerList .List-headerOptions .Button,
@@ -1599,6 +2038,48 @@ ${createPaletteVariables(flavors.mocha)}
     overflow: hidden !important;
   }
 
+  html[data-zb-theme]
+    .Question-mainColumn
+    .ViewAll
+    :is(a, .Button) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .ViewAll
+    :is(a, .Button):is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
     background-color: transparent !important;
@@ -1662,6 +2143,75 @@ ${createPaletteVariables(flavors.mocha)}
   }
 
   html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton {
+    min-height: 34px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
     .Question-sideColumn
     > div[style*="position: sticky"][style*="overflow: auto"] {
     scrollbar-width: none !important;
@@ -1696,6 +2246,21 @@ ${createPaletteVariables(flavors.mocha)}
     overflow-wrap: anywhere !important;
   }
 
+  html[data-zb-theme] .Question-sideColumn .Footer a:hover,
+  html[data-zb-theme] .Question-sideColumn .Footer a:focus-visible,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .Footer
+    a:is(:hover, :focus-visible)
+    :where(span, svg),
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    a:is(:hover, :focus-visible)
+    :where(span, svg) {
+    color: var(--zb-primary) !important;
+  }
+
   html[data-zb-theme]
     .Question-sideColumn
     footer
@@ -1705,6 +2270,18 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .Question-sideColumn footer :where(a, button):hover {
     color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button):is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button):is(:hover, :focus-visible)
+    :where(span, div, svg) {
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme] .CornerButton {
