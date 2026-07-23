@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎美化 v5
 // @namespace    https://github.com/wangkezun/zhihu-beautification
-// @version      5.2.50
+// @version      5.2.51
 // @description  提供可自由开关的知乎页面美化功能
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
@@ -4583,6 +4583,20 @@ ${createPaletteVariables(flavors.mocha)}
     box-shadow: var(--zb-shadow) !important;
   }
 
+  html[data-zb-theme] div:has(> .Modal-content) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Modal .Topbar {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
   html[data-zb-theme] .WriteArea,
   html[data-zb-theme] .Topstory-mainColumnCard {
     background-clip: padding-box !important;
@@ -5771,6 +5785,95 @@ ${createPaletteVariables(flavors.mocha)}
     text-decoration: none !important;
   }
 
+  html[data-zb-theme] .QuestionPage .RichText table {
+    border: 1px solid var(--zb-border) !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText :is(th, td) {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-right: 1px solid var(--zb-border) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText th {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
+    border-right: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .RichText
+    tbody
+    tr:last-child
+    > td {
+    border-bottom: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    div:has(
+      > div
+        > a[href*="zhida_source=below_banner_question"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"] {
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]
+    > p {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]:is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]
+    :is(svg, path) {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+
   html[data-zb-theme]
     .QuestionPage
     :is(
@@ -6486,6 +6589,19 @@ ${createPaletteVariables(flavors.mocha)}
     border-radius: 6px !important;
   }
 
+  html[data-zb-theme] .QuestionPage .VoteButton {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .RichContent-actions.is-fixed {
+    box-sizing: border-box !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+  }
+
   html[data-zb-theme]
     .QuestionPage
     :is(.ContentItem-actions, .RichContent-actions)
@@ -6763,8 +6879,6 @@ ${createPaletteVariables(flavors.mocha)}
     fill: currentColor !important;
   }
 
-  html[data-zb-theme]
-    div:has(> .Modal-content:has(.CommentContent)),
   html[data-zb-theme] .Modal-content:has(.CommentContent) {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
@@ -6773,6 +6887,37 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .Modal-content:has(.CommentContent) {
     box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-surface-raised) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    > div
+    > div:first-child
+    > div:last-child
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
@@ -7157,7 +7302,12 @@ ${createPaletteVariables(flavors.mocha)}
       :has(a[href="/question/19581624"])
     )
     > :where(a, div) {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
     background-color: transparent !important;
+    border-radius: 6px !important;
     color: var(--zb-text-muted) !important;
   }
 

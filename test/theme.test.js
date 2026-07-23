@@ -389,6 +389,9 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 10px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemLink");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-tag");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText table");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText :is(th, td)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href*="zhida_source=below_banner_question"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("width: auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("min-width: 24px !important");
@@ -397,6 +400,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ":is(.ContentItem-actions, .RichContent-actions)\n    .Button:not(.VoteButton)",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .VoteButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".RichContent-actions.is-fixed");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .Modal-content)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal .Topbar");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> .Modal-content:has(.CommentContent))");
     expect(CATPPUCCIN_THEME_STYLE).toContain("min-height: 28px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 6px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
