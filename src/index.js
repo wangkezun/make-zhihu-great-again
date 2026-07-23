@@ -1,4 +1,6 @@
+import { createHomeComposerFeature, HOME_COMPOSER_STORAGE_KEY } from "./features/home-composer.js";
 import { createHomeSidebarFeature, HOME_SIDEBAR_STORAGE_KEY } from "./features/home-sidebar.js";
+import { createHomeWidthFeature, HOME_WIDTH_STORAGE_KEY } from "./features/home-width.js";
 import { createThemeFeature, THEME_STORAGE_KEY } from "./features/theme.js";
 
 const createMenuAdapter = () => ({
@@ -18,5 +20,19 @@ const themeSettings = {
   setMode: (value) => GM_setValue(THEME_STORAGE_KEY, value),
 };
 
+const homeWidthSettings = {
+  getMode: (defaultValue) => GM_getValue(HOME_WIDTH_STORAGE_KEY, defaultValue),
+  menu: createMenuAdapter(),
+  setMode: (value) => GM_setValue(HOME_WIDTH_STORAGE_KEY, value),
+};
+
+const homeComposerSettings = {
+  getPreference: (defaultValue) => GM_getValue(HOME_COMPOSER_STORAGE_KEY, defaultValue),
+  menu: createMenuAdapter(),
+  setPreference: (value) => GM_setValue(HOME_COMPOSER_STORAGE_KEY, value),
+};
+
 createThemeFeature(window, themeSettings).start();
 createHomeSidebarFeature(window, userscriptSettings).start();
+createHomeWidthFeature(window, homeWidthSettings).start();
+createHomeComposerFeature(window, homeComposerSettings).start();

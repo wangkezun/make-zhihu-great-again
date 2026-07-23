@@ -12,11 +12,37 @@ export const HOME_SIDEBAR_STYLE = `
 
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
     .Topstory-container {
-    width: min(694px, calc(100vw - 32px)) !important;
+    width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
   }
 
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
     .Topstory-mainColumn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .Question-sideColumn,
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    [data-zb-home-sidebar] {
+    display: none !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionPage
+    > div:has(> .Question-sideColumn) {
+    box-sizing: border-box !important;
+    justify-content: center !important;
+    width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
+    margin-inline: auto !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionPage
+    > div:has(> .Question-sideColumn)
+    > div:has(.Question-mainColumn),
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .Question-mainColumn {
     width: 100% !important;
     min-width: 0 !important;
   }

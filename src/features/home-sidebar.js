@@ -4,6 +4,8 @@ export const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar"
 
 const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
 const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
+const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
+const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
 const STYLE_ID = "zb-home-sidebar-style";
 
@@ -23,19 +25,43 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let shouldHideSidebar = readPreference(browserWindow, settings);
   let observer;
   let animationFrameId;
+  let positionAnimationFrameId;
   let menuCommandId;
+  let positionScheduled = false;
   let scheduled = false;
   let started = false;
 
   const isHomePage = () =>
     browserWindow.location.hostname === "www.zhihu.com" && browserWindow.location.pathname === "/";
 
+  const isQuestionPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
+
   const updateRootState = () => {
     const root = browserDocument.documentElement;
     if (!root) return;
 
     root.setAttribute(ROOT_HOME_ATTRIBUTE, String(isHomePage()));
+    root.setAttribute(ROOT_QUESTION_ATTRIBUTE, String(isQuestionPage()));
     root.setAttribute(ROOT_ENABLED_ATTRIBUTE, String(shouldHideSidebar));
+  };
+
+  const updateQuestionContentPosition = () => {
+    const root = browserDocument.documentElement;
+    if (!root) return;
+
+    const pageHeader = browserDocument.querySelector(".PageHeader.is-shown");
+    const questionContent = browserDocument.querySelector(
+      ".Question-mainColumn :is(.AnswersNavWrapper, .AnswerCard, .MoreAnswers)",
+    );
+    const isUnderHeader =
+      isQuestionPage() &&
+      pageHeader &&
+      questionContent &&
+      questionContent.getBoundingClientRect().top <= pageHeader.getBoundingClientRect().bottom + 10;
+
+    root.setAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, String(Boolean(isUnderHeader)));
   };
 
   const injectStyle = () => {
@@ -50,7 +76,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     target.append(style);
   };
 
-  const findSidebar = () => {
+  const findHomeSidebar = () => {
     const container = browserDocument.querySelector(".Topstory-container");
     const rightSidebar = container?.querySelector(
       '[data-za-detail-view-path-module="RightSideBar"]',
@@ -67,13 +93,18 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     return Array.from(container.children).find((child) => child.contains(sidebarContent)) ?? null;
   };
 
+  const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
+
   const markSidebar = () => {
     browserDocument.querySelectorAll(`[${SIDEBAR_ATTRIBUTE}]`).forEach((element) => {
       element.removeAttribute(SIDEBAR_ATTRIBUTE);
     });
 
-    if (!isHomePage()) return;
-    findSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+    if (isHomePage()) {
+      findHomeSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+    } else if (isQuestionPage()) {
+      findQuestionSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+    }
   };
 
   const updateMenuCommand = () => {
@@ -84,7 +115,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     }
 
     const status = shouldHideSidebar ? "已开启" : "已关闭";
-    menuCommandId = settings.menu.register(`隐藏首页右栏：${status}`, () => {
+    menuCommandId = settings.menu.register(`隐藏右侧栏：${status}`, () => {
       savePreference(!shouldHideSidebar);
     });
   };
@@ -114,6 +145,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
 
   const refresh = () => {
     updateRootState();
+    updateQuestionContentPosition();
     injectStyle();
     markSidebar();
     ensureObserver();
@@ -128,6 +160,15 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     });
   }
 
+  function schedulePositionRefresh() {
+    if (positionScheduled) return;
+    positionScheduled = true;
+    positionAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+      positionScheduled = false;
+      updateQuestionContentPosition();
+    });
+  }
+
   const start = () => {
     if (started) return;
     started = true;
@@ -135,6 +176,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     updateMenuCommand();
     browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
     browserWindow.addEventListener("popstate", scheduleRefresh);
+    browserWindow.addEventListener("resize", schedulePositionRefresh);
+    browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
   };
 
   const destroy = () => {
@@ -142,8 +185,13 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     if (animationFrameId !== undefined) {
       browserWindow.cancelAnimationFrame(animationFrameId);
     }
+    if (positionAnimationFrameId !== undefined) {
+      browserWindow.cancelAnimationFrame(positionAnimationFrameId);
+    }
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
     browserWindow.removeEventListener("popstate", scheduleRefresh);
+    browserWindow.removeEventListener("resize", schedulePositionRefresh);
+    browserWindow.removeEventListener("scroll", schedulePositionRefresh);
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }
@@ -153,6 +201,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     });
     browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
   };
 
   return { destroy, refresh, start };

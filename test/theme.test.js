@@ -84,11 +84,23 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-inner");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.LinkCard-title.loading, .LinkCard-desc.loading)",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-za-detail-view-path-module="RightSideBar"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-home-sidebar] .Card");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[aria-label="创作中心卡片"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("background-clip: padding-box !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea :where(section, div, span)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".WriteArea,\n  html[data-zb-theme] .Topstory-mainColumnCard",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 12px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("overflow: clip !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("--zb-text-secondary");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-searchButton\n    .SearchBar-searchIcon");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-searchIcon.isFocus");
@@ -107,6 +119,23 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".MentionSuggestions-menu .Menu-item.is-active");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Editable-videoModal-uploader");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Editable-videoModal .Modal-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 999px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Card:has(.FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:has(> div > div > .FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 100% !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[role="dialog"]:is(');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":has(.OrgCreateButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(':has(a[href^="/term/"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(':has(a[href="/question/19581624"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".OrgCreateButton:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('div:has(> [role="dialog"][id^="react-aria-"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("overflow-y: auto !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("scrollbar-width: thin !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> svg {\n    color: var(--zb-surface)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("box-shadow: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem .RichContent-inner .RichText");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea > div > section");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .WritePinV2-Form");
@@ -164,5 +193,94 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(":has(> svg + div > div:nth-child(9))");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-home-sidebar] :where(div, span)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-itemText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PushNotifications-menuContainer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-menuContainer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Popover-arrow::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PushNotifications-selectedTabIcon");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PushNotifications-item a:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PushNotifications-item::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-item::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("text-underline-offset: 2px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-newItem");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-itemContent");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Notifications-footer");
+  });
+
+  it("styles question page headers, sidebars, overlays, editors, and floating controls", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.FollowButton, .WriteAnswerButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PageHeader\n    .QuestionButtonGroup\n    :is(.FollowButton, .WriteAnswerButton)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionHeader-footer .QuestionHeaderActions .Button",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionHeader-footer\n    .QuestionHeaderActions\n    .Button--iconOnly",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("min-height: 34px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 16px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PageHeader .QuestionHeader-title");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("font-size: 22px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme][data-zb-question-content-under-header="true"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AppHeader:has(.PageHeader.is-shown)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("0 10px 0 var(--zb-page)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Question-mainColumn\n    :is(.AnswerCard, .ViewAll, .MoreAnswers)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .AnswersNavWrapper > .List");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("display: none !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .MoreAnswers .List-headerText");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".MoreAnswers\n    :is(.List-header, .List-item)::after",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Question-sideColumn .AnswerAuthor .Card-section::after",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Question-sideColumn\n    > div[style*="position: sticky"][style*="overflow: auto"]::-webkit-scrollbar',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("scrollbar-width: none !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn :is(.Footer, footer)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Question-sideColumn\n    footer\n    :where(a, button, div, span, p, svg)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemText");
+
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal-content:has(.CommentContent)\n    .InputLike.Editable",
+    );
+
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .AnswerFormPortalContainer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .AnswerFormEditorContainer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .AnswerForm-editor");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .AIAssistantPanelV2-container");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .toolbarV3");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .ToolbarButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .ToolbarDivider");
+
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Answers-select .Select-option");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AnswersNavWrapper\n    .List-headerOptions\n    .Select-button",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 14px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Answers-select .Select-option {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("height: 34px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("min-width: 116px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Select-button[aria-expanded="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-button");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-divider");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-qrcodeSection");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ShareMenu-qrcodeBox");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".CornerButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".CornerButton:hover");
   });
 });

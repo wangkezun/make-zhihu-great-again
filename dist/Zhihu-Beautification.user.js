@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎美化 v5
 // @namespace    https://github.com/wangkezun/zhihu-beautification
-// @version      5.0.16
+// @version      5.2.24
 // @description  提供可自由开关的知乎页面美化功能
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
@@ -12,6 +12,98 @@
 // ==/UserScript==
 (function () {
   'use strict';
+
+  const HOME_COMPOSER_STYLE = `
+  html[data-zb-home-page="true"][data-zb-show-home-composer="false"]
+    .Topstory-mainColumn > .WriteArea {
+    display: none !important;
+  }
+`;
+
+  const HOME_COMPOSER_STORAGE_KEY = "zhihu-beautification:show-home-composer";
+
+  const ROOT_ATTRIBUTE = "data-zb-show-home-composer";
+  const STYLE_ID$3 = "zb-home-composer-style";
+
+  const readPreference$1 = (browserWindow, settings) => {
+    try {
+      if (settings?.getPreference) return Boolean(settings.getPreference(true));
+
+      const storedValue = browserWindow.localStorage.getItem(HOME_COMPOSER_STORAGE_KEY);
+      return storedValue === null ? true : storedValue === "true";
+    } catch {
+      return true;
+    }
+  };
+
+  const createHomeComposerFeature = (browserWindow, settings) => {
+    const browserDocument = browserWindow.document;
+    let shouldShowComposer = readPreference$1(browserWindow, settings);
+    let menuCommandId;
+    let started = false;
+
+    const updateRootState = () => {
+      browserDocument.documentElement?.setAttribute(ROOT_ATTRIBUTE, String(shouldShowComposer));
+    };
+
+    const injectStyle = () => {
+      if (browserDocument.getElementById(STYLE_ID$3)) return;
+
+      const target = browserDocument.head ?? browserDocument.documentElement;
+      if (!target) return;
+
+      const style = browserDocument.createElement("style");
+      style.id = STYLE_ID$3;
+      style.textContent = HOME_COMPOSER_STYLE;
+      target.append(style);
+    };
+
+    const updateMenuCommand = () => {
+      if (!settings?.menu?.register) return;
+
+      if (menuCommandId !== undefined && settings.menu.unregister) {
+        settings.menu.unregister(menuCommandId);
+      }
+
+      const status = shouldShowComposer ? "已开启" : "已关闭";
+      menuCommandId = settings.menu.register(`显示首页分享想法：${status}`, () => {
+        savePreference(!shouldShowComposer);
+      });
+    };
+
+    const savePreference = (value) => {
+      shouldShowComposer = value;
+      try {
+        if (settings?.setPreference) {
+          settings.setPreference(value);
+        } else {
+          browserWindow.localStorage.setItem(HOME_COMPOSER_STORAGE_KEY, String(value));
+        }
+      } catch {
+        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+      }
+      updateRootState();
+      updateMenuCommand();
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      updateRootState();
+      injectStyle();
+      updateMenuCommand();
+    };
+
+    const destroy = () => {
+      if (menuCommandId !== undefined && settings?.menu?.unregister) {
+        settings.menu.unregister(menuCommandId);
+      }
+      browserDocument.getElementById(STYLE_ID$3)?.remove();
+      browserDocument.documentElement?.removeAttribute(ROOT_ATTRIBUTE);
+    };
+
+    return { destroy, start };
+  };
 
   const HOME_SIDEBAR_STYLE = `
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
@@ -27,11 +119,37 @@
 
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
     .Topstory-container {
-    width: min(694px, calc(100vw - 32px)) !important;
+    width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
   }
 
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
     .Topstory-mainColumn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .Question-sideColumn,
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    [data-zb-home-sidebar] {
+    display: none !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionPage
+    > div:has(> .Question-sideColumn) {
+    box-sizing: border-box !important;
+    justify-content: center !important;
+    width: min(var(--zb-home-main-width, 694px), calc(100vw - 32px)) !important;
+    margin-inline: auto !important;
+  }
+
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionPage
+    > div:has(> .Question-sideColumn)
+    > div:has(.Question-mainColumn),
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .Question-mainColumn {
     width: 100% !important;
     min-width: 0 !important;
   }
@@ -41,8 +159,10 @@
 
   const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
   const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
+  const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
+  const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
-  const STYLE_ID$1 = "zb-home-sidebar-style";
+  const STYLE_ID$2 = "zb-home-sidebar-style";
 
   const readPreference = (browserWindow, settings) => {
     try {
@@ -60,34 +180,58 @@
     let shouldHideSidebar = readPreference(browserWindow, settings);
     let observer;
     let animationFrameId;
+    let positionAnimationFrameId;
     let menuCommandId;
+    let positionScheduled = false;
     let scheduled = false;
     let started = false;
 
     const isHomePage = () =>
       browserWindow.location.hostname === "www.zhihu.com" && browserWindow.location.pathname === "/";
 
+    const isQuestionPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
+
     const updateRootState = () => {
       const root = browserDocument.documentElement;
       if (!root) return;
 
       root.setAttribute(ROOT_HOME_ATTRIBUTE, String(isHomePage()));
+      root.setAttribute(ROOT_QUESTION_ATTRIBUTE, String(isQuestionPage()));
       root.setAttribute(ROOT_ENABLED_ATTRIBUTE, String(shouldHideSidebar));
     };
 
+    const updateQuestionContentPosition = () => {
+      const root = browserDocument.documentElement;
+      if (!root) return;
+
+      const pageHeader = browserDocument.querySelector(".PageHeader.is-shown");
+      const questionContent = browserDocument.querySelector(
+        ".Question-mainColumn :is(.AnswersNavWrapper, .AnswerCard, .MoreAnswers)",
+      );
+      const isUnderHeader =
+        isQuestionPage() &&
+        pageHeader &&
+        questionContent &&
+        questionContent.getBoundingClientRect().top <= pageHeader.getBoundingClientRect().bottom + 10;
+
+      root.setAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE, String(Boolean(isUnderHeader)));
+    };
+
     const injectStyle = () => {
-      if (browserDocument.getElementById(STYLE_ID$1)) return;
+      if (browserDocument.getElementById(STYLE_ID$2)) return;
 
       const target = browserDocument.head ?? browserDocument.documentElement;
       if (!target) return;
 
       const style = browserDocument.createElement("style");
-      style.id = STYLE_ID$1;
+      style.id = STYLE_ID$2;
       style.textContent = HOME_SIDEBAR_STYLE;
       target.append(style);
     };
 
-    const findSidebar = () => {
+    const findHomeSidebar = () => {
       const container = browserDocument.querySelector(".Topstory-container");
       const rightSidebar = container?.querySelector(
         '[data-za-detail-view-path-module="RightSideBar"]',
@@ -104,13 +248,18 @@
       return Array.from(container.children).find((child) => child.contains(sidebarContent)) ?? null;
     };
 
+    const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
+
     const markSidebar = () => {
       browserDocument.querySelectorAll(`[${SIDEBAR_ATTRIBUTE}]`).forEach((element) => {
         element.removeAttribute(SIDEBAR_ATTRIBUTE);
       });
 
-      if (!isHomePage()) return;
-      findSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+      if (isHomePage()) {
+        findHomeSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+      } else if (isQuestionPage()) {
+        findQuestionSidebar()?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+      }
     };
 
     const updateMenuCommand = () => {
@@ -121,7 +270,7 @@
       }
 
       const status = shouldHideSidebar ? "已开启" : "已关闭";
-      menuCommandId = settings.menu.register(`隐藏首页右栏：${status}`, () => {
+      menuCommandId = settings.menu.register(`隐藏右侧栏：${status}`, () => {
         savePreference(!shouldHideSidebar);
       });
     };
@@ -151,6 +300,7 @@
 
     const refresh = () => {
       updateRootState();
+      updateQuestionContentPosition();
       injectStyle();
       markSidebar();
       ensureObserver();
@@ -165,6 +315,15 @@
       });
     }
 
+    function schedulePositionRefresh() {
+      if (positionScheduled) return;
+      positionScheduled = true;
+      positionAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+        positionScheduled = false;
+        updateQuestionContentPosition();
+      });
+    }
+
     const start = () => {
       if (started) return;
       started = true;
@@ -172,6 +331,8 @@
       updateMenuCommand();
       browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
       browserWindow.addEventListener("popstate", scheduleRefresh);
+      browserWindow.addEventListener("resize", schedulePositionRefresh);
+      browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
     };
 
     const destroy = () => {
@@ -179,20 +340,150 @@
       if (animationFrameId !== undefined) {
         browserWindow.cancelAnimationFrame(animationFrameId);
       }
+      if (positionAnimationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(positionAnimationFrameId);
+      }
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
       browserWindow.removeEventListener("popstate", scheduleRefresh);
+      browserWindow.removeEventListener("resize", schedulePositionRefresh);
+      browserWindow.removeEventListener("scroll", schedulePositionRefresh);
       if (menuCommandId !== undefined && settings?.menu?.unregister) {
         settings.menu.unregister(menuCommandId);
       }
-      browserDocument.getElementById(STYLE_ID$1)?.remove();
+      browserDocument.getElementById(STYLE_ID$2)?.remove();
       browserDocument.querySelectorAll(`[${SIDEBAR_ATTRIBUTE}]`).forEach((element) => {
         element.removeAttribute(SIDEBAR_ATTRIBUTE);
       });
       browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
     };
 
     return { destroy, refresh, start };
+  };
+
+  const HOME_WIDTH_STYLE = `
+  html[data-zb-home-width="standard"] {
+    --zb-home-main-width: 694px;
+  }
+
+  html[data-zb-home-width="comfortable"] {
+    --zb-home-main-width: 820px;
+  }
+
+  html[data-zb-home-width="wide"] {
+    --zb-home-main-width: 960px;
+  }
+
+  html[data-zb-home-width="fluid"] {
+    --zb-home-main-width: calc(100vw - 32px);
+  }
+
+  html[data-zb-home-page="true"][data-zb-hide-home-sidebar="false"]
+    .Topstory-container {
+    width: min(calc(var(--zb-home-main-width, 694px) + 306px), calc(100vw - 32px)) !important;
+  }
+
+  html[data-zb-home-page="true"][data-zb-hide-home-sidebar="false"]
+    .Topstory-mainColumn {
+    width: min(var(--zb-home-main-width, 694px), calc(100% - 306px)) !important;
+    min-width: 0 !important;
+  }
+`;
+
+  const HOME_WIDTH_STORAGE_KEY = "zhihu-beautification:home-width";
+  const HOME_WIDTH_MODES = ["standard", "comfortable", "wide", "fluid"];
+
+  const WIDTH_ATTRIBUTE = "data-zb-home-width";
+  const STYLE_ID$1 = "zb-home-width-style";
+  const WIDTH_LABELS = {
+    standard: "标准（694px）",
+    comfortable: "舒适（820px）",
+    wide: "宽屏（960px）",
+    fluid: "自适应窗口",
+  };
+
+  const isWidthMode = (value) => HOME_WIDTH_MODES.includes(value);
+
+  const createHomeWidthFeature = (browserWindow, settings) => {
+    const browserDocument = browserWindow.document;
+    const menuCommandIds = [];
+    let mode;
+    let started = false;
+
+    const readMode = () => {
+      try {
+        const storedMode = settings?.getMode?.("standard") ?? "standard";
+        return isWidthMode(storedMode) ? storedMode : "standard";
+      } catch {
+        return "standard";
+      }
+    };
+
+    const injectStyle = () => {
+      if (browserDocument.getElementById(STYLE_ID$1)) return;
+
+      const target = browserDocument.head ?? browserDocument.documentElement;
+      if (!target) return;
+
+      const style = browserDocument.createElement("style");
+      style.id = STYLE_ID$1;
+      style.textContent = HOME_WIDTH_STYLE;
+      target.append(style);
+    };
+
+    const clearMenuCommands = () => {
+      if (settings?.menu?.unregister) {
+        menuCommandIds.splice(0).forEach((commandId) => {
+          settings.menu.unregister(commandId);
+        });
+        return;
+      }
+      menuCommandIds.length = 0;
+    };
+
+    const updateMenuCommands = () => {
+      if (!settings?.menu?.register) return;
+
+      clearMenuCommands();
+      HOME_WIDTH_MODES.forEach((widthMode) => {
+        const marker = widthMode === mode ? "✓" : "○";
+        const commandId = settings.menu.register(
+          `${marker} 首页宽度：${WIDTH_LABELS[widthMode]}`,
+          () => setMode(widthMode),
+        );
+        menuCommandIds.push(commandId);
+      });
+    };
+
+    function setMode(nextMode) {
+      mode = isWidthMode(nextMode) ? nextMode : "standard";
+      browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
+      try {
+        settings?.setMode?.(mode);
+      } catch {
+        // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+      }
+      updateMenuCommands();
+    }
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      mode = readMode();
+      browserDocument.documentElement?.setAttribute(WIDTH_ATTRIBUTE, mode);
+      injectStyle();
+      updateMenuCommands();
+    };
+
+    const destroy = () => {
+      clearMenuCommands();
+      browserDocument.getElementById(STYLE_ID$1)?.remove();
+      browserDocument.documentElement?.removeAttribute(WIDTH_ATTRIBUTE);
+    };
+
+    return { destroy, setMode, start };
   };
 
   const definitions = {
@@ -4292,6 +4583,151 @@ ${createPaletteVariables(flavors.mocha)}
     box-shadow: var(--zb-shadow) !important;
   }
 
+  html[data-zb-theme] .WriteArea,
+  html[data-zb-theme] .Topstory-mainColumnCard {
+    background-clip: padding-box !important;
+    border-radius: 12px !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    .Popover-arrow::after {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      .PushNotifications-menu,
+      .PushNotifications-content,
+      .PushNotifications-header,
+      .PushNotifications-list,
+      .PushNotifications-footer,
+      .Notifications-footer,
+      .Messages-menu,
+      .Messages-content,
+      .Messages-header,
+      .Messages-list,
+      .Messages-footer
+    ) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-header, .Messages-header) {
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer) {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-list, .Messages-list) {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-tab,
+  html[data-zb-theme] .Messages-tab {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-tab:hover,
+  html[data-zb-theme] .PushNotifications-tab:focus-visible,
+  html[data-zb-theme] .Messages-tab:hover,
+  html[data-zb-theme] .Messages-tab:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-selectedTabIcon {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item,
+  html[data-zb-theme] .Messages-item {
+    background-color: transparent !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item::after,
+  html[data-zb-theme] .Messages-item::after {
+    background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item:hover,
+  html[data-zb-theme] .PushNotifications-item:focus-visible,
+  html[data-zb-theme] .Messages-item:hover,
+  html[data-zb-theme] .Messages-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Messages-newItem {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-actor,
+  html[data-zb-theme] .Messages-userName,
+  html[data-zb-theme] .Messages-userName a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item a {
+    color: var(--zb-primary) !important;
+    text-decoration-color: transparent !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item a:hover,
+  html[data-zb-theme] .PushNotifications-item a:focus-visible {
+    color: var(--zb-primary-hover) !important;
+    text-decoration-color: currentColor !important;
+  }
+
+  html[data-zb-theme] .Messages-itemContent {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
+    :is(a.Button, button.Button) {
+    background-color: transparent !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
+    :is(a.Button, button.Button):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .Topstory-mainColumnCard {
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
   html[data-zb-theme] .TopstoryItem,
   html[data-zb-theme] .ContentItem,
   html[data-zb-theme] .List-item,
@@ -5009,6 +5445,670 @@ ${createPaletteVariables(flavors.mocha)}
     border-color: var(--zb-primary-hover) !important;
   }
 
+  /* Question page */
+  html[data-zb-theme] .QuestionHeader,
+  html[data-zb-theme] .QuestionHeader-content,
+  html[data-zb-theme] .QuestionHeader-main,
+  html[data-zb-theme] .QuestionHeader-side,
+  html[data-zb-theme] .QuestionHeader-footer,
+  html[data-zb-theme] .QuestionHeader-footer-inner,
+  html[data-zb-theme] .QuestionHeader-footer-main {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader {
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-title,
+  html[data-zb-theme] .QuestionHeader-title a,
+  html[data-zb-theme] .QuestionHeader-detail,
+  html[data-zb-theme] .QuestionHeader-detail .RichText,
+  html[data-zb-theme] .QuestionHeader .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .NumberBoard-itemName,
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts,
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts div,
+  html[data-zb-theme] .QuestionHeader .QuestionHeaderActions-label {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
+  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue):hover,
+  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton) {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid
+      color-mix(in srgb, var(--zb-primary) 38%, transparent) !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton):hover {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary) 26%,
+      transparent
+    ) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton)
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer-main {
+    column-gap: 12px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup .Button {
+    min-height: 34px !important;
+    margin: 0 !important;
+    font-size: 14px !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions {
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions > * {
+    margin: 0 !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions .Button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button--iconOnly {
+    width: 34px !important;
+    padding: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button
+    svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 6px !important;
+    color: inherit !important;
+    fill: currentColor !important;
+    flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button--iconOnly
+    svg {
+    margin-right: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    :is(.FollowButton, .WriteAnswerButton) {
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] .PageHeader .QuestionHeader-title {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme][data-zb-question-content-under-header="true"]
+    .AppHeader:has(.PageHeader.is-shown) {
+    box-shadow:
+      0 10px 0 var(--zb-page),
+      var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    :is(.FollowButton, .WriteAnswerButton)
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-title,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-heat {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .AnswerList .List-headerOptions .Button,
+  html[data-zb-theme] .AnswerList .Select-button {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .AnswerList .List-headerOptions .Button:hover,
+  html[data-zb-theme] .AnswerList .Select-button:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    padding-inline: 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button:hover,
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button:focus-visible,
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button[aria-expanded="true"] {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button
+    svg {
+    width: 14px !important;
+    height: 14px !important;
+    margin-left: 6px !important;
+    color: inherit !important;
+    fill: currentColor !important;
+    flex: 0 0 14px !important;
+  }
+
+  html[data-zb-theme] .Select-option {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Select-option:hover,
+  html[data-zb-theme] .Select-option.is-selected,
+  html[data-zb-theme] .Select-option[aria-selected="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    :is(.AnswerCard, .ViewAll, .MoreAnswers) {
+    background-clip: padding-box !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
+  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-header {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 50px !important;
+    margin: 0 0 10px !important;
+    padding: 0 20px !important;
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item {
+    margin-bottom: 10px !important;
+    background-color: var(--zb-surface) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-header {
+    margin-bottom: 8px !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-headerText {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .MoreAnswers
+    :is(.List-header, .List-item)::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .AnswerAuthor .Card-section::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    > div[style*="position: sticky"][style*="overflow: auto"] {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    > div[style*="position: sticky"][style*="overflow: auto"]::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn :is(.Footer, footer) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    color: var(--zb-text-muted) !important;
+    overflow-x: hidden !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .Footer a,
+  html[data-zb-theme] .Question-sideColumn .Footer-item,
+  html[data-zb-theme] .Question-sideColumn .Footer-copyright,
+  html[data-zb-theme] .Question-sideColumn .Footer-certificate,
+  html[data-zb-theme] .Question-sideColumn .Footer-zhihuIntegrity {
+    max-width: 100% !important;
+    color: var(--zb-text-muted) !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button, div, span, p, svg) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn footer :where(a, button):hover {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .CornerButton {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .CornerButton:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .CornerButton svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .Modal-content:has(.CommentContent)),
+  html[data-zb-theme] .Modal-content:has(.CommentContent) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Modal-content:has(.CommentContent) {
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    :is(.CommentContent, a) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .InputLike.Editable {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    .InputLike.Editable:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(.CommentContent)
+    :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .AnswerFormPortalContainer,
+  html[data-zb-theme] .QuestionPage .QuestionAnswers-statusWrapper,
+  html[data-zb-theme] .QuestionPage .AnswerAdd,
+  html[data-zb-theme] .QuestionPage .AnswerForm,
+  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer,
+  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .toolbarV3,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Sticky, .Editable-toolbar) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarButton,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Editable-control, .Button:not(.Button--blue)) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarButton:hover,
+  html[data-zb-theme] .QuestionPage .ToolbarButton:focus-visible,
+  html[data-zb-theme] .QuestionPage .ToolbarButton.is-active,
+  html[data-zb-theme] .QuestionPage .ToolbarButton[aria-pressed="true"],
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Editable-control, .Button:not(.Button--blue)):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarDivider {
+    background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor.InputLike.Editable,
+  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor
+    :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormEditorContainer
+    > div:has([role="combobox"]) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormEditorContainer
+    > div:has([role="combobox"])
+    [role="combobox"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container,
+  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container > div {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Answers-select,
+  html[data-zb-theme] .Answers-select .Select-option {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Answers-select {
+    min-width: 116px !important;
+    padding: 4px !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .Answers-select .Select-option {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    line-height: 34px !important;
+  }
+
+  html[data-zb-theme] .Answers-select .Select-option:hover,
+  html[data-zb-theme] .Answers-select .Select-option:focus,
+  html[data-zb-theme] .Answers-select .Select-option:focus-visible,
+  html[data-zb-theme] .Answers-select .Select-option.is-selected,
+  html[data-zb-theme] .Answers-select .Select-option[aria-selected="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-content,
+  html[data-zb-theme] .ShareMenu-menuItems,
+  html[data-zb-theme] .ShareMenu-qrcodeBox {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-button {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-button:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-qrcodeSection {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-divider {
+    background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .ShareMenu-qrcodeText {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue:hover {
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
   html[data-zb-theme] .VoteButton {
     background-color: var(--zb-primary-soft) !important;
     border-color: transparent !important;
@@ -5057,8 +6157,12 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme] [data-zb-home-sidebar] .Card,
   html[data-zb-theme] [aria-label="创作中心卡片"] {
     background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
     border-color: var(--zb-border) !important;
+    border-radius: 12px !important;
     color: var(--zb-text) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
   }
 
   html[data-zb-theme] [data-zb-home-sidebar] .CreatorEntrance-hint,
@@ -5074,6 +6178,30 @@ ${createPaletteVariables(flavors.mocha)}
     color: var(--zb-text-muted) !important;
   }
 
+  html[data-zb-theme]
+    [data-zb-home-sidebar]
+    .Card:has(.FollowButton)
+    > div:has(> div > div > .FollowButton) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-home-sidebar]
+    .Card:has(.FollowButton)
+    > div:has(> div > div > .FollowButton)
+    > div:has(.FollowButton) {
+    box-sizing: border-box !important;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    padding-right: 8px !important;
+  }
+
   html[data-zb-theme] .HotSearchCard-tagHot {
     background-color: var(--zb-danger-soft) !important;
     color: var(--zb-danger) !important;
@@ -5086,6 +6214,87 @@ ${createPaletteVariables(flavors.mocha)}
 
   html[data-zb-theme] .HotSearchCard-dot {
     background-color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> [role="dialog"][id^="react-aria-"]) {
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> [role="dialog"][id^="react-aria-"])
+    > svg {
+    color: var(--zb-surface) !important;
+    fill: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    )
+    > :where(a, div) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    )
+    > :where(a, div):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(.OrgCreateButton)
+    .OrgCreateButton {
+    width: 100% !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(.OrgCreateButton)
+    .OrgCreateButton:hover {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(a[href*="/certificates"])
+    > div:last-child {
+    color: var(--zb-text-subtle) !important;
   }
 
   html[data-zb-theme] blockquote {
@@ -5114,6 +6323,39 @@ ${createPaletteVariables(flavors.mocha)}
   html[data-zb-theme] .PlaceHolder,
   html[data-zb-theme] .PlaceHolder-inner {
     background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder,
+  html[data-zb-theme] .QuestionPage .PlaceHolder-inner {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder-mask,
+  html[data-zb-theme] .QuestionPage .PlaceHolder-mask path {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 4px !important;
   }
 
   html[data-zb-theme] .skeleton {
@@ -5258,7 +6500,21 @@ ${createPaletteVariables(flavors.mocha)}
     setMode: (value) => GM_setValue(THEME_STORAGE_KEY, value),
   };
 
+  const homeWidthSettings = {
+    getMode: (defaultValue) => GM_getValue(HOME_WIDTH_STORAGE_KEY, defaultValue),
+    menu: createMenuAdapter(),
+    setMode: (value) => GM_setValue(HOME_WIDTH_STORAGE_KEY, value),
+  };
+
+  const homeComposerSettings = {
+    getPreference: (defaultValue) => GM_getValue(HOME_COMPOSER_STORAGE_KEY, defaultValue),
+    menu: createMenuAdapter(),
+    setPreference: (value) => GM_setValue(HOME_COMPOSER_STORAGE_KEY, value),
+  };
+
   createThemeFeature(window, themeSettings).start();
   createHomeSidebarFeature(window, userscriptSettings).start();
+  createHomeWidthFeature(window, homeWidthSettings).start();
+  createHomeComposerFeature(window, homeComposerSettings).start();
 
 })();
