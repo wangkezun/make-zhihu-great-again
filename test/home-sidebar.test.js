@@ -290,6 +290,29 @@ describe("home sidebar feature", () => {
     expect(page.window.document.documentElement.hasAttribute("data-zb-column-page")).toBe(false);
   });
 
+  it("marks only the ring feeds route and keeps the marker in sync across SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/ring-feeds");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("true");
+
+    page.window.history.pushState({}, "", "/ring/host/123");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("false");
+
+    page.window.history.replaceState({}, "", "/ring-feeds/");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("true");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-ring-feeds-page")).toBe(
+      false,
+    );
+  });
+
   it("marks column tabs only while they are stuck below the header", async () => {
     const page = createPage("https://www.zhihu.com/column/c_155611518");
     page.window.document.body.innerHTML = `

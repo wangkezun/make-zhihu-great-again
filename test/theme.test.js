@@ -143,6 +143,34 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-feeds-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "#TopstoryContent\n    > div {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".List\n    > .List-item {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".List\n    > .List-item::after {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinItem\n    button:not(.Button) {\n    background-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinToolbar-actions {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Modal:has(.WritePinV2-Form)\n    .WritePinV2-Form {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.TitleArea, .EditorArea .InputLike.Editable) {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".RingSetting\n    + div\n    > div {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".WritePinToolbar {\n    border-top: 1px solid var(--zb-border) !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-tabs-stuck="true"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> .Card\n    + div\n    > div:last-child {\n    background-color: var(--zb-surface) !important;",

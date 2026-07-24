@@ -9,6 +9,7 @@ const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
 const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
+const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
 const STYLE_ID = "zb-home-sidebar-style";
 
@@ -45,6 +46,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/column\/[^/]+\/?$/.test(browserWindow.location.pathname);
 
+  const isRingFeedsPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/ring-feeds\/?$/.test(browserWindow.location.pathname);
+
   const getPageKind = () => {
     if (isHomeFeedPage()) return "home";
     if (isQuestionPage()) return "question";
@@ -69,6 +74,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_HOME_ATTRIBUTE, pageKind === "home");
     setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
+    setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
 
@@ -385,6 +391,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
     started = false;
   };
 
