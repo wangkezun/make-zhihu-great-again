@@ -4,6 +4,7 @@ import { ensureStyle } from "./shared.js";
 const ACTION_SELECTOR =
   ".TopstoryItem .ContentItem-actions, .QuestionPage .AnswerItem .ContentItem-actions";
 const FIXED_CLASS = "zb-answer-actions-fixed";
+const NATIVE_FIXED_CLASS = "zb-answer-actions-native-fixed";
 const PLACEHOLDER_CLASS = "zb-answer-actions-placeholder";
 const PLACEHOLDER_ACTIVE_CLASS = "is-active";
 const STYLE_ID = "zb-answer-actions-sticky-style";
@@ -19,7 +20,7 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   let started = false;
 
   const clearOwnedFixedState = (action, state) => {
-    action.classList.remove(FIXED_CLASS);
+    action.classList.remove(FIXED_CLASS, NATIVE_FIXED_CLASS);
     action.style.removeProperty("--zb-answer-actions-left");
     action.style.removeProperty("--zb-answer-actions-width");
     state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
@@ -108,7 +109,7 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
 
     const isCollapsed = state.richContent.classList.contains("is-collapsed");
     const isNativeFixed = action.classList.contains("is-fixed");
-    if (isCollapsed || isNativeFixed) {
+    if (isCollapsed) {
       clearOwnedFixedState(action, state);
       return;
     }
@@ -116,11 +117,25 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     const viewportHeight = browserWindow.innerHeight;
     const itemRect = state.item.getBoundingClientRect();
     const richRect = state.richContent.getBoundingClientRect();
+    if (isNativeFixed) {
+      const actionStyle = browserWindow.getComputedStyle(action);
+      state.leftInset = -Number.parseFloat(actionStyle.paddingLeft || "0");
+      state.rightInset = -Number.parseFloat(actionStyle.paddingRight || "0");
+      action.classList.remove(FIXED_CLASS);
+      action.classList.add(NATIVE_FIXED_CLASS);
+      state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
+      state.placeholder.style.removeProperty("--zb-answer-actions-height");
+      updateFixedGeometry(action, state, richRect);
+      return;
+    }
+
+    action.classList.remove(NATIVE_FIXED_CLASS);
     const isOwnedFixed = action.classList.contains(FIXED_CLASS);
     const naturalRect = isOwnedFixed
       ? state.placeholder.getBoundingClientRect()
       : action.getBoundingClientRect();
-    const intersectsViewport = itemRect.top < viewportHeight && itemRect.bottom > 0;
+    const intersectsViewport =
+      itemRect.top <= viewportHeight - naturalRect.height && itemRect.bottom > 0;
     const shouldFix = intersectsViewport && naturalRect.bottom > viewportHeight;
 
     if (!shouldFix) {

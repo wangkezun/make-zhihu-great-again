@@ -2624,6 +2624,7 @@ ${createPaletteVariables("mocha")}
       .ContentItem-time a,
       .QuestionHeader-topics a,
       .RelatedQuestions-item a,
+      .SimilarQuestions-item a,
       .NumberBoard-item
     ):focus-visible {
     color: var(--zb-primary) !important;
@@ -3145,27 +3146,106 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .Question-sideColumn
-    :is(.RelatedQuestions-item, .RelatedQuestions-listItem)
-    :is(a, span) {
-    color: var(--zb-text) !important;
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 4px -8px !important;
+    padding: 6px 8px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 13px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    transition: background-color 0.16s ease !important;
   }
 
   html[data-zb-theme]
     .Question-sideColumn
-    .RelatedQuestions
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"] {
+    display: block !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: var(--zb-text) !important;
+    font-size: 14px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    text-align: left !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
     a[href^="/question/"] {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
     .Question-sideColumn
-    :is(.RelatedQuestions-item, .RelatedQuestions-listItem):hover
-    :is(a, span),
+    [data-za-detail-view-path-module="RelatedQuestions"]
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    color: var(--zb-text-muted) !important;
+  }
+
   html[data-zb-theme]
     .Question-sideColumn
-    .RelatedQuestions
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within)
+    > a[href^="/question/"],
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
     a[href^="/question/"]:is(:hover, :focus-visible) {
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"]:focus-visible {
+    outline: 0 !important;
   }
 
   html[data-zb-theme]
@@ -3605,9 +3685,13 @@ ${createPaletteVariables("mocha")}
     .QuestionPage
     .RichContent-actions.is-fixed {
     box-sizing: border-box !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: border-box !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
   }
 
   html[data-zb-theme]

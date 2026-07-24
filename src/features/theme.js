@@ -7,6 +7,12 @@ export const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
 const THEME_ATTRIBUTE = "data-zb-theme";
 const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
 const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
+const RELATED_QUESTION_TOOLTIP_ATTRIBUTE = "data-zb-related-question-tooltip";
+const RELATED_QUESTION_LINK_SELECTOR = [
+  ".RelatedQuestions-item > a[href^='/question/']",
+  ".RelatedQuestions-listItem > a[href^='/question/']",
+  ".SimilarQuestions-item > a[href^='/question/']",
+].join(",");
 const STYLE_ID = "zb-catppuccin-theme-style";
 const THEME_LABELS = {
   system: "跟随系统（Latte / Mocha）",
@@ -22,6 +28,7 @@ export const createThemeFeature = (browserWindow, settings) => {
   const browserDocument = browserWindow.document;
   const markedArrowPanels = new Set();
   const markedArrowPanelWrappers = new Set();
+  const markedRelatedQuestionLinks = new Set();
   const observedPortalRoots = new WeakSet();
   const menuCommandIds = [];
   let observer;
@@ -93,6 +100,20 @@ export const createThemeFeature = (browserWindow, settings) => {
     Array.from(body.children).forEach(observePortalRoot);
   };
 
+  const addRelatedQuestionTooltip = ({ target }) => {
+    const link = target?.closest?.(RELATED_QUESTION_LINK_SELECTOR);
+    if (!link) return;
+
+    const title = link.textContent.trim();
+    if (!title) return;
+
+    if (!link.hasAttribute("title") || link.hasAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE)) {
+      link.title = title;
+      link.setAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE, "");
+      markedRelatedQuestionLinks.add(link);
+    }
+  };
+
   const updateMenuCommands = () => {
     if (!settings?.menu?.register) return;
 
@@ -122,6 +143,8 @@ export const createThemeFeature = (browserWindow, settings) => {
     markArrowPanels();
     setupPortalObserver();
     browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
+    browserDocument.addEventListener("focusin", addRelatedQuestionTooltip);
+    browserDocument.addEventListener("mouseover", addRelatedQuestionTooltip);
     updateMenuCommands();
   };
 
@@ -129,6 +152,8 @@ export const createThemeFeature = (browserWindow, settings) => {
     observer?.disconnect();
     observer = undefined;
     browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
+    browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
+    browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
     clearMenuCommands(settings?.menu, menuCommandIds);
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
@@ -138,6 +163,11 @@ export const createThemeFeature = (browserWindow, settings) => {
     );
     markedArrowPanels.clear();
     markedArrowPanelWrappers.clear();
+    markedRelatedQuestionLinks.forEach((link) => {
+      link.removeAttribute("title");
+      link.removeAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE);
+    });
+    markedRelatedQuestionLinks.clear();
     started = false;
   };
 

@@ -114,6 +114,27 @@ describe("Catppuccin theme feature", () => {
     feature.destroy();
   });
 
+  it("adds full-title tooltips to dynamically loaded related-question links", () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const item = page.window.document.createElement("div");
+    item.className = "SimilarQuestions-item";
+    item.innerHTML =
+      '<a href="/question/123">这是一个在侧栏中会被截断的完整相关问题标题</a> 12 个回答';
+    page.window.document.body.append(item);
+    const link = item.querySelector("a");
+
+    link.dispatchEvent(new page.window.MouseEvent("mouseover", { bubbles: true }));
+
+    expect(link.title).toBe("这是一个在侧栏中会被截断的完整相关问题标题");
+    expect(link.hasAttribute("data-zb-related-question-tooltip")).toBe(true);
+
+    feature.destroy();
+    expect(link.hasAttribute("title")).toBe(false);
+    expect(link.hasAttribute("data-zb-related-question-tooltip")).toBe(false);
+  });
+
   it("contains the official colors for all four flavors and styles the hidden sidebar", () => {
     for (const flavor of ["latte", "frappe", "macchiato", "mocha"]) {
       expect(CATPPUCCIN_THEME_STYLE).toContain(flavors[flavor].colors.base.hex);
@@ -860,7 +881,7 @@ describe("Catppuccin theme feature", () => {
       /a\.RichContent-EntityWord:focus-visible[^{]*\{[\s\S]*?color: var\(--zb-primary-hover\) !important;[\s\S]*?text-decoration: underline !important;[\s\S]*?text-underline-offset: 2px !important;/,
     );
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /\.QuestionPage[\s\S]*?:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.QuestionHeader-topics a,[\s\S]*?\.NumberBoard-item[\s\S]*?\):focus-visible[^{]*\{[\s\S]*?outline: 2px solid var\(--zb-primary\) !important;[\s\S]*?outline-offset: 2px !important;/,
+      /\.QuestionPage[\s\S]*?:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.QuestionHeader-topics a,[\s\S]*?\.SimilarQuestions-item a,[\s\S]*?\.NumberBoard-item[\s\S]*?\):focus-visible[^{]*\{[\s\S]*?outline: 2px solid var\(--zb-primary\) !important;[\s\S]*?outline-offset: 2px !important;/,
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-itemLink:focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-item:focus-within");
@@ -869,6 +890,23 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 10px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemLink");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-tag");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".SimilarQuestions-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.RelatedQuestions, .SimilarQuestions-list)");
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.SimilarQuestions-item[\s\S]*?\)\s*\{\s*box-sizing: border-box !important;[\s\S]*?align-items: center !important;[\s\S]*?gap: 12px !important;[\s\S]*?background-color: transparent !important;[\s\S]*?border: 0 !important;[\s\S]*?border-radius: 10px !important;[\s\S]*?white-space: nowrap !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.SimilarQuestions-item[\s\S]*?> a\[href\^="\/question\/"\][^{]*\{[\s\S]*?flex: 1 1 auto !important;[\s\S]*?min-width: 0 !important;[\s\S]*?overflow: hidden !important;[\s\S]*?text-overflow: ellipsis !important;[\s\S]*?white-space: nowrap !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SimilarQuestions-item\n    ):is(:hover, :focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\[data-za-detail-view-path-module="RelatedQuestions"\][\s\S]*?\.SimilarQuestions-item[\s\S]*?color: var\(--zb-text-muted\) !important;/,
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText table");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText :is(th, td)");
     expect(CATPPUCCIN_THEME_STYLE).toContain('a[href*="zhida_source=below_banner_question"]');
@@ -882,6 +920,9 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .VoteButton");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".RichContent-actions.is-fixed");
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.RichContent-actions\.is-fixed\s*\{[^}]*background-clip: border-box !important;[^}]*border: 0 !important;[^}]*border-top: 1px solid var\(--zb-border\) !important;[^}]*border-radius: 0 !important;/,
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .Modal-content)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal .Topbar");
     expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> .Modal-content:has(.CommentContent))");

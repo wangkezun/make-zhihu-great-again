@@ -25,7 +25,11 @@
     height: var(--zb-answer-actions-height, 0) !important;
   }
 
-  html[data-zb-theme] .ContentItem-actions.zb-answer-actions-fixed {
+  html[data-zb-theme]
+    .ContentItem-actions:is(
+      .zb-answer-actions-fixed,
+      .zb-answer-actions-native-fixed
+    ) {
     position: fixed !important;
     top: auto !important;
     right: auto !important;
@@ -35,7 +39,9 @@
     margin: 0 !important;
     box-sizing: border-box !important;
     background-color: var(--zb-surface, #fff) !important;
-    border-color: var(--zb-border, #ebebeb) !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border, #ebebeb) !important;
+    border-radius: 0 !important;
     color: var(--zb-text, #121212) !important;
     box-shadow: 0 -6px 14px
       color-mix(in srgb, var(--ctp-crust, #11111b) 12%, transparent) !important;
@@ -44,7 +50,29 @@
   }
 
   html[data-zb-theme]
-    .ContentItem-actions.zb-answer-actions-fixed
+    .ContentItem-actions:is(
+      .zb-answer-actions-fixed,
+      .zb-answer-actions-native-fixed
+    )
+    > .ContentItem-action:not(.ContentItem-rightButton) {
+    margin-left: 16px !important;
+  }
+
+  html[data-zb-theme]
+    .ContentItem-actions:is(
+      .zb-answer-actions-fixed,
+      .zb-answer-actions-native-fixed
+    )
+    > .ContentItem-rightButton {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+  }
+
+  html[data-zb-theme]
+    .ContentItem-actions:is(
+      .zb-answer-actions-fixed,
+      .zb-answer-actions-native-fixed
+    )
     .PinToolbar-actions {
     background-color: var(--zb-surface, #fff) !important;
     border-color: var(--zb-border, #ebebeb) !important;
@@ -117,6 +145,7 @@
   const ACTION_SELECTOR =
     ".TopstoryItem .ContentItem-actions, .QuestionPage .AnswerItem .ContentItem-actions";
   const FIXED_CLASS = "zb-answer-actions-fixed";
+  const NATIVE_FIXED_CLASS = "zb-answer-actions-native-fixed";
   const PLACEHOLDER_CLASS = "zb-answer-actions-placeholder";
   const PLACEHOLDER_ACTIVE_CLASS = "is-active";
   const STYLE_ID$4 = "zb-answer-actions-sticky-style";
@@ -132,7 +161,7 @@
     let started = false;
 
     const clearOwnedFixedState = (action, state) => {
-      action.classList.remove(FIXED_CLASS);
+      action.classList.remove(FIXED_CLASS, NATIVE_FIXED_CLASS);
       action.style.removeProperty("--zb-answer-actions-left");
       action.style.removeProperty("--zb-answer-actions-width");
       state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
@@ -221,7 +250,7 @@
 
       const isCollapsed = state.richContent.classList.contains("is-collapsed");
       const isNativeFixed = action.classList.contains("is-fixed");
-      if (isCollapsed || isNativeFixed) {
+      if (isCollapsed) {
         clearOwnedFixedState(action, state);
         return;
       }
@@ -229,11 +258,25 @@
       const viewportHeight = browserWindow.innerHeight;
       const itemRect = state.item.getBoundingClientRect();
       const richRect = state.richContent.getBoundingClientRect();
+      if (isNativeFixed) {
+        const actionStyle = browserWindow.getComputedStyle(action);
+        state.leftInset = -Number.parseFloat(actionStyle.paddingLeft || "0");
+        state.rightInset = -Number.parseFloat(actionStyle.paddingRight || "0");
+        action.classList.remove(FIXED_CLASS);
+        action.classList.add(NATIVE_FIXED_CLASS);
+        state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
+        state.placeholder.style.removeProperty("--zb-answer-actions-height");
+        updateFixedGeometry(action, state, richRect);
+        return;
+      }
+
+      action.classList.remove(NATIVE_FIXED_CLASS);
       const isOwnedFixed = action.classList.contains(FIXED_CLASS);
       const naturalRect = isOwnedFixed
         ? state.placeholder.getBoundingClientRect()
         : action.getBoundingClientRect();
-      const intersectsViewport = itemRect.top < viewportHeight && itemRect.bottom > 0;
+      const intersectsViewport =
+        itemRect.top <= viewportHeight - naturalRect.height && itemRect.bottom > 0;
       const shouldFix = intersectsViewport && naturalRect.bottom > viewportHeight;
 
       if (!shouldFix) {
@@ -2291,8 +2334,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme] .EmoticonPopover {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
     border-radius: 8px !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
@@ -3672,6 +3715,7 @@ ${createPaletteVariables("mocha")}
       .ContentItem-time a,
       .QuestionHeader-topics a,
       .RelatedQuestions-item a,
+      .SimilarQuestions-item a,
       .NumberBoard-item
     ):focus-visible {
     color: var(--zb-primary) !important;
@@ -4193,27 +4237,106 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .Question-sideColumn
-    :is(.RelatedQuestions-item, .RelatedQuestions-listItem)
-    :is(a, span) {
-    color: var(--zb-text) !important;
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 4px -8px !important;
+    padding: 6px 8px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 13px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    transition: background-color 0.16s ease !important;
   }
 
   html[data-zb-theme]
     .Question-sideColumn
-    .RelatedQuestions
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"] {
+    display: block !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: var(--zb-text) !important;
+    font-size: 14px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    text-align: left !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
     a[href^="/question/"] {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
     .Question-sideColumn
-    :is(.RelatedQuestions-item, .RelatedQuestions-listItem):hover
-    :is(a, span),
+    [data-za-detail-view-path-module="RelatedQuestions"]
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    color: var(--zb-text-muted) !important;
+  }
+
   html[data-zb-theme]
     .Question-sideColumn
-    .RelatedQuestions
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within)
+    > a[href^="/question/"],
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
     a[href^="/question/"]:is(:hover, :focus-visible) {
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"]:focus-visible {
+    outline: 0 !important;
   }
 
   html[data-zb-theme]
@@ -4653,9 +4776,13 @@ ${createPaletteVariables("mocha")}
     .QuestionPage
     .RichContent-actions.is-fixed {
     box-sizing: border-box !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: border-box !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
   }
 
   html[data-zb-theme]
@@ -8020,6 +8147,12 @@ ${createPaletteVariables("mocha")}
   const THEME_ATTRIBUTE = "data-zb-theme";
   const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
   const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
+  const RELATED_QUESTION_TOOLTIP_ATTRIBUTE = "data-zb-related-question-tooltip";
+  const RELATED_QUESTION_LINK_SELECTOR = [
+    ".RelatedQuestions-item > a[href^='/question/']",
+    ".RelatedQuestions-listItem > a[href^='/question/']",
+    ".SimilarQuestions-item > a[href^='/question/']",
+  ].join(",");
   const STYLE_ID = "zb-catppuccin-theme-style";
   const THEME_LABELS = {
     system: "跟随系统（Latte / Mocha）",
@@ -8035,6 +8168,7 @@ ${createPaletteVariables("mocha")}
     const browserDocument = browserWindow.document;
     const markedArrowPanels = new Set();
     const markedArrowPanelWrappers = new Set();
+    const markedRelatedQuestionLinks = new Set();
     const observedPortalRoots = new WeakSet();
     const menuCommandIds = [];
     let observer;
@@ -8106,6 +8240,20 @@ ${createPaletteVariables("mocha")}
       Array.from(body.children).forEach(observePortalRoot);
     };
 
+    const addRelatedQuestionTooltip = ({ target }) => {
+      const link = target?.closest?.(RELATED_QUESTION_LINK_SELECTOR);
+      if (!link) return;
+
+      const title = link.textContent.trim();
+      if (!title) return;
+
+      if (!link.hasAttribute("title") || link.hasAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE)) {
+        link.title = title;
+        link.setAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE, "");
+        markedRelatedQuestionLinks.add(link);
+      }
+    };
+
     const updateMenuCommands = () => {
       if (!settings?.menu?.register) return;
 
@@ -8135,6 +8283,8 @@ ${createPaletteVariables("mocha")}
       markArrowPanels();
       setupPortalObserver();
       browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
+      browserDocument.addEventListener("focusin", addRelatedQuestionTooltip);
+      browserDocument.addEventListener("mouseover", addRelatedQuestionTooltip);
       updateMenuCommands();
     };
 
@@ -8142,6 +8292,8 @@ ${createPaletteVariables("mocha")}
       observer?.disconnect();
       observer = undefined;
       browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
+      browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
+      browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
       clearMenuCommands(settings?.menu, menuCommandIds);
       browserDocument.getElementById(STYLE_ID)?.remove();
       browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
@@ -8151,6 +8303,11 @@ ${createPaletteVariables("mocha")}
       );
       markedArrowPanels.clear();
       markedArrowPanelWrappers.clear();
+      markedRelatedQuestionLinks.forEach((link) => {
+        link.removeAttribute("title");
+        link.removeAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE);
+      });
+      markedRelatedQuestionLinks.clear();
       started = false;
     };
 
