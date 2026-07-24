@@ -1243,8 +1243,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme] .EmoticonPopover {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
     border-radius: 8px !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
