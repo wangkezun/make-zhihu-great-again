@@ -290,6 +290,44 @@ describe("home sidebar feature", () => {
     expect(page.window.document.documentElement.hasAttribute("data-zb-column-page")).toBe(false);
   });
 
+  it("marks column tabs only while they are stuck below the header", async () => {
+    const page = createPage("https://www.zhihu.com/column/c_155611518");
+    page.window.document.body.innerHTML = `
+      <main class="App-main">
+        <div>
+          <div class="Card"></div>
+          <div class="column-tabs" style="position: sticky; top: 52px"></div>
+          <div></div>
+        </div>
+      </main>
+    `;
+    const columnTabs = page.window.document.querySelector(".column-tabs");
+    let tabsTop = 180;
+    columnTabs.getBoundingClientRect = () => ({ top: tabsTop });
+    Object.defineProperty(page.window, "scrollY", { configurable: true, value: 0, writable: true });
+    const feature = createHomeSidebarFeature(page.window);
+
+    feature.start();
+    expect(page.window.document.documentElement.dataset.zbColumnTabsStuck).toBe("false");
+
+    page.window.scrollY = 160;
+    tabsTop = 52;
+    page.window.dispatchEvent(new page.window.Event("scroll"));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbColumnTabsStuck).toBe("true");
+
+    page.window.scrollY = 20;
+    tabsTop = 160;
+    page.window.dispatchEvent(new page.window.Event("scroll"));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbColumnTabsStuck).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-column-tabs-stuck")).toBe(
+      false,
+    );
+  });
+
   it("registers a userscript menu command and keeps its status in sync", () => {
     const page = createPage();
     const commands = new Map();

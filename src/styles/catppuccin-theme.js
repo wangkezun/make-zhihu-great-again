@@ -476,6 +476,23 @@ ${createPaletteVariables("mocha")}
     overflow: clip !important;
   }
 
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child {
+    border-radius: 12px !important;
+  }
+
   html[data-zb-theme][data-zb-column-page="true"]
     .App-main
     > div

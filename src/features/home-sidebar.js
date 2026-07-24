@@ -6,6 +6,7 @@ export const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar"
 const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
 const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
 const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
+const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
@@ -27,6 +28,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let originalReplaceState;
   let wrappedPushState;
   let wrappedReplaceState;
+  let columnScrollListening = false;
   let positionScheduled = false;
   let scheduled = false;
   let started = false;
@@ -68,6 +70,38 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
+  };
+
+  const updateColumnTabsPosition = () => {
+    if (!isColumnPage()) {
+      setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, false);
+      return;
+    }
+
+    const columnTabs = browserDocument.querySelector(".App-main > div > .Card + div");
+    if (!columnTabs) {
+      setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, false);
+      return;
+    }
+
+    const stickyTop = Number.parseFloat(browserWindow.getComputedStyle(columnTabs).top);
+    const isStuck =
+      Number.isFinite(stickyTop) &&
+      browserWindow.scrollY > 0 &&
+      columnTabs.getBoundingClientRect().top <= stickyTop + 1;
+    setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, isStuck);
+  };
+
+  const configureColumnScrollListener = () => {
+    const shouldListen = isColumnPage();
+    if (shouldListen === columnScrollListening) return;
+
+    columnScrollListening = shouldListen;
+    if (shouldListen) {
+      browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
+    } else {
+      browserWindow.removeEventListener("scroll", schedulePositionRefresh);
+    }
   };
 
   const updateQuestionContentPosition = () => {
@@ -243,6 +277,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
 
   const refresh = () => {
     updateRootState();
+    configureColumnScrollListener();
+    updateColumnTabsPosition();
     ensureStyle(browserDocument, STYLE_ID, HOME_SIDEBAR_STYLE);
     markSidebar();
     setupQuestionPositionObserver();
@@ -264,6 +300,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     positionAnimationFrameId = browserWindow.requestAnimationFrame(() => {
       positionScheduled = false;
       setupQuestionPositionObserver(true);
+      updateColumnTabsPosition();
     });
   }
 
@@ -333,6 +370,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     removeRouteListeners();
     browserWindow.removeEventListener("resize", schedulePositionRefresh);
     browserWindow.removeEventListener("scroll", schedulePositionRefresh);
+    columnScrollListening = false;
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }
@@ -343,6 +381,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     observedQuestionContent = undefined;
     browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);

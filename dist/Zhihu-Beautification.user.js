@@ -662,6 +662,7 @@
   const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
   const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
   const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
+  const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
   const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
   const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
@@ -683,6 +684,7 @@
     let originalReplaceState;
     let wrappedPushState;
     let wrappedReplaceState;
+    let columnScrollListening = false;
     let positionScheduled = false;
     let scheduled = false;
     let started = false;
@@ -724,6 +726,38 @@
       setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
       setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
       setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
+    };
+
+    const updateColumnTabsPosition = () => {
+      if (!isColumnPage()) {
+        setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, false);
+        return;
+      }
+
+      const columnTabs = browserDocument.querySelector(".App-main > div > .Card + div");
+      if (!columnTabs) {
+        setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, false);
+        return;
+      }
+
+      const stickyTop = Number.parseFloat(browserWindow.getComputedStyle(columnTabs).top);
+      const isStuck =
+        Number.isFinite(stickyTop) &&
+        browserWindow.scrollY > 0 &&
+        columnTabs.getBoundingClientRect().top <= stickyTop + 1;
+      setRootAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE, isStuck);
+    };
+
+    const configureColumnScrollListener = () => {
+      const shouldListen = isColumnPage();
+      if (shouldListen === columnScrollListening) return;
+
+      columnScrollListening = shouldListen;
+      if (shouldListen) {
+        browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
+      } else {
+        browserWindow.removeEventListener("scroll", schedulePositionRefresh);
+      }
     };
 
     const updateQuestionContentPosition = () => {
@@ -899,6 +933,8 @@
 
     const refresh = () => {
       updateRootState();
+      configureColumnScrollListener();
+      updateColumnTabsPosition();
       ensureStyle(browserDocument, STYLE_ID$2, HOME_SIDEBAR_STYLE);
       markSidebar();
       setupQuestionPositionObserver();
@@ -920,6 +956,7 @@
       positionAnimationFrameId = browserWindow.requestAnimationFrame(() => {
         positionScheduled = false;
         setupQuestionPositionObserver(true);
+        updateColumnTabsPosition();
       });
     }
 
@@ -989,6 +1026,7 @@
       removeRouteListeners();
       browserWindow.removeEventListener("resize", schedulePositionRefresh);
       browserWindow.removeEventListener("scroll", schedulePositionRefresh);
+      columnScrollListening = false;
       if (menuCommandId !== undefined && settings?.menu?.unregister) {
         settings.menu.unregister(menuCommandId);
       }
@@ -999,6 +1037,7 @@
       observedQuestionContent = undefined;
       browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
@@ -1572,6 +1611,23 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
     overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child {
+    border-radius: 12px !important;
   }
 
   html[data-zb-theme][data-zb-column-page="true"]

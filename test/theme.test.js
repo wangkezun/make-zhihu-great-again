@@ -143,6 +143,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-tabs-stuck="true"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> .Card\n    + div\n    > div:last-child {\n    background-color: var(--zb-surface) !important;",
     );
