@@ -505,6 +505,9 @@ describe("Catppuccin theme feature", () => {
       ".Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container\n    [data-id]\n    > .Button.Button--secondary {\n    background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border-strong) !important;\n    margin-top: -4px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Comments-container {\n    border: 0 !important;\n    border-radius: 8px !important;\n    box-shadow: none !important;\n    outline: 0 !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(

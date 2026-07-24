@@ -4981,6 +4981,15 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .Comments-container
+    [data-id]
+    > .Button.Button--secondary {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    margin-top: -4px !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
     .Button:is(.Button--withLabel, .Button--secondary):is(
       :hover,
       :focus-visible
