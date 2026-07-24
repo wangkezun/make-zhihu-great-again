@@ -2557,6 +2557,159 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    )
+    :is(div, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    ):hover {
+    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    )
+    :is(div, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ):is(:hover, :focus-visible) {
+    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    > svg {
+    color: var(--zb-surface-raised) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"],
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    * {
+    color: var(--zb-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    + div,
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    + div
+    * {
+    color: var(--zb-text-secondary) !important;
+    font-weight: 400 !important;
+  }
+
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
   html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
     background-color: transparent !important;

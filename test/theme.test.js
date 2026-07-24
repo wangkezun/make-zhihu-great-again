@@ -773,6 +773,36 @@ describe("Catppuccin theme feature", () => {
     );
   });
 
+  it("themes the creative declaration trigger and its hover disclosure", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)");
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.ContentItem-meta[\s\S]*?Zi--ArrowUp\)[^{]*\{[\s\S]*?background-color: var\(--zb-primary-soft\) !important;[\s\S]*?color: var\(--zb-primary\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /Zi--ArrowUp\)[\s\S]*?:is\(div, svg, path\)[^{]*\{[\s\S]*?fill: currentColor !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /div:has\(> svg\[viewBox="0 0 26 10"\]\):has\([\s\S]*?cursor: default[\s\S]*?\)[^{]*\{[\s\S]*?background-color: var\(--zb-surface-raised\) !important;[\s\S]*?border: 1px solid var\(--zb-border-strong\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('div[style*="cursor: default"]\n    + div');
+  });
+
+  it("presents invitation and collection metadata as one pill family", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain("a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /ZDI--CrabFill24[\s\S]*?ZDI--ColumnFill24[\s\S]*?\)[^{]*\{[\s\S]*?background-color: var\(--zb-primary-soft\) !important;[\s\S]*?color: var\(--zb-primary\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /ZDI--ArrowRight16[\s\S]*?:is\(div, svg, path\)[^{]*\{[\s\S]*?fill: currentColor !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /ZDI--ArrowRight16[\s\S]*?:is\(:hover, :focus-visible\)[^{]*\{[\s\S]*?border-color: color-mix\(in srgb, var\(--zb-primary\) 48%, transparent\) !important;/,
+    );
+  });
+
   it("presents saved favorite-list buttons as cancel actions on hover and focus", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Modal-inner");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-items");
