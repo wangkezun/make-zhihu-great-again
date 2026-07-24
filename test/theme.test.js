@@ -167,6 +167,33 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-askDropdownButton\n    .ZDI--PlusFill24");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".SearchBar-menu .Menu-item.is-active");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(+ .Topstory-hot)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(+ .Topstory-hot)\n    div");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":has(.hot-column-container)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-hot .HotItem-title");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-hot .HotItem-excerpt");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-hot .HotItem-label");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-hot .HotItem:focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      ".Topstory-hot .HotItem:hover {\n    background-color:",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      ".Topstory-hot .HotItem:focus-visible {\n    background-color:",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 0 !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-left: 0 !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 16px !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column-container {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .column-title");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .card :is(.name, .topic)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .line");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column-container .more-container");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .subscrib-card");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column > div:first-child");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .content-title");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column\n    :is(");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .subscrib-btn");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskTitle-input");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskDetail-input");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AskDetail-input:focus-within");
@@ -386,6 +413,14 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".HotSearchCard-title,\n      .HotSearchCard-itemText,",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.HotSearchCard-item, .HotSearchCard-itemLink)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-item:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-item:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("margin: 4px -8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 6px 8px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Topstory-container > .Topstory-mainColumn + *\n    )\n    .HotSearchCard-tag",
     );
   });
 
