@@ -274,6 +274,22 @@ describe("home sidebar feature", () => {
     feature.destroy();
   });
 
+  it("marks column routes and clears the marker after SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/column/c_155611518");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbColumnPage).toBe("true");
+
+    page.window.history.pushState({}, "", "/hot");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbColumnPage).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-column-page")).toBe(false);
+  });
+
   it("registers a userscript menu command and keeps its status in sync", () => {
     const page = createPage();
     const commands = new Map();

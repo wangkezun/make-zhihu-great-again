@@ -5,6 +5,7 @@ export const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar"
 
 const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
 const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
+const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
@@ -38,6 +39,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
 
+  const isColumnPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/column\/[^/]+\/?$/.test(browserWindow.location.pathname);
+
   const getPageKind = () => {
     if (isHomeFeedPage()) return "home";
     if (isQuestionPage()) return "question";
@@ -60,6 +65,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     }
     pageKind = nextPageKind;
     setRootAttribute(ROOT_HOME_ATTRIBUTE, pageKind === "home");
+    setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
@@ -336,6 +342,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     observedPageHeader = undefined;
     observedQuestionContent = undefined;
     browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);

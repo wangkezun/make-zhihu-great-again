@@ -142,6 +142,50 @@ describe("Catppuccin theme feature", () => {
     }
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .Card\n    + div\n    > div:last-child {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .Card\n    + div\n    > div:first-child {\n    background-color: var(--zb-page) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".AuthorInfo\n    + div\n    :where(div, span)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:first-child\n    :where(a, div, span)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:first-child\n    .UserLink-link");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:has(.ContentItem) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 12px 12px 0 0 !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 0 0 12px 12px !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("height: auto !important;\n    padding-bottom: 20px");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> section {\n    box-sizing: border-box !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:last-of-type {\n    display: flex !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "border-top: 1px solid var(--zb-border-strong) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".FollowButton.Button--blue\n    :where(span, svg, path)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "color: var(--ctp-crust) !important;\n    -webkit-text-fill-color: var(--ctp-crust) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .Card\n    .FollowButton.Button--grey {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".FollowButton.Button--grey:hover {\n    background-color: var(--zb-danger-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".FollowButton\n    + .Button.Button--blue {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .Card\n    .Button--plain:has(.Zi--Dots) {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-column-page="true"]\n    .ContentItem-actions\n    .Button:not(.VoteButton) {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-column-page="true"]\n    .ContentItem-actions\n    .VoteButton {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"] .ContentItem-more {');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-inner");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
@@ -276,7 +320,7 @@ describe("Catppuccin theme feature", () => {
       ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):not(.Button--blue):focus-visible",
     );
     expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      ".ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
+      "html[data-zb-theme] .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-zb-home-page="true"]\n    .Topstory-mainColumnCard,\n',
@@ -306,19 +350,17 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:is(\n      .Button--red,\n      .is-active,");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.Button[aria-label="收藏"]:is(:hover, :focus-visible)',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain('.Button[aria-label="已收藏"]\n    .Zi--Star');
     expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-warning) !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
       ".Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))\n    svg",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Button:is([aria-label="取消喜欢"], [aria-pressed="true"]):has(',
+      '[aria-label="取消喜欢"],\n      [aria-pressed="true"]',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-danger) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Card:has(.FollowButton)");
@@ -454,7 +496,7 @@ describe("Catppuccin theme feature", () => {
       '.TopstoryItem-isFollow\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem-isFollow\n    .ContentItem-actions\n    .Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))",
+      ".TopstoryItem-isFollow\n    .ContentItem-actions\n    .Button:is(",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Topstory-container > .Topstory-mainColumn + *\n    )\n    :is(\n      .CreatorEntrance-hint,",
@@ -734,9 +776,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Modal-content:has(.CommentContent)\n    .Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:is(\n      .Button--red,\n      .is-active,");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Modal-content:has(.InputLike.Editable):has(img.Avatar)",
     );
