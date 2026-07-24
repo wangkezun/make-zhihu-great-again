@@ -14,6 +14,319 @@
 (function () {
   'use strict';
 
+  const ANSWER_ACTIONS_STICKY_STYLE = `
+  html[data-zb-theme] .zb-answer-actions-placeholder {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  html[data-zb-theme] .zb-answer-actions-placeholder.is-active {
+    display: block !important;
+    height: var(--zb-answer-actions-height, 0) !important;
+  }
+
+  html[data-zb-theme] .ContentItem-actions.zb-answer-actions-fixed {
+    position: fixed !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: 0 !important;
+    left: var(--zb-answer-actions-left) !important;
+    width: var(--zb-answer-actions-width) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface, #fff) !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust, #11111b) 12%, transparent) !important;
+    transform: none !important;
+    z-index: 20 !important;
+  }
+`;
+
+  const ensureStyle = (browserDocument, styleId, styleText) => {
+    if (browserDocument.getElementById(styleId)) return;
+
+    const target = browserDocument.head ?? browserDocument.documentElement;
+    if (!target) return;
+
+    const style = browserDocument.createElement("style");
+    style.id = styleId;
+    style.textContent = styleText;
+    target.append(style);
+  };
+
+  const readBooleanPreference = (browserWindow, settings, storageKey, defaultValue = true) => {
+    try {
+      if (settings?.getPreference) return Boolean(settings.getPreference(defaultValue));
+
+      const storedValue = browserWindow.localStorage.getItem(storageKey);
+      return storedValue === null ? defaultValue : storedValue === "true";
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const persistBooleanPreference = (browserWindow, settings, storageKey, value) => {
+    try {
+      if (settings?.setPreference) {
+        settings.setPreference(value);
+      } else {
+        browserWindow.localStorage.setItem(storageKey, String(value));
+      }
+    } catch {
+      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+    }
+  };
+
+  const readStoredMode = (settings, isValidMode, defaultMode) => {
+    try {
+      const storedMode = settings?.getMode?.(defaultMode) ?? defaultMode;
+      return isValidMode(storedMode) ? storedMode : defaultMode;
+    } catch {
+      return defaultMode;
+    }
+  };
+
+  const persistMode = (settings, mode) => {
+    try {
+      settings?.setMode?.(mode);
+    } catch {
+      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
+    }
+  };
+
+  const clearMenuCommands = (menu, commandIds) => {
+    if (menu?.unregister) {
+      commandIds.splice(0).forEach((commandId) => {
+        menu.unregister(commandId);
+      });
+      return;
+    }
+    commandIds.length = 0;
+  };
+
+  const ACTION_SELECTOR =
+    ".TopstoryItem .ContentItem-actions, .QuestionPage .AnswerItem .ContentItem-actions";
+  const FIXED_CLASS = "zb-answer-actions-fixed";
+  const PLACEHOLDER_CLASS = "zb-answer-actions-placeholder";
+  const PLACEHOLDER_ACTIVE_CLASS = "is-active";
+  const STYLE_ID$4 = "zb-answer-actions-sticky-style";
+
+  const createAnswerActionsStickyFeature = (browserWindow) => {
+    const browserDocument = browserWindow.document;
+    const actions = new Set();
+    const actionState = new WeakMap();
+    let animationFrameId;
+    let mutationObserver;
+    let resizeObserver;
+    let scheduled = false;
+    let started = false;
+
+    const clearOwnedFixedState = (action, state) => {
+      action.classList.remove(FIXED_CLASS);
+      action.style.removeProperty("--zb-answer-actions-left");
+      action.style.removeProperty("--zb-answer-actions-width");
+      state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
+      state.placeholder.style.removeProperty("--zb-answer-actions-height");
+    };
+
+    const removeAction = (action) => {
+      const state = actionState.get(action);
+      if (state) {
+        clearOwnedFixedState(action, state);
+        resizeObserver?.unobserve(state.item);
+        resizeObserver?.unobserve(state.richContent);
+        resizeObserver?.unobserve(action);
+        state.placeholder.remove();
+      }
+      actions.delete(action);
+    };
+
+    const registerAction = (action) => {
+      if (actions.has(action)) return;
+
+      const item = action.closest(".TopstoryItem, .AnswerItem");
+      const richContent = action.closest(".RichContent");
+      if (!item || !richContent) return;
+
+      const placeholder = browserDocument.createElement("div");
+      placeholder.className = PLACEHOLDER_CLASS;
+      placeholder.setAttribute("aria-hidden", "true");
+      action.before(placeholder);
+
+      const state = {
+        item,
+        leftInset: 0,
+        placeholder,
+        richContent,
+        rightInset: 0,
+      };
+      actions.add(action);
+      actionState.set(action, state);
+      resizeObserver?.observe(item);
+      resizeObserver?.observe(richContent);
+      resizeObserver?.observe(action);
+    };
+
+    const scanActions = (root = browserDocument) => {
+      if (root.nodeType === 1 && root.matches(ACTION_SELECTOR)) {
+        registerAction(root);
+      }
+      root.querySelectorAll?.(ACTION_SELECTOR).forEach(registerAction);
+    };
+
+    const updateFixedGeometry = (action, state, richRect) => {
+      const left = richRect.left + state.leftInset;
+      const width = Math.max(0, richRect.width - state.leftInset - state.rightInset);
+      action.style.setProperty("--zb-answer-actions-left", `${left}px`);
+      action.style.setProperty("--zb-answer-actions-width", `${width}px`);
+    };
+
+    const refreshAction = (action) => {
+      const state = actionState.get(action);
+      if (!state || !action.isConnected) {
+        removeAction(action);
+        return;
+      }
+
+      const item = action.closest(".TopstoryItem, .AnswerItem");
+      const richContent = action.closest(".RichContent");
+      if (!item || !richContent) {
+        removeAction(action);
+        return;
+      }
+      if (item !== state.item || richContent !== state.richContent) {
+        resizeObserver?.unobserve(state.item);
+        resizeObserver?.unobserve(state.richContent);
+        state.item = item;
+        state.richContent = richContent;
+        resizeObserver?.observe(item);
+        resizeObserver?.observe(richContent);
+      }
+      if (
+        state.placeholder.parentElement !== action.parentElement ||
+        state.placeholder.nextElementSibling !== action
+      ) {
+        action.before(state.placeholder);
+      }
+
+      const isCollapsed = state.richContent.classList.contains("is-collapsed");
+      const isNativeFixed = action.classList.contains("is-fixed");
+      if (isCollapsed || isNativeFixed) {
+        clearOwnedFixedState(action, state);
+        return;
+      }
+
+      const viewportHeight = browserWindow.innerHeight;
+      const itemRect = state.item.getBoundingClientRect();
+      const richRect = state.richContent.getBoundingClientRect();
+      const isOwnedFixed = action.classList.contains(FIXED_CLASS);
+      const naturalRect = isOwnedFixed
+        ? state.placeholder.getBoundingClientRect()
+        : action.getBoundingClientRect();
+      const intersectsViewport = itemRect.top < viewportHeight && itemRect.bottom > 0;
+      const shouldFix = intersectsViewport && naturalRect.bottom > viewportHeight;
+
+      if (!shouldFix) {
+        clearOwnedFixedState(action, state);
+        return;
+      }
+
+      if (!isOwnedFixed) {
+        state.leftInset = naturalRect.left - richRect.left;
+        state.rightInset = richRect.right - naturalRect.right;
+        state.placeholder.style.setProperty("--zb-answer-actions-height", `${naturalRect.height}px`);
+        state.placeholder.classList.add(PLACEHOLDER_ACTIVE_CLASS);
+        action.classList.add(FIXED_CLASS);
+      }
+      updateFixedGeometry(action, state, richRect);
+    };
+
+    const refresh = () => {
+      scheduled = false;
+      actions.forEach(refreshAction);
+    };
+
+    const scheduleRefresh = () => {
+      if (!started || scheduled) return;
+      scheduled = true;
+      animationFrameId = browserWindow.requestAnimationFrame(refresh);
+    };
+
+    const handleMutations = (records) => {
+      records.forEach(({ addedNodes, target, type }) => {
+        if (type === "attributes") {
+          if (
+            target.matches?.(".RichContent, .ContentItem-actions") &&
+            !target.classList.contains(FIXED_CLASS)
+          ) {
+            scheduleRefresh();
+          }
+          return;
+        }
+
+        addedNodes.forEach((node) => {
+          if (node.nodeType === 1) scanActions(node);
+        });
+      });
+      scheduleRefresh();
+    };
+
+    const setupObservers = () => {
+      const root = browserDocument.documentElement;
+      if (!root || mutationObserver) return;
+
+      mutationObserver = new browserWindow.MutationObserver(handleMutations);
+      mutationObserver.observe(root, {
+        attributeFilter: ["class"],
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+
+      if (browserWindow.ResizeObserver) {
+        resizeObserver = new browserWindow.ResizeObserver(scheduleRefresh);
+        actions.forEach((action) => {
+          const state = actionState.get(action);
+          resizeObserver.observe(state.item);
+          resizeObserver.observe(state.richContent);
+          resizeObserver.observe(action);
+        });
+      }
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      ensureStyle(browserDocument, STYLE_ID$4, ANSWER_ACTIONS_STICKY_STYLE);
+      scanActions();
+      setupObservers();
+      browserWindow.addEventListener("scroll", scheduleRefresh, { passive: true });
+      browserWindow.addEventListener("resize", scheduleRefresh);
+      browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
+      scheduleRefresh();
+    };
+
+    const destroy = () => {
+      started = false;
+      scheduled = false;
+      mutationObserver?.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver = undefined;
+      resizeObserver = undefined;
+      if (animationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(animationFrameId);
+        animationFrameId = undefined;
+      }
+      browserWindow.removeEventListener("scroll", scheduleRefresh);
+      browserWindow.removeEventListener("resize", scheduleRefresh);
+      browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
+      Array.from(actions).forEach(removeAction);
+      browserDocument.getElementById(STYLE_ID$4)?.remove();
+    };
+
+    return { destroy, start };
+  };
+
   const BOTTOM_COMPOSER_SELECTOR = ":scope > div > div:last-child .InputLike.Editable";
   const COMPOSER_CONTAINER_SELECTOR = "div:has(> div > div > .InputLike.Editable)";
   const COLLAPSED_ATTRIBUTE = "data-zb-comment-composer-collapsed";
@@ -158,68 +471,6 @@
     display: none !important;
   }
 `;
-
-  const ensureStyle = (browserDocument, styleId, styleText) => {
-    if (browserDocument.getElementById(styleId)) return;
-
-    const target = browserDocument.head ?? browserDocument.documentElement;
-    if (!target) return;
-
-    const style = browserDocument.createElement("style");
-    style.id = styleId;
-    style.textContent = styleText;
-    target.append(style);
-  };
-
-  const readBooleanPreference = (browserWindow, settings, storageKey, defaultValue = true) => {
-    try {
-      if (settings?.getPreference) return Boolean(settings.getPreference(defaultValue));
-
-      const storedValue = browserWindow.localStorage.getItem(storageKey);
-      return storedValue === null ? defaultValue : storedValue === "true";
-    } catch {
-      return defaultValue;
-    }
-  };
-
-  const persistBooleanPreference = (browserWindow, settings, storageKey, value) => {
-    try {
-      if (settings?.setPreference) {
-        settings.setPreference(value);
-      } else {
-        browserWindow.localStorage.setItem(storageKey, String(value));
-      }
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
-  };
-
-  const readStoredMode = (settings, isValidMode, defaultMode) => {
-    try {
-      const storedMode = settings?.getMode?.(defaultMode) ?? defaultMode;
-      return isValidMode(storedMode) ? storedMode : defaultMode;
-    } catch {
-      return defaultMode;
-    }
-  };
-
-  const persistMode = (settings, mode) => {
-    try {
-      settings?.setMode?.(mode);
-    } catch {
-      // 用户脚本存储不可用时，本次页面内的选择仍然有效。
-    }
-  };
-
-  const clearMenuCommands = (menu, commandIds) => {
-    if (menu?.unregister) {
-      commandIds.splice(0).forEach((commandId) => {
-        menu.unregister(commandId);
-      });
-      return;
-    }
-    commandIds.length = 0;
-  };
 
   const HOME_COMPOSER_STORAGE_KEY = "zhihu-beautification:show-home-composer";
 
@@ -7215,6 +7466,7 @@ ${createPaletteVariables("mocha")}
 
   startWhenDocumentElementReady(window, () => {
     createThemeFeature(window, themeSettings).start();
+    createAnswerActionsStickyFeature(window).start();
     createCommentComposerFeature(window).start();
     createHomeSidebarFeature(window, userscriptSettings).start();
     createHomeWidthFeature(window, homeWidthSettings).start();

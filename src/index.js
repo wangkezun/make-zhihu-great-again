@@ -1,3 +1,4 @@
+import { createAnswerActionsStickyFeature } from "./features/answer-actions-sticky.js";
 import { createCommentComposerFeature } from "./features/comment-composer.js";
 import { createHomeComposerFeature, HOME_COMPOSER_STORAGE_KEY } from "./features/home-composer.js";
 import { createHomeSidebarFeature, HOME_SIDEBAR_STORAGE_KEY } from "./features/home-sidebar.js";
@@ -36,6 +37,7 @@ const homeComposerSettings = {
 
 startWhenDocumentElementReady(window, () => {
   createThemeFeature(window, themeSettings).start();
+  createAnswerActionsStickyFeature(window).start();
   createCommentComposerFeature(window).start();
   createHomeSidebarFeature(window, userscriptSettings).start();
   createHomeWidthFeature(window, homeWidthSettings).start();
