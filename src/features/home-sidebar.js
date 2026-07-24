@@ -30,15 +30,16 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let scheduled = false;
   let started = false;
 
-  const isHomePage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" && browserWindow.location.pathname === "/";
+  const isHomeFeedPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/(?:follow\/?)?$/.test(browserWindow.location.pathname);
 
   const isQuestionPage = () =>
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
 
   const getPageKind = () => {
-    if (isHomePage()) return "home";
+    if (isHomeFeedPage()) return "home";
     if (isQuestionPage()) return "question";
     return "other";
   };

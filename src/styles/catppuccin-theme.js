@@ -5691,7 +5691,8 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-recommend
-    > .TopstoryItem {
+    > .TopstoryItem,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
     box-sizing: border-box !important;
     margin-bottom: 10px !important;
     background-clip: padding-box !important;
@@ -5705,13 +5706,15 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-recommend
-    > .TopstoryItem:hover {
+    > .TopstoryItem:hover,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
     border-color: var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-recommend
-    > .TopstoryItem:focus-visible {
+    > .TopstoryItem:focus-visible,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible {
     border-color: var(--zb-primary) !important;
     box-shadow:
       var(--zb-shadow),
@@ -5725,6 +5728,13 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
     .ContentItem-title
+    a,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title
     a {
     color: var(--zb-primary) !important;
     transition: color 0.16s ease !important;
@@ -5736,12 +5746,22 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
     .ContentItem-title
+    a:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title:is(:hover, :focus-within),
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title
     a:is(:hover, :focus-visible) {
     color: var(--zb-primary-hover) !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-container
+    .FollowButton.Button--blue,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .FollowButton.Button--blue {
     box-sizing: border-box !important;
     border: 1px solid var(--zb-primary) !important;
@@ -5755,18 +5775,28 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-container
+    .FollowButton.Button--blue:hover,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .FollowButton.Button--blue:hover {
     border-color: var(--zb-primary-hover) !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-container
+    .FollowButton.Button--blue:focus-visible,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .FollowButton.Button--blue:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .ContentItem-actions
     .Button:not(.VoteButton) {
     box-sizing: border-box !important;
@@ -5777,6 +5807,9 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
+    .ContentItem-more,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .ContentItem-more {
     box-sizing: border-box !important;
     min-height: 28px !important;
@@ -5789,6 +5822,9 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
+    .ContentItem-more:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .ContentItem-more:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary) !important;
@@ -5796,6 +5832,9 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
+    .ContentItem-more:focus-visible,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .ContentItem-more:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
@@ -5804,7 +5843,11 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
     .ContentItem-actions
-    .Button:not(.VoteButton):hover {
+    .Button:not(.VoteButton):not(.Button--blue):hover,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):hover {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-text) !important;
   }
@@ -5812,7 +5855,11 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
     .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
@@ -5826,6 +5873,16 @@ ${createPaletteVariables("mocha")}
     .Zi--Star,
   html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"]
+    .Zi--Star,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
     .ContentItem-actions
     .Button[aria-label="已收藏"]
     .Zi--Star {
@@ -5852,6 +5909,26 @@ ${createPaletteVariables("mocha")}
     .Button:is([aria-label="取消喜欢"], [aria-pressed="true"]):has(
       :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
     )
+    svg,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))
+    svg,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)):is(
+      :hover,
+      :focus-visible
+    )
+    svg,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:is([aria-label="取消喜欢"], [aria-pressed="true"]):has(
+      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
+    )
     svg {
     color: var(--zb-danger) !important;
     fill: currentColor !important;
@@ -5868,6 +5945,12 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .VoteButton.is-active {
     background-color: var(--zb-primary) !important;
     color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] .PinItem .PinToolbar-actions {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme] .ProfileSideCreator-analytics,
@@ -5913,16 +5996,30 @@ ${createPaletteVariables("mocha")}
     overflow: clip !important;
   }
 
-  html[data-zb-theme] [data-zb-home-sidebar] .CreatorEntrance-hint,
-  html[data-zb-theme] [data-zb-home-sidebar] .ProfileSideCreator-readCountNumber,
-  html[data-zb-theme] [data-zb-home-sidebar] .HotSearchCard-title,
-  html[data-zb-theme] [data-zb-home-sidebar] .HotSearchCard-itemText,
-  html[data-zb-theme] [data-zb-home-sidebar] .KfeCollection-CreateSaltCard-content-title {
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      .CreatorEntrance-hint,
+      .ProfileSideCreator-readCountNumber,
+      .HotSearchCard-title,
+      .HotSearchCard-itemText,
+      .KfeCollection-CreateSaltCard-content-title
+    ) {
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme] [data-zb-home-sidebar] .HotSearchCard-heat,
-  html[data-zb-theme] [data-zb-home-sidebar] .KfeCollection-CreateSaltCard-content-sub-title {
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      .HotSearchCard-heat,
+      .KfeCollection-CreateSaltCard-content-sub-title
+    ) {
     color: var(--zb-text-muted) !important;
   }
 

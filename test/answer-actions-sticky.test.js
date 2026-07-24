@@ -213,4 +213,13 @@ describe("answer actions sticky feature", () => {
     expect(ANSWER_ACTIONS_STICKY_STYLE).toContain("margin: 0 !important");
     expect(ANSWER_ACTIONS_STICKY_STYLE).toContain(".zb-answer-actions-placeholder.is-active");
   });
+
+  it("themes a pin toolbar only when it is inside an owned fixed operation row", () => {
+    expect(ANSWER_ACTIONS_STICKY_STYLE).toMatch(
+      /\.ContentItem-actions\.zb-answer-actions-fixed\s+\.PinToolbar-actions\s*\{[^}]*background-color: var\(--zb-surface, #fff\) !important;[^}]*border-color: var\(--zb-border, #ebebeb\) !important;[^}]*color: var\(--zb-text, #121212\) !important;[^}]*\}/,
+    );
+    expect(ANSWER_ACTIONS_STICKY_STYLE).not.toMatch(
+      /html\[data-zb-theme\]\s+\.PinToolbar-actions\s*\{/,
+    );
+  });
 });

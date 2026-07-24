@@ -98,6 +98,24 @@ describe("home sidebar feature", () => {
     feature.destroy();
   });
 
+  it.each(["https://www.zhihu.com/follow", "https://www.zhihu.com/follow/"])(
+    "treats %s as a home feed and marks its semantic right column",
+    (url) => {
+      const page = createPage(url);
+      const feature = createHomeSidebarFeature(page.window);
+
+      feature.start();
+
+      expect(page.window.document.documentElement.dataset.zbHomePage).toBe("true");
+      expect(page.window.document.documentElement.dataset.zbQuestionPage).toBe("false");
+      expect(
+        page.window.document.querySelector(".right-column").hasAttribute("data-zb-home-sidebar"),
+      ).toBe(true);
+
+      feature.destroy();
+    },
+  );
+
   it("restores a saved preference to show the right column", () => {
     const page = createPage();
     page.window.localStorage.setItem(HOME_SIDEBAR_STORAGE_KEY, "false");
@@ -230,6 +248,30 @@ describe("home sidebar feature", () => {
 
     feature.destroy();
     expect(page.window.history.pushState).toBe(originalPushState);
+  });
+
+  it("updates the home-feed state when SPA navigation enters and leaves /follow", async () => {
+    const page = createPage("https://www.zhihu.com/hot");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    page.window.history.replaceState({}, "", "/follow");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbHomePage).toBe("true");
+    expect(
+      page.window.document.querySelector(".right-column").hasAttribute("data-zb-home-sidebar"),
+    ).toBe(true);
+
+    page.window.history.pushState({}, "", "/hot");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbHomePage).toBe("false");
+    expect(
+      page.window.document.querySelector(".right-column").hasAttribute("data-zb-home-sidebar"),
+    ).toBe(false);
+
+    feature.destroy();
   });
 
   it("registers a userscript menu command and keeps its status in sync", () => {

@@ -6,6 +6,7 @@ import {
   HOME_WIDTH_MODES,
   HOME_WIDTH_STORAGE_KEY,
 } from "../src/features/home-width.js";
+import { createHomeSidebarFeature } from "../src/features/home-sidebar.js";
 import { HOME_WIDTH_STYLE } from "../src/styles/home-width.js";
 
 const activePages = [];
@@ -66,6 +67,24 @@ describe("home width feature", () => {
     expect(savedMode).toBe("wide");
     expect(HOME_WIDTH_STORAGE_KEY).toBe("zhihu-beautification:home-width");
     feature.destroy();
+  });
+
+  it("applies the selected home width to the /follow feed", () => {
+    const page = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+      url: "https://www.zhihu.com/follow",
+    });
+    activePages.push(page);
+    const routeFeature = createHomeSidebarFeature(page.window);
+    const widthFeature = createHomeWidthFeature(page.window, { getMode: () => "wide" });
+
+    routeFeature.start();
+    widthFeature.start();
+
+    expect(page.window.document.documentElement.dataset.zbHomePage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbHomeWidth).toBe("wide");
+
+    widthFeature.destroy();
+    routeFeature.destroy();
   });
 
   it("falls back to standard and styles hidden and visible sidebars", () => {
