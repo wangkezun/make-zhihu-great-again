@@ -2920,6 +2920,93 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
+  /* Topic entity cards use generated class names. Target the semantic label
+     and direct-child position so the selector survives Zhihu CSS rebuilds
+     without also matching the compact topic chips above the question. */
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-text) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type,
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    .topicMetaTitle {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    > div:last-child,
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    > div:first-child
+    > div:not(.topicMetaTitle) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    span {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button[aria-pressed="true"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
   /* Latest-progress cards use generated class names and receive analytics
      attributes during hydration. Anchor to the server-rendered semantic icon
      so the title color applies on the first paint instead of after hydration. */
@@ -3002,6 +3089,21 @@ ${createPaletteVariables("mocha")}
     :is(a, .TopicLink, .Tag-content):hover
     :where(span, div) {
     color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-topics .QuestionTopic {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    .QuestionTopic:is(:hover, :focus-within) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary) 24%,
+      transparent
+    ) !important;
   }
 
   html[data-zb-theme]

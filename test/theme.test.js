@@ -134,6 +134,18 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText a.LinkCard");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard-image");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard .tag");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.QuestionHeader-main\n    > a[aria-label^="话题 "][href*="/topic/"] {\n' +
+        "    background-color: var(--zb-surface-raised) !important;\n" +
+        "    border-color: var(--zb-border-strong) !important;\n" +
+        "    border-radius: 10px !important;\n" +
+        "    color: var(--zb-text) !important;\n" +
+        "    overflow: hidden !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:last-of-type\n    > button[aria-pressed="true"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-topics .QuestionTopic");
     expect(CATPPUCCIN_THEME_STYLE).toContain(":not(.LinkCard):not(.tag)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line::after");
