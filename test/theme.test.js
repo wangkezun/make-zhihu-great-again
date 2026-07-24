@@ -151,8 +151,35 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-za-detail-view-path-module="RightSideBar"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-home-sidebar] .Card");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-za-detail-view-path-module="RightSideBar"]\n    .Card\n    :where(div, span)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Card:is(\n      :focus-visible,\n      :has(> :is(a, button):focus-visible)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border: 1px solid var(--zb-border) !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.Card, .HotSearchCard) {");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[aria-label="创作中心卡片"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[aria-label="创作中心卡片"]\n    :where(div, span)');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreatorEntrance-creatorIcon {\n    color: var(--zb-text) !important",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain("background-clip: padding-box !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/creator"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/question/waiting"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/consult"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/education/learning"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".KfeCollection-CreateSaltCard-button");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Card:has(.FollowButton)\n    .FollowButton.Button--grey",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ':is(\n      [data-zb-home-sidebar],\n      [data-za-detail-view-path-module="RightSideBar"]\n    )\n    .Card:has(.FollowButton)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .AuthorInfo + .FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.AuthorInfo-head, .AuthorInfo-detail)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("white-space: nowrap !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea :where(section, div, span)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".WriteArea,\n  html[data-zb-theme] .Topstory-mainColumnCard",

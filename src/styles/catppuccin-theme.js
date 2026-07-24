@@ -6238,8 +6238,25 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme] [data-zb-home-sidebar] :where(div, span) {
+  html[data-zb-theme] [data-zb-home-sidebar] :where(div, span),
+  html[data-zb-theme]
+    [data-za-detail-view-path-module="RightSideBar"]
+    .Card
+    :where(div, span) {
     color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [aria-label="创作中心卡片"]
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [aria-label="创作中心卡片"]
+    .CreatorEntrance-creatorIcon {
+    color: var(--zb-text) !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card > div {
@@ -6256,6 +6273,31 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    :is(.Card, .HotSearchCard) {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:is(
+      :focus-visible,
+      :has(> :is(a, button):focus-visible)
+    ) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card,
@@ -6367,7 +6409,10 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    [data-zb-home-sidebar]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
     .Card:has(.FollowButton)
     > div:has(> div > div > .FollowButton) {
     box-sizing: border-box !important;
@@ -6379,7 +6424,10 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    [data-zb-home-sidebar]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
     .Card:has(.FollowButton)
     > div:has(> div > div > .FollowButton)
     > div:has(.FollowButton) {
@@ -6388,6 +6436,246 @@ ${createPaletteVariables("mocha")}
     width: 100% !important;
     min-width: 100% !important;
     padding-right: 8px !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 36px !important;
+    padding-inline: 12px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    div:has(> .AuthorInfo + .FollowButton) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    div:has(> .AuthorInfo + .FollowButton)
+    > .AuthorInfo {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .AuthorInfo-content {
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    :is(.AuthorInfo-head, .AuthorInfo-detail) {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    min-width: 64px !important;
+    min-height: 34px !important;
+    margin-left: 8px !important;
+    padding-inline: 12px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:has(.FollowButton)
+    .FollowButton
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme] .HotSearchCard-tagHot {
