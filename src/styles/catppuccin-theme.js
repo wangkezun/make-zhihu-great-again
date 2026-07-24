@@ -5393,6 +5393,39 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea
+    > div
+    > div:has(> img[src*="/heifetz/assets/"])::after {
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-recommend
     > .TopstoryItem {
     box-sizing: border-box !important;

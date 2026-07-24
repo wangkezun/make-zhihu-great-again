@@ -192,6 +192,10 @@ describe("Catppuccin theme feature", () => {
       '[data-zb-home-page="true"]\n    .Topstory-mainColumnCard,\n',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard\n    > .Topstory-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea:hover");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('> div:has(> img[src*="/heifetz/assets/"])::after');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-recommend\n    > .TopstoryItem {");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin-bottom: 10px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:hover {");
