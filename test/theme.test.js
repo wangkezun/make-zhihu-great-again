@@ -191,6 +191,13 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-column-page="true"] .Column-EmptyCard {\n    box-sizing: border-box !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard p");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard\n    svg\n    path:first-of-type");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard\n    svg\n    path:last-of-type");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-column-page="true"] .PlaceHolder-bg');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.BounceLoading[style*="width: 60px"][style*="height: 18px"]',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".BounceLoading-child");
@@ -280,7 +287,22 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .column-title");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .card :is(.name, .topic)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column .line");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column-container .more-container");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".hot-column-container .more-container {\n    box-sizing: border-box !important;\n    position: static !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".hot-column-container {\n    box-sizing: border-box !important;\n    height: auto !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin-bottom: 12px !important;\n    padding-bottom: 0 !important;\n    overflow: hidden !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".hot-column-container .more {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".hot-column-container .more:focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column-container .more :is(svg, path)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .subscrib-card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column > div:first-child");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column-content");

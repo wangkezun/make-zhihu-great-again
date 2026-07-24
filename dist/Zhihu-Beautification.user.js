@@ -2216,6 +2216,36 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
+  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
+    box-sizing: border-box !important;
+    margin-top: 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard p {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .Column-EmptyCard
+    svg
+    path:first-of-type {
+    fill: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .Column-EmptyCard
+    svg
+    path:last-of-type {
+    fill: var(--zb-surface-raised) !important;
+  }
+
   html[data-zb-theme] div:has(> .Modal-content) {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
@@ -7603,11 +7633,13 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .hot-column-container {
     box-sizing: border-box !important;
+    height: auto !important;
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
     box-shadow: var(--zb-shadow) !important;
     margin-bottom: 12px !important;
+    padding-bottom: 0 !important;
     overflow: hidden !important;
     overflow: clip !important;
   }
@@ -7656,22 +7688,60 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme] .hot-column-container .more-container {
-    background-color: transparent !important;
+    box-sizing: border-box !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 12px 16px 16px !important;
+    background-color: var(--zb-surface) !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme] .hot-column-container .more {
-    background-color: transparent !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-secondary) !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    min-width: 96px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
   }
 
   html[data-zb-theme]
     .hot-column-container
     .more:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
+    background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .hot-column-container .more:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .hot-column-container .more :is(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .hot-column-container .more svg {
+    width: 14px !important;
+    height: 14px !important;
+    flex: 0 0 14px !important;
   }
 
   html[data-zb-theme] .recommend-column {
