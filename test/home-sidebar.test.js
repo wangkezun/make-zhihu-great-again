@@ -313,6 +313,53 @@ describe("home sidebar feature", () => {
     );
   });
 
+  it.each([
+    "https://www.zhihu.com/people/tai-rui-er-de-jian-bing",
+    "https://www.zhihu.com/people/tai-rui-er-de-jian-bing/",
+    "https://www.zhihu.com/people/tai-rui-er-de-jian-bing/answers",
+    "https://www.zhihu.com/people/tai-rui-er-de-jian-bing/following/topics",
+  ])("marks %s as a profile page", (url) => {
+    const page = createPage(url);
+    const feature = createHomeSidebarFeature(page.window);
+
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbProfilePage).toBe("true");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-profile-page")).toBe(false);
+  });
+
+  it.each(["https://www.zhihu.com/people", "https://www.zhihu.com/hot"])(
+    "does not mark %s as a profile page",
+    (url) => {
+      const page = createPage(url);
+      const feature = createHomeSidebarFeature(page.window);
+
+      feature.start();
+
+      expect(page.window.document.documentElement.dataset.zbProfilePage).toBe("false");
+
+      feature.destroy();
+    },
+  );
+
+  it("keeps the profile marker in sync across SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/hot");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    page.window.history.pushState({}, "", "/people/tai-rui-er-de-jian-bing");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbProfilePage).toBe("true");
+
+    page.window.history.replaceState({}, "", "/question/123");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbProfilePage).toBe("false");
+
+    feature.destroy();
+  });
+
   it("marks column tabs only while they are stuck below the header", async () => {
     const page = createPage("https://www.zhihu.com/column/c_155611518");
     page.window.document.body.innerHTML = `

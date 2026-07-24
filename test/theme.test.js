@@ -565,6 +565,83 @@ describe("Catppuccin theme feature", () => {
     );
   });
 
+  it("themes profile headers, tabs, activity lists, and sidebars within the profile route", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.ProfileHeader-wrapper,\n  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {\n    background-color: var(--zb-surface) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileHeader\n    :is(.ProfileHeader-name, .ProfileHeader-detailValue)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileHeader\n    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileHeader-buttons\n    .FollowButton\n    + .Button",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-profile-page="true"] .ProfileMain {');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileMain-tabs\n    .Tabs-link.is-active {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileMain-tabs\n    .Tabs-meta {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.ProfileMain-header\n    div:has(> button :is(.Zi--Search, .ZDI--Search24, [class*="Search"]))',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("var(--zb-surface) 56px,\n      transparent 100%");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileMain\n    :is(.List-header, .List-item)::after",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-lineComments\n    .List-item\n    > div\n    > div\n    > div\n    > a:first-child\n    > div {\n    color: var(--zb-text) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-lineComments\n    .List-item\n    > div\n    > div\n    > div\n    > div:last-child\n    > div:last-child\n    > a\n    > div {\n    color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:last-child\n    > div:last-child\n    > div:last-child\n    > div {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ProfileMain\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ContentItem-actions\n    .Button--iconOnly:not(.VoteButton)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.ContentItem-actions\n    .Button[aria-label="喜欢"]:is(:hover, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ContentItem-actions\n    .VoteButton:disabled {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-sideColumn\n    :is(\n      .Profile-sideColumnTitle,",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Profile-sideColumn .Card,\n  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Profile-lightList',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Profile-sideColumn\n    :is(a[href="/creator"], a[href="/question/waiting"]) {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-sideColumn\n    .Profile-lightItem:first-child {\n    border-top: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Card-header,\n      .Profile-footerOperations,\n      .ProfileSideCreator-readCountItem",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-lightItemValue,\n      .NumberBoard-itemValue,",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Profile-lightItemName,\n      .NumberBoard-itemName,",
+    );
+  });
+
   it("themes the native toolbar inside a pin item in both normal and sticky flow", () => {
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /html\[data-zb-theme\] \.PinItem \.PinToolbar-actions \{[^}]*background-color: var\(--zb-surface\) !important;[^}]*border-color: var\(--zb-border\) !important;[^}]*color: var\(--zb-text-muted\) !important;[^}]*\}/,
