@@ -6242,6 +6242,27 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title
+    a {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title:is(:hover, :focus-within),
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-container
     .FollowButton.Button--blue {
     box-sizing: border-box !important;

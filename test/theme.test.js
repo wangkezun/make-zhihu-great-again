@@ -201,6 +201,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:hover {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:focus-visible {");
     expect(CATPPUCCIN_THEME_STYLE).not.toContain(".TopstoryItem:is(:hover, :focus-within)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.ContentItem-title,\n  html[data-zb-theme][data-zb-home-page="true"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ContentItem-title:is(:hover, :focus-within)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-primary-hover) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem\n    .ContentItem-more {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".TopstoryItem\n    .ContentItem-more:is(:hover, :focus-visible)",
