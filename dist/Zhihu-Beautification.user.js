@@ -7735,6 +7735,248 @@ ${createPaletteVariables("mocha")}
     font-weight: 400 !important;
   }
 
+  html[data-zb-theme][data-zb-question-page="true"]
+    body
+    div:has(
+      > div
+        > div
+        > div
+        > .QuestionStatus-notification-inner
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-inner,
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-content {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-content
+    .UserLink-link {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .Button {
+    min-height: 24px !important;
+    padding: 2px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .QuestionStatus-notification-primary {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-divider {
+    margin: 0 2px !important;
+    background-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-closeButton {
+    width: 24px !important;
+    min-width: 24px !important;
+    padding: 2px !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-closeButton
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
+    background-color: var(--zb-surface) !important;
+    border-radius: inherit !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal:has(.QuestionInvitation) {
+    background-color: transparent !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal-inner:has(.QuestionInvitation) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal-content:has(> .QuestionInvitation) {
+    border-radius: inherit !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    > .Topbar {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input
+    :is(.Input, svg) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    .AutoInviteItem-wrapper--desktop {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 24px) !important;
+    margin: 0 12px !important;
+    padding: 12px !important;
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    :is(.ContentItem-statusItem, .ContentItem-meta) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .ContentItem-extra
+    .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .ContentItem-extra
+    .Button:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link {
+    min-width: 80px !important;
+    min-height: 32px !important;
+    padding: 0 8px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    outline: 0 !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link:is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
   html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
     background-color: transparent !important;

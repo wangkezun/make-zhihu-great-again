@@ -677,6 +677,37 @@ describe("Catppuccin theme feature", () => {
 
   it("styles question page headers, sidebars, overlays, editors, and floating controls", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-inner");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-content");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-primary");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-divider");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-closeButton");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionInvitation {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionInvitation-content\n    .AutoInviteItem-wrapper--desktop",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionInvitation-content\n    > .List\n    > .List-item:is(:hover, :focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-inner:has(.QuestionInvitation)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(> .QuestionInvitation)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionInvitation-content\n    > .List\n    > .List-item::after",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("border-bottom-color: var(--zb-border) !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "width: calc(100% - 24px) !important;\n    margin: 0 12px !important;\n    padding: 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AutoInviteItem-button--closed.Button.Button--link:is(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AutoInviteItem-button--closed.Button.Button--link:focus-visible",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionInvitation-input:focus-within");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "body\n    div:has(\n      > div\n        > div\n        > div\n        > .QuestionStatus-notification-inner",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-footer");
     expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.FollowButton, .WriteAnswerButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
