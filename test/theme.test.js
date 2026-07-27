@@ -1139,6 +1139,34 @@ describe("Catppuccin theme feature", () => {
     );
   });
 
+  it("themes search navigation, hot landing content, and the search sidebar", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchTabs {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchTabs .Tabs-link.is-active",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".HotLanding\n    > .List-item\n    > div\n    > div:has(+ div .HotLanding-title)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .HotLanding-contentItem {\n    border-bottom-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .Search-container .HotSearchCard-itemText",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .Search-container .HotSearchCard {\n    box-sizing: border-box !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Search-container\n    :is(.HotSearchCard-item, .HotSearchCard-itemLink)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .Search-container .HotSearchCard-tag",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Search-container\n    footer[role="contentinfo"]');
+  });
+
   it("presents saved favorite-list buttons as cancel actions on hover and focus", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Modal-inner");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-items");

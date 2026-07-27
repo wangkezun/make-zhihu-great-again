@@ -1619,6 +1619,159 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
   }
 
+  html[data-zb-theme] .SearchTabs {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link {
+    color: var(--zb-text-muted) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link:hover,
+  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs-customFilterEntry {
+    color: var(--zb-text-muted) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Search-container,
+  html[data-zb-theme] .SearchMain,
+  html[data-zb-theme] .HotLanding {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    > .List-item
+    > div
+    > div:has(+ div .HotLanding-title) {
+    background: var(--zb-surface-raised) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-title,
+  html[data-zb-theme] .HotLanding-ListTitle,
+  html[data-zb-theme] .HotLanding-contentItemTitle {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-title + div,
+  html[data-zb-theme] .HotLanding-contentItemCount,
+  html[data-zb-theme] .SearchItem-time {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-content {
+    border-left-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-contentItem {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .HotLanding .Highlight em {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-title,
+  html[data-zb-theme] .Search-container .HotSearchCard-itemText,
+  html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-heat {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Search-container
+    :is(.HotSearchCard-item, .HotSearchCard-itemLink) {
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-item {
+    box-sizing: border-box !important;
+    margin: 4px -8px !important;
+    padding: 6px 8px !important;
+    overflow: hidden !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-item:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-itemLink:focus-visible {
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-tag {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 24px !important;
+    padding: 0 5px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme] .Search-container footer[role="contentinfo"],
+  html[data-zb-theme]
+    .Search-container
+    footer[role="contentinfo"]
+    :is(a, button, div, span, svg) {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .Search-container
+    footer[role="contentinfo"]
+    :is(a, button):is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Search-container
+    footer[role="contentinfo"]
+    svg {
+    fill: currentColor !important;
+  }
+
   html[data-zb-theme][data-zb-column-page="true"]
     .App-main
     > div
