@@ -11,6 +11,8 @@ const ROOT_PROFILE_ATTRIBUTE = "data-zb-profile-page";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
+const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
+const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
 const STYLE_ID = "zb-home-sidebar-style";
 
@@ -55,6 +57,14 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/people\/[^/]+(?:\/.*)?$/.test(browserWindow.location.pathname);
 
+  const isPaperPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/kvip\/sku\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
+
+  const isPaperPreviewPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/kvip\/pdf\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
+
   const getPageKind = () => {
     if (isHomeFeedPage()) return "home";
     if (isQuestionPage()) return "question";
@@ -81,6 +91,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
     setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
+    setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
+    setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
 
@@ -399,6 +411,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
     started = false;
   };
 

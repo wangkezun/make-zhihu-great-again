@@ -667,6 +667,8 @@
   const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
   const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
   const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
+  const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
+  const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
   const STYLE_ID$2 = "zb-home-sidebar-style";
 
@@ -711,6 +713,14 @@
       browserWindow.location.hostname === "www.zhihu.com" &&
       /^\/people\/[^/]+(?:\/.*)?$/.test(browserWindow.location.pathname);
 
+    const isPaperPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/kvip\/sku\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
+
+    const isPaperPreviewPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/kvip\/pdf\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
+
     const getPageKind = () => {
       if (isHomeFeedPage()) return "home";
       if (isQuestionPage()) return "question";
@@ -737,6 +747,8 @@
       setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
       setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
       setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
+      setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
+      setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
       setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
     };
 
@@ -1055,6 +1067,8 @@
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
       started = false;
     };
 
@@ -1692,14 +1706,25 @@ ${createPaletteVariables("mocha")}
     .SearchMain
     [data-za-detail-view-path-module="SearchResultList"]:has(
       + .SearchNoContent-wrap
-    )
-    > div:first-child {
+    ) {
     box-sizing: border-box !important;
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
     color: var(--zb-text) !important;
     box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   html[data-zb-theme]
@@ -1721,9 +1746,810 @@ ${createPaletteVariables("mocha")}
       + .SearchNoContent-wrap
     )
     > div:first-child
+    > div
+    > div:first-child {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div
+    > svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
     > div:is(:hover, :focus-within) {
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 0 0 12px 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child
+    .Button:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child
+    .Button:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div
+    > div:first-child {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div
+    > svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div:is(:hover, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 0 0 12px 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> a[href*="/kvip/sku/paper/"]) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]
+    a[href*="/kvip/sku/paper/"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]
+    a[href*="/kvip/sku/paper/"]:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)
+    > div:first-child {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(4),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(5) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3)
+    span {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3)
+    span:has(.ZDI--ArrowRight24) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"],
+  html[data-zb-theme][data-zb-paper-page="true"] body,
+  html[data-zb-theme][data-zb-paper-page="true"] body > div:first-child {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-inline: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child {
+    background-color: var(--zb-surface-raised) !important;
+    background-image: none !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div:first-child {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div:last-child {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:nth-child(2) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child
+    > div:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child
+    > div:last-child {
+    color: var(--zb-text-subtle) !important;
+    -webkit-text-fill-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section
+    h2 {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section
+    :is(p, li, div) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(1)
+    p,
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(3) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(4) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(2)
+    button {
+    box-sizing: border-box !important;
+    padding: 2px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(2)
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 14%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button {
+    box-sizing: border-box !important;
+    border-radius: 999px !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:has(.ZDI--BookOpen24) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:nth-child(2) {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:last-child {
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:is(:hover, :focus-visible) {
+    border-color: var(--zb-primary-hover) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> svg[viewBox="0 0 150 50"])
+    :where(svg, path) {
+    color: var(--zb-text-subtle) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"] body,
+  html[data-zb-theme][data-zb-paper-preview-page="true"] #app {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-root_"] {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-logo_"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-avatar_"] {
+    border: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"]) {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    div {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    input {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    input:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16) {
+    background-color: var(--zb-primary-soft) !important;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--zb-primary) 42%, var(--zb-border)) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16)
+    > button {
+    color: inherit !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16)
+    > button:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary-soft) 72%,
+      var(--zb-surface-hover)
+    ) !important;
+    color: var(--zb-primary-hover) !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(.pdfViewer) {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="放大"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="缩小"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="下载"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="放大"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="缩小"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="下载"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {
+    background-color: #fff !important;
   }
 
   html[data-zb-theme]

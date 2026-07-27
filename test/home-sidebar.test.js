@@ -313,6 +313,42 @@ describe("home sidebar feature", () => {
     );
   });
 
+  it("marks paper detail routes and clears the marker after SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/kvip/sku/paper/1828155156228923392");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbPaperPage).toBe("true");
+
+    page.window.history.pushState({}, "", "/search?q=%E6%90%BA%E7%A8%8B&type=scholar");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbPaperPage).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-paper-page")).toBe(false);
+  });
+
+  it("marks paper preview routes and keeps detail and preview markers separate", async () => {
+    const page = createPage("https://www.zhihu.com/kvip/pdf/paper/1828155156228923392");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbPaperPreviewPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbPaperPage).toBe("false");
+
+    page.window.history.pushState({}, "", "/kvip/sku/paper/1828155156228923392");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbPaperPreviewPage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbPaperPage).toBe("true");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-paper-preview-page")).toBe(
+      false,
+    );
+  });
+
   it.each([
     "https://www.zhihu.com/people/tai-rui-er-de-jian-bing",
     "https://www.zhihu.com/people/tai-rui-er-de-jian-bing/",

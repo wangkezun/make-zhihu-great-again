@@ -1191,6 +1191,51 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-za-detail-view-path-module="SearchResultList"]:has(\n      + .SearchNoContent-wrap',
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "+ .SearchNoContent-wrap\n    ) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "+ .SearchNoContent-wrap\n    )\n    > div:first-child {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child\n    > div\n    > div:first-child {\n    color: inherit !important;\n    -webkit-text-fill-color: currentColor !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> div > .Button.Button--secondary) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Button--secondary:not(.Button--blue) {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:last-child\n    .Button:not(.Button--blue) {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-za-detail-view-path-module="SearchResultList"]:has(\n      a[href*="/kvip/sku/paper/"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(> a[href*="/kvip/sku/paper/"]) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {\n    border-color: var(--zb-border-strong) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/kvip/sku/paper/"]\n    > div:first-child {\n    color: var(--zb-primary) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)\n    > div:first-child {\n    color: var(--zb-primary-hover) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/kvip/sku/paper/"]\n    > div:nth-child(3)\n    span {\n    color: var(--zb-text) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(3)\n    span:has(.ZDI--ArrowRight24) {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      'a[href*="/kvip/sku/paper/"]:hover {\n    background-color: var(--zb-surface-raised) !important;',
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:thinking_blcok"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_answer_result_block"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -1202,6 +1247,44 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".ZVideoItem-comment\n    > div:first-child\n    > div:first-child:has(.InputLike.Editable) {\n    position: static !important;",
+    );
+  });
+
+  it("themes paper detail content and its fixed purchase actions", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain('html[data-zb-theme][data-zb-paper-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("body\n    div:has(> section + section) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> button .ZDI--BookOpen24):has(> button + button + button)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child {\n    background-color: var(--zb-surface-raised) !important;\n    background-image: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child\n    > div:last-child {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> section:nth-of-type(3) {\n    color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> button:last-child {\n    background-color: var(--zb-primary) !important;",
+    );
+  });
+
+  it("themes the paper preview shell without recoloring PDF pages", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme][data-zb-paper-preview-page="true"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[class^="ShelfTopNav-module-root_"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('#app\n    > div:has(input[size="1"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(input[size="1"])\n    > div {\n    background-color: var(--zb-surface) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "#app\n    > div:has(> button .ZDI--ArrowRightSmall16)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('button[aria-label="放大"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".pdfViewer .page {\n    background-color: #fff !important;",
     );
   });
 
