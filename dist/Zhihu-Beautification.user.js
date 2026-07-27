@@ -1659,6 +1659,231 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme] .SearchMain .SearchSubTabs {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link {
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link:is(:hover, .is-active, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
+    border-radius: 6px !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div:is(:hover, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"]
+      )
+    )
+    > div,
+  html[data-zb-theme]
+    .SearchMain:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"]
+      )
+    )
+    > div
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Block:thinking_blcok"],
+      [data-testid="Block:zhida_answer_result_block"]
+    )
+    :is(.Render-markdown, div[dir="auto"]) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"],
+      [data-testid="Button:zhida_message_corner_mark_btn"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"],
+      [data-testid="Button:zhida_message_corner_mark_btn"]
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    h1 {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    h1
+    + div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    div:has(> h1)
+    + div,
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item
+    > div
+    > div:last-child {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item
+    > div
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid
+      color-mix(in srgb, var(--zb-primary) 36%, transparent) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      .KfeCollection-PcCollegeCard-wrapper,
+      .KfeCollection-PcCollegeCard-root,
+      .KfeCollection-PcCollegeCard
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
   html[data-zb-theme]
     .HotLanding
     > .List-item
@@ -1690,6 +1915,98 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .HotLanding .Highlight em {
     color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: border-box !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    .RichContent-actions.is-fixed
+    > .ContentItem-actions.ContentItem-action {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .VoteButton {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    )
+    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme] .Search-container .HotSearchCard-title,
@@ -6629,6 +6946,45 @@ ${createPaletteVariables("mocha")}
     flex-direction: column !important;
     outline: 0 !important;
     padding-bottom: 0 !important;
+  }
+
+  html[data-zb-theme] .ZVideoItem-comment {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .ZVideoItem-comment
+    > div:first-child
+    > div:first-child:has(.InputLike.Editable) {
+    position: static !important;
+    inset: auto !important;
+    order: 0 !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .ZVideoItem-comment
+    > div:first-child
+    > div:nth-child(2) {
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ZVideoItem-comment
+    > div:first-child
+    > div:nth-child(2)
+    :where(svg, path) {
+    opacity: 0.82 !important;
   }
 
   html[data-zb-theme]

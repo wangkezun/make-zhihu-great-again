@@ -1153,6 +1153,25 @@ describe("Catppuccin theme feature", () => {
       "html[data-zb-theme] .HotLanding-contentItem {\n    border-bottom-color: var(--zb-border) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".RichContent-actions.is-fixed\n    > .ContentItem-actions.ContentItem-action {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".HotLanding\n    :is(.ContentItem-actions, .RichContent-actions) {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.ContentItem-actions, .RichContent-actions)\n    .Button:not(.VoteButton) {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.ShareMenu-toggler[aria-expanded="true"] .Button');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ':is(.ContentItem-actions, .RichContent-actions)\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       "html[data-zb-theme] .Search-container .HotSearchCard-itemText",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -1165,6 +1184,25 @@ describe("Catppuccin theme feature", () => {
       "html[data-zb-theme] .Search-container .HotSearchCard-tag",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain('.Search-container\n    footer[role="contentinfo"]');
+  });
+
+  it("themes specialized search result types and video comments", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] .SearchMain .SearchSubTabs");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-za-detail-view-path-module="SearchResultList"]:has(\n      + .SearchNoContent-wrap',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:thinking_blcok"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_answer_result_block"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".KfeCollection-PcCollegeCard-wrapper");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .ZVideoItem-comment {\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border-strong) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ZVideoItem-comment\n    > div:first-child\n    > div:first-child:has(.InputLike.Editable) {\n    position: static !important;",
+    );
   });
 
   it("presents saved favorite-list buttons as cancel actions on hover and focus", () => {
