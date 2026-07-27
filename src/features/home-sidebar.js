@@ -10,6 +10,7 @@ const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
 const ROOT_PROFILE_ATTRIBUTE = "data-zb-profile-page";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
+const ROOT_TOPIC_ATTRIBUTE = "data-zb-topic-page";
 const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
 const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
 const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
@@ -77,6 +78,12 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/people\/[^/]+(?:\/.*)?$/.test(browserWindow.location.pathname);
 
+  const isTopicPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/.test(
+      browserWindow.location.pathname,
+    );
+
   const isPaperPage = () =>
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/kvip\/sku\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
@@ -115,6 +122,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
     setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
+    setRootAttribute(ROOT_TOPIC_ATTRIBUTE, isTopicPage());
     setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
     setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
     setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
@@ -676,6 +684,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.removeAttribute(ROOT_PROFILE_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_TOPIC_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);

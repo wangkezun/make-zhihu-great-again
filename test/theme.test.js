@@ -148,6 +148,42 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-topic-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicFeedList");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicFeedItem");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicActions");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Topic-tabs\n    .Tabs-item {\n    padding-right: 15px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Topic-tabs\n    .Tabs-link.is-active {\n    color: var(--zb-primary) !important;\n" +
+        "    font-weight: 500 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Topic-headerLink:hover {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicRelativeBoard-item");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopicRelativeBoard-topics\n    .TopicTag\n    .Tag {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "height: 30px !important;\n    padding: 0 12px !important;\n" +
+        "    background-color: var(--zb-primary-soft) !important;\n" +
+        "    border: 0 !important;\n    border-radius: 999px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopicRelativeBoard-topics\n    .TopicTag:hover\n    .Tag {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopicFeedList\n    :is(.PlaceHolder, .PlaceHolder-inner)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopicFeedList\n    .PlaceHolder-bg {\n    background: linear-gradient(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".TopicFeedList\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path)",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-feeds-page="true"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "#TopstoryContent\n    > div {\n    background-color: var(--zb-surface) !important;",

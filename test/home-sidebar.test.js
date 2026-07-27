@@ -290,6 +290,25 @@ describe("home sidebar feature", () => {
     expect(page.window.document.documentElement.hasAttribute("data-zb-column-page")).toBe(false);
   });
 
+  it("marks topic subpages and clears the marker after SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/topic/19559593/hot");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbTopicPage).toBe("true");
+
+    page.window.history.pushState({}, "", "/topic/19559593/newest");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbTopicPage).toBe("true");
+
+    page.window.history.replaceState({}, "", "/hot");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbTopicPage).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-topic-page")).toBe(false);
+  });
+
   it("marks only the ring feeds route and keeps the marker in sync across SPA navigation", async () => {
     const page = createPage("https://www.zhihu.com/ring-feeds");
     const feature = createHomeSidebarFeature(page.window);
