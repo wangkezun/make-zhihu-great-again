@@ -451,6 +451,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .InputLike.Editable");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea .public-DraftEditor-content");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea:has(.WritePinV2-Form) .TitleArea");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 9px 12px 7px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar",
     );
@@ -460,6 +461,13 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".InputLike.Editable\n    .public-DraftEditorPlaceholder-inner",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("top: 50% !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("right: 12px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("line-height: 20px !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("transform: translateY(-50%) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".InputLike.Editable::-webkit-scrollbar-track");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".InputLike.Editable::-webkit-scrollbar-thumb:hover");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin-block: 8px !important");

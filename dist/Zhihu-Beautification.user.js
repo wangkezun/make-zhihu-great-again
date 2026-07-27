@@ -1470,7 +1470,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea {
     min-height: 46px !important;
-    padding: 8px 12px !important;
+    padding: 9px 12px 7px !important;
   }
 
   html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar {
@@ -1589,6 +1589,14 @@ ${createPaletteVariables("mocha")}
     .InputLike.Editable
     .public-DraftEditorPlaceholder-inner {
     color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child {
+    top: 50% !important;
+    right: 12px !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    transform: translateY(-50%) !important;
   }
 
   html[data-zb-theme] .Card,
