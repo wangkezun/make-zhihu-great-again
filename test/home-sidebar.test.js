@@ -329,6 +329,219 @@ describe("home sidebar feature", () => {
     expect(page.window.document.documentElement.hasAttribute("data-zb-paper-page")).toBe(false);
   });
 
+  it("marks AI search routes and clears the marker after SPA navigation", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbAiSearchPage).toBe("true");
+
+    page.window.history.pushState({}, "", "/search?q=%E6%90%BA%E7%A8%8B&type=content");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbAiSearchPage).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-ai-search-page")).toBe(false);
+  });
+
+  it("marks the AI source panel after it opens and clears owned state after it closes", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = `
+      <div class="SearchMain">
+        <div class="ai-layout">
+          <div class="ai-content">
+            <button data-testid="Button:reference_card_block_more_btn">全部来源 30</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const layout = page.window.document.querySelector(".ai-layout");
+    const sourceButton = page.window.document.querySelector(
+      '[data-testid="Button:reference_card_block_more_btn"]',
+    );
+    const panelWrapper = page.window.document.createElement("div");
+    panelWrapper.innerHTML = `
+      <div class="source-panel">
+        <div class="source-header">
+          <div>参考来源 30</div>
+          <button class="source-close">关闭</button>
+        </div>
+        <div class="source-list"></div>
+      </div>
+    `;
+    const panel = panelWrapper.querySelector(".source-panel");
+    const closeButton = panelWrapper.querySelector(".source-close");
+    sourceButton.addEventListener("click", () => layout.append(panelWrapper), { once: true });
+    closeButton.addEventListener("click", () => panelWrapper.remove(), { once: true });
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    sourceButton.click();
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(panel.hasAttribute("data-zb-ai-source-panel")).toBe(true);
+
+    closeButton.click();
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(panel.hasAttribute("data-zb-ai-source-panel")).toBe(false);
+
+    feature.destroy();
+  });
+
+  it("marks the content-discovery heading as soon as it loads", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const headingRow = page.window.document.createElement("div");
+    headingRow.innerHTML = '<svg></svg><div dir="auto">内容发现</div>';
+    searchMain.append(headingRow);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    const heading = headingRow.querySelector('div[dir="auto"]');
+    expect(heading.hasAttribute("data-zb-ai-content-discovery-heading")).toBe(true);
+
+    feature.destroy();
+    expect(heading.hasAttribute("data-zb-ai-content-discovery-heading")).toBe(false);
+  });
+
+  it("marks a right-aligned user question as soon as it is inserted", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const questionRow = page.window.document.createElement("div");
+    questionRow.innerHTML = `
+      <div style="align-self: flex-end">
+        <div
+          style="max-width: 100%; padding: 12px; border-radius: 8px; background-color: rgba(90, 77, 248, 0.15); position: relative"
+        >
+          <div dir="auto">推荐问题生成的提问</div>
+        </div>
+      </div>
+    `;
+    searchMain.append(questionRow);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    const question = questionRow.querySelector('div[style*="background-color"]');
+    expect(question.hasAttribute("data-zb-ai-user-question")).toBe(true);
+
+    feature.destroy();
+    expect(question.hasAttribute("data-zb-ai-user-question")).toBe(false);
+  });
+
+  it("marks a dynamically loaded AI scroll-to-bottom button", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const button = page.window.document.createElement("div");
+    button.tabIndex = 0;
+    button.setAttribute(
+      "style",
+      "width: 32px; height: 32px; transform: rotate(90deg); background-color: rgb(255, 255, 255)",
+    );
+    button.innerHTML = '<svg viewBox="0 0 20 20"><path d="M11.979 14.55"></path></svg>';
+    searchMain.append(button);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    expect(button.hasAttribute("data-zb-ai-scroll-to-bottom")).toBe(true);
+
+    feature.destroy();
+    expect(button.hasAttribute("data-zb-ai-scroll-to-bottom")).toBe(false);
+  });
+
+  it("marks the complete expanded-answer action row", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const actionRow = page.window.document.createElement("div");
+    actionRow.innerHTML = `
+      <div><div tabindex="0" data-testid="Button:zhida_upvote_button"></div></div>
+      <div><div tabindex="0"><svg></svg></div></div>
+      <div><div tabindex="0" data-testid="Button:zhida_message_copy_btn">复制</div></div>
+      <div><div tabindex="0" data-testid="Button:Share:zhida_message_share_btn">分享</div></div>
+    `;
+    searchMain.append(actionRow);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    expect(actionRow.hasAttribute("data-zb-ai-answer-actions")).toBe(true);
+
+    feature.destroy();
+    expect(actionRow.hasAttribute("data-zb-ai-answer-actions")).toBe(false);
+  });
+
+  it("marks the share-mode action group", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const shareActionRow = page.window.document.createElement("div");
+    shareActionRow.innerHTML = `
+      <div tabindex="0"><div dir="auto">分享到想法</div></div>
+      <div tabindex="0"><div dir="auto">生成图片</div></div>
+      <div tabindex="0"><div dir="auto">复制链接</div></div>
+      <div tabindex="0"><svg></svg></div>
+    `;
+    searchMain.append(shareActionRow);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    expect(shareActionRow.hasAttribute("data-zb-ai-share-actions")).toBe(true);
+
+    feature.destroy();
+    expect(shareActionRow.hasAttribute("data-zb-ai-share-actions")).toBe(false);
+  });
+
+  it("marks share-mode checkboxes and updates their selected state", async () => {
+    const page = createPage("https://www.zhihu.com/search?q=%E6%90%BA%E7%A8%8B&type=zhida");
+    page.window.document.body.innerHTML = '<div class="SearchMain"></div>';
+    const searchMain = page.window.document.querySelector(".SearchMain");
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    const shareMode = page.window.document.createElement("div");
+    shareMode.innerHTML = `
+      <div class="share-actions">
+        <div tabindex="0"><div dir="auto">分享到想法</div></div>
+        <div tabindex="0"><div dir="auto">生成图片</div></div>
+        <div tabindex="0"><div dir="auto">复制链接</div></div>
+        <div tabindex="0"><svg></svg></div>
+      </div>
+      <div
+        tabindex="0"
+        style="align-self: flex-start; margin-right: 12px"
+        class="share-checkbox"
+      >
+        <svg fill="#373a40" viewBox="0 0 24 24"><path d="M3 5.4"></path></svg>
+      </div>
+    `;
+    searchMain.append(shareMode);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    const checkbox = shareMode.querySelector(".share-checkbox");
+    expect(checkbox.dataset.zbAiShareCheckboxChecked).toBe("true");
+
+    checkbox.innerHTML =
+      '<svg fill="#c4c7ce" viewBox="0 0 24 24"><path d="M18.6 4.5"></path></svg>';
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+    expect(checkbox.dataset.zbAiShareCheckboxChecked).toBe("false");
+
+    feature.destroy();
+    expect(checkbox.hasAttribute("data-zb-ai-share-checkbox")).toBe(false);
+    expect(checkbox.hasAttribute("data-zb-ai-share-checkbox-checked")).toBe(false);
+  });
+
   it("marks paper preview routes and keeps detail and preview markers separate", async () => {
     const page = createPage("https://www.zhihu.com/kvip/pdf/paper/1828155156228923392");
     const feature = createHomeSidebarFeature(page.window);

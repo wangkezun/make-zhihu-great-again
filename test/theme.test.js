@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createThemeFeature, THEME_MODES } from "../src/features/theme.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CRITICAL_THEME_STYLE } from "../src/styles/critical-theme.js";
 
 const activePages = [];
 
@@ -39,6 +40,8 @@ describe("Catppuccin theme feature", () => {
     feature.start();
 
     expect(page.window.document.documentElement.dataset.zbTheme).toBe("system");
+    expect(page.window.document.getElementById("zb-critical-theme-style")).not.toBeNull();
+    expect(page.window.document.getElementById("zb-catppuccin-theme-style")).not.toBeNull();
     expect(commands.size).toBe(THEME_MODES.length);
     expect([...commands.values()].map(({ label }) => label)).toContain(
       "✓ 主题：跟随系统（Latte / Mocha）",
@@ -46,6 +49,8 @@ describe("Catppuccin theme feature", () => {
 
     feature.destroy();
     expect(commands.size).toBe(0);
+    expect(page.window.document.getElementById("zb-critical-theme-style")).toBeNull();
+    expect(page.window.document.getElementById("zb-catppuccin-theme-style")).toBeNull();
   });
 
   it("applies and persists a manually selected flavor", () => {
@@ -531,6 +536,19 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin-right: 6px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 14px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Menu\n    > .Menu-item:focus-visible");
+  });
+
+  it("applies a compact first-paint theme before the full stylesheet is ready", () => {
+    expect(CRITICAL_THEME_STYLE.length).toBeLessThan(3_000);
+    expect(CRITICAL_THEME_STYLE).toContain('html[data-zb-theme="system"]');
+    expect(CRITICAL_THEME_STYLE).toContain("html[data-zb-theme] .Search-container");
+    expect(CRITICAL_THEME_STYLE).toContain("html[data-zb-theme] .SearchMain > div");
+
+    for (const flavor of ["latte", "frappe", "macchiato", "mocha"]) {
+      expect(CRITICAL_THEME_STYLE).toContain(`html[data-zb-theme="${flavor}"]`);
+      expect(CRITICAL_THEME_STYLE).toContain(flavors[flavor].colors.mantle.hex);
+      expect(CRITICAL_THEME_STYLE).toContain(flavors[flavor].colors.base.hex);
+    }
   });
 
   it("styles follow-feed cards and sidebar without relying on the home-page marker", () => {
@@ -1238,6 +1256,83 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:thinking_blcok"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_answer_result_block"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ai-search-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="discovery-answer-fade-mask"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Button:expand_btn"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:expand_btn"]\n    :where(span, svg, path)',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-content-discovery-heading]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".zhida-rn-skeleton-motion::after {\n    background-image: linear-gradient(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="answer-thinking-text"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-scroll-to-bottom]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "[data-zb-ai-scroll-to-bottom]\n    :where(svg, path)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-answer-actions]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[tabindex="0"]\n    :where(div, span, svg, path)');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-share-actions]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-ai-share-actions]\n    > div\n    > [tabindex="0"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-share-checkbox]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ai-share-checkbox-checked="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-user-question]");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      'div:has(+ div [data-testid="Block:thinking_blcok"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('div:has(> [data-testid="Block:thinking_blcok"])');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:reference_card_block_more_btn"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]\n    :where(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Button:zhida_message_corner_mark_float_window_btn"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(4) {\n    color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-source-panel]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div[style*="border-bottom-width"]\n    > div {\n    box-sizing: border-box !important;\n    padding: 8px !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="Card:reference_card"]\n    div[style*="cursor: pointer"]:is(:hover, :focus-visible)\n    div[style*="width: 24px"][style*="height: 24px"] {\n    background-color: var(--zb-primary-soft) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div[style*="cursor: pointer"]\n    :where(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid^="Button:ai_search_content_discovery_navigation_tab:"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:not([style*="background-color: rgb(248, 248, 250)"]) {\n    background-color: var(--zb-primary) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Card:OpenUrl:ai_search_content_card"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> [data-testid="Card:OpenUrl:ai_search_content_card"]\n        + [data-testid="Card:OpenUrl:ai_search_content_card"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {\n    background-color: var(--zb-primary-soft) !important;\n    outline: 0 !important;\n    box-shadow: none !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Button:ai_search_input_field_button"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-testid="SearchExpansionWord:Button:related_question_word"]',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_input_box"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)',
     );

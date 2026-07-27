@@ -669,7 +669,19 @@
   const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
   const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
   const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
+  const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
+  const AI_SOURCE_PANEL_ATTRIBUTE = "data-zb-ai-source-panel";
+  const AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE = "data-zb-ai-content-discovery-heading";
+  const AI_USER_QUESTION_ATTRIBUTE = "data-zb-ai-user-question";
+  const AI_SCROLL_TO_BOTTOM_ATTRIBUTE = "data-zb-ai-scroll-to-bottom";
+  const AI_ANSWER_ACTIONS_ATTRIBUTE = "data-zb-ai-answer-actions";
+  const AI_SHARE_ACTIONS_ATTRIBUTE = "data-zb-ai-share-actions";
+  const AI_SHARE_CHECKBOX_ATTRIBUTE = "data-zb-ai-share-checkbox";
+  const AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE = "data-zb-ai-share-checkbox-checked";
+  const AI_SOURCE_BUTTON_SELECTOR = '[data-testid="Button:reference_card_block_more_btn"]';
+  const AI_INPUT_SELECTOR = '[data-testid="Block:zhida_input_box"]';
+  const AI_SOURCE_TITLE_PATTERN = /^参考来源\s*\d+$/;
   const STYLE_ID$2 = "zb-home-sidebar-style";
 
   const createHomeSidebarFeature = (browserWindow, settings) => {
@@ -681,6 +693,14 @@
     let positionAnimationFrameId;
     let menuCommandId;
     let markedSidebar;
+    let markedAiSourcePanel;
+    const markedAiContentDiscoveryHeadings = new Set();
+    const markedAiUserQuestions = new Set();
+    const markedAiScrollToBottomButtons = new Set();
+    const markedAiAnswerActionRows = new Set();
+    const markedAiShareActionRows = new Set();
+    const markedAiShareCheckboxes = new Set();
+    let observedAiSearchMain;
     let observedPageHeader;
     let observedQuestionContent;
     let pageKind;
@@ -721,6 +741,11 @@
       browserWindow.location.hostname === "www.zhihu.com" &&
       /^\/kvip\/pdf\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
 
+    const isAiSearchPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/search\/?$/.test(browserWindow.location.pathname) &&
+      new browserWindow.URLSearchParams(browserWindow.location.search).get("type") === "zhida";
+
     const getPageKind = () => {
       if (isHomeFeedPage()) return "home";
       if (isQuestionPage()) return "question";
@@ -749,6 +774,7 @@
       setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
       setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
       setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
+      setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
       setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
     };
 
@@ -883,6 +909,184 @@
 
     const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
 
+    const findAiSourcePanel = () => {
+      if (!isAiSearchPage()) return null;
+
+      const searchMain = browserDocument.querySelector(".SearchMain");
+      const sourceButton = searchMain?.querySelector(AI_SOURCE_BUTTON_SELECTOR);
+      if (!searchMain || !sourceButton) return null;
+
+      for (
+        let current = sourceButton;
+        current && current !== searchMain;
+        current = current.parentElement
+      ) {
+        const parent = current.parentElement;
+        if (!parent) break;
+
+        for (const sibling of parent.children) {
+          if (sibling === current) continue;
+
+          const candidates = [sibling, ...sibling.querySelectorAll("div")];
+          const title = candidates.find(
+            (element) =>
+              element.children.length === 0 &&
+              AI_SOURCE_TITLE_PATTERN.test(element.textContent?.trim() ?? ""),
+          );
+          const panel = title?.parentElement?.parentElement;
+          if (panel) return panel;
+        }
+      }
+
+      return null;
+    };
+
+    const markAiSourcePanel = () => {
+      const nextPanel = findAiSourcePanel();
+      if (nextPanel === markedAiSourcePanel) return;
+
+      markedAiSourcePanel?.removeAttribute(AI_SOURCE_PANEL_ATTRIBUTE);
+      markedAiSourcePanel = nextPanel;
+      markedAiSourcePanel?.setAttribute(AI_SOURCE_PANEL_ATTRIBUTE, "");
+    };
+
+    const markAiDynamicElements = (root = browserDocument) => {
+      if (!isAiSearchPage()) {
+        markedAiContentDiscoveryHeadings.forEach((heading) =>
+          heading.removeAttribute(AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE),
+        );
+        markedAiContentDiscoveryHeadings.clear();
+        markedAiUserQuestions.forEach((question) =>
+          question.removeAttribute(AI_USER_QUESTION_ATTRIBUTE),
+        );
+        markedAiUserQuestions.clear();
+        markedAiScrollToBottomButtons.forEach((button) =>
+          button.removeAttribute(AI_SCROLL_TO_BOTTOM_ATTRIBUTE),
+        );
+        markedAiScrollToBottomButtons.clear();
+        markedAiAnswerActionRows.forEach((row) => row.removeAttribute(AI_ANSWER_ACTIONS_ATTRIBUTE));
+        markedAiAnswerActionRows.clear();
+        markedAiShareActionRows.forEach((row) => row.removeAttribute(AI_SHARE_ACTIONS_ATTRIBUTE));
+        markedAiShareActionRows.clear();
+        markedAiShareCheckboxes.forEach((checkbox) => {
+          checkbox.removeAttribute(AI_SHARE_CHECKBOX_ATTRIBUTE);
+          checkbox.removeAttribute(AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE);
+        });
+        markedAiShareCheckboxes.clear();
+        return;
+      }
+
+      const candidates = [];
+      if (root.nodeType === 1 && root.matches('div[dir="auto"]')) {
+        candidates.push(root);
+      }
+      root.querySelectorAll?.('div[dir="auto"]').forEach((element) => candidates.push(element));
+
+      candidates.forEach((heading) => {
+        if (heading.textContent?.trim() === "分享到想法") {
+          const shareActionRow = heading.parentElement?.parentElement;
+          const labels = Array.from(shareActionRow?.querySelectorAll('div[dir="auto"]') ?? []).map(
+            (element) => element.textContent?.trim(),
+          );
+          if (
+            shareActionRow?.querySelectorAll('[tabindex="0"]').length === 4 &&
+            labels.includes("生成图片") &&
+            labels.includes("复制链接")
+          ) {
+            shareActionRow.setAttribute(AI_SHARE_ACTIONS_ATTRIBUTE, "");
+            markedAiShareActionRows.add(shareActionRow);
+          }
+        }
+
+        const questionBubble = heading.parentElement;
+        const bubbleStyle = questionBubble?.getAttribute("style") ?? "";
+        if (
+          bubbleStyle.includes("background-color: rgba(90, 77, 248, 0.15)") &&
+          bubbleStyle.includes("padding: 12px") &&
+          questionBubble.parentElement?.getAttribute("style")?.includes("align-self: flex-end")
+        ) {
+          questionBubble.setAttribute(AI_USER_QUESTION_ATTRIBUTE, "");
+          markedAiUserQuestions.add(questionBubble);
+        }
+
+        const headingRow = heading.parentElement;
+        if (
+          heading.textContent?.trim() !== "内容发现" ||
+          heading.closest(AI_INPUT_SELECTOR) ||
+          headingRow?.firstElementChild?.tagName !== "svg" ||
+          headingRow.lastElementChild !== heading
+        ) {
+          return;
+        }
+
+        heading.setAttribute(AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE, "");
+        markedAiContentDiscoveryHeadings.add(heading);
+      });
+
+      const scrollButtons = [];
+      const scrollButtonSelector = 'div[tabindex="0"][style*="transform: rotate(90deg)"]';
+      if (root.nodeType === 1 && root.matches(scrollButtonSelector)) {
+        scrollButtons.push(root);
+      }
+      root.querySelectorAll?.(scrollButtonSelector).forEach((element) => scrollButtons.push(element));
+
+      scrollButtons.forEach((button) => {
+        const style = button.getAttribute("style") ?? "";
+        if (
+          !style.includes("width: 32px") ||
+          !style.includes("height: 32px") ||
+          !button.querySelector('svg[viewBox="0 0 20 20"] > path')
+        ) {
+          return;
+        }
+
+        button.setAttribute(AI_SCROLL_TO_BOTTOM_ATTRIBUTE, "");
+        markedAiScrollToBottomButtons.add(button);
+      });
+
+      const copyButtons = [];
+      const copyButtonSelector = '[data-testid="Button:zhida_message_copy_btn"]';
+      if (root.nodeType === 1 && root.matches(copyButtonSelector)) {
+        copyButtons.push(root);
+      }
+      root.querySelectorAll?.(copyButtonSelector).forEach((element) => copyButtons.push(element));
+
+      copyButtons.forEach((copyButton) => {
+        const actionRow = copyButton.parentElement?.parentElement;
+        if (
+          !actionRow?.querySelector('[data-testid="Button:Share:zhida_message_share_btn"]') ||
+          !actionRow.querySelector('[data-testid="Button:zhida_upvote_button"]')
+        ) {
+          return;
+        }
+
+        actionRow.setAttribute(AI_ANSWER_ACTIONS_ATTRIBUTE, "");
+        markedAiAnswerActionRows.add(actionRow);
+      });
+
+      const checkboxSelector =
+        'div[tabindex="0"][style*="align-self: flex-start"][style*="margin-right: 12px"]';
+      const checkboxCandidates = new Set();
+      if (root.nodeType === 1) {
+        if (root.matches(checkboxSelector)) checkboxCandidates.add(root);
+        const ancestor = root.closest(checkboxSelector);
+        if (ancestor) checkboxCandidates.add(ancestor);
+      }
+      root.querySelectorAll?.(checkboxSelector).forEach((element) => checkboxCandidates.add(element));
+
+      checkboxCandidates.forEach((checkbox) => {
+        const icon = checkbox.querySelector('svg[viewBox="0 0 24 24"]:has(> path)');
+        if (!icon || !browserDocument.querySelector(`[${AI_SHARE_ACTIONS_ATTRIBUTE}]`)) return;
+
+        checkbox.setAttribute(AI_SHARE_CHECKBOX_ATTRIBUTE, "");
+        checkbox.setAttribute(
+          AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE,
+          String(icon.getAttribute("fill")?.toLowerCase() === "#373a40"),
+        );
+        markedAiShareCheckboxes.add(checkbox);
+      });
+    };
+
     const markSidebar = () => {
       let nextSidebar;
       if (pageKind === "home") {
@@ -898,7 +1102,19 @@
       markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
     };
 
-    const handleMutations = () => {
+    const handleMutations = (records) => {
+      if (isAiSearchPage()) {
+        records.forEach(({ addedNodes }) => {
+          addedNodes.forEach((node) => {
+            if (node.nodeType === 1) markAiDynamicElements(node);
+          });
+        });
+        if (!observedAiSearchMain?.isConnected && browserDocument.querySelector(".SearchMain")) {
+          scheduleRefresh();
+        }
+        return;
+      }
+
       const needsSidebar = pageKind === "home" || pageKind === "question";
       const needsQuestionContent = pageKind === "question";
       if (
@@ -933,9 +1149,20 @@
     const configureObserver = () => {
       observer?.disconnect();
       observer = undefined;
-      if (pageKind === "other" || !browserDocument.documentElement) return;
+      observedAiSearchMain = undefined;
+      if (!browserDocument.documentElement) return;
 
       observer = new browserWindow.MutationObserver(handleMutations);
+      if (isAiSearchPage()) {
+        observedAiSearchMain = browserDocument.querySelector(".SearchMain");
+        observer.observe(observedAiSearchMain ?? browserDocument.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+        return;
+      }
+      if (pageKind === "other") return;
+
       const needsSidebarDiscovery = !markedSidebar?.isConnected;
       const needsContentDiscovery = pageKind === "question" && !observedQuestionContent?.isConnected;
       if (needsSidebarDiscovery || needsContentDiscovery) {
@@ -961,8 +1188,21 @@
       updateColumnTabsPosition();
       ensureStyle(browserDocument, STYLE_ID$2, HOME_SIDEBAR_STYLE);
       markSidebar();
+      markAiSourcePanel();
+      markAiDynamicElements();
       setupQuestionPositionObserver();
       configureObserver();
+    };
+
+    const handleAiSourcePanelInteraction = ({ target }) => {
+      if (
+        !isAiSearchPage() ||
+        (!target?.closest?.(AI_SOURCE_BUTTON_SELECTOR) && !markedAiSourcePanel?.contains(target))
+      ) {
+        return;
+      }
+
+      scheduleRefresh();
     };
 
     function scheduleRefresh() {
@@ -1028,6 +1268,7 @@
       refresh();
       updateMenuCommand();
       browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
+      browserDocument.addEventListener("click", handleAiSourcePanelInteraction, true);
       installRouteListeners();
       browserWindow.addEventListener("resize", schedulePositionRefresh);
       if (!browserWindow.IntersectionObserver) {
@@ -1047,6 +1288,7 @@
         browserWindow.cancelAnimationFrame(positionAnimationFrameId);
       }
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
+      browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
       removeRouteListeners();
       browserWindow.removeEventListener("resize", schedulePositionRefresh);
       browserWindow.removeEventListener("scroll", schedulePositionRefresh);
@@ -1057,6 +1299,30 @@
       browserDocument.getElementById(STYLE_ID$2)?.remove();
       markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
       markedSidebar = undefined;
+      markedAiSourcePanel?.removeAttribute(AI_SOURCE_PANEL_ATTRIBUTE);
+      markedAiSourcePanel = undefined;
+      markedAiContentDiscoveryHeadings.forEach((heading) =>
+        heading.removeAttribute(AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE),
+      );
+      markedAiContentDiscoveryHeadings.clear();
+      markedAiUserQuestions.forEach((question) =>
+        question.removeAttribute(AI_USER_QUESTION_ATTRIBUTE),
+      );
+      markedAiUserQuestions.clear();
+      markedAiScrollToBottomButtons.forEach((button) =>
+        button.removeAttribute(AI_SCROLL_TO_BOTTOM_ATTRIBUTE),
+      );
+      markedAiScrollToBottomButtons.clear();
+      markedAiAnswerActionRows.forEach((row) => row.removeAttribute(AI_ANSWER_ACTIONS_ATTRIBUTE));
+      markedAiAnswerActionRows.clear();
+      markedAiShareActionRows.forEach((row) => row.removeAttribute(AI_SHARE_ACTIONS_ATTRIBUTE));
+      markedAiShareActionRows.clear();
+      markedAiShareCheckboxes.forEach((checkbox) => {
+        checkbox.removeAttribute(AI_SHARE_CHECKBOX_ATTRIBUTE);
+        checkbox.removeAttribute(AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE);
+      });
+      markedAiShareCheckboxes.clear();
+      observedAiSearchMain = undefined;
       observedPageHeader = undefined;
       observedQuestionContent = undefined;
       browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
@@ -1069,6 +1335,7 @@
       browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
       started = false;
     };
 
@@ -1193,10 +1460,10 @@ ${createPaletteVariables(name)}
     color-scheme: ${name === "latte" ? "light" : "dark"};
   }`;
 
-  const flavorRules = ["latte", "frappe", "macchiato", "mocha"].map(createFlavorRule).join("\n");
+  const flavorRules$1 = ["latte", "frappe", "macchiato", "mocha"].map(createFlavorRule).join("\n");
 
   const CATPPUCCIN_THEME_STYLE = `
-${flavorRules}
+${flavorRules$1}
 
   html[data-zb-theme="system"] {
 ${createPaletteVariables("latte")}
@@ -2594,7 +2861,7 @@ ${createPaletteVariables("mocha")}
     :is(
       [data-testid="Button:thinking_node"],
       [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"]
+      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     ) {
     background-color: var(--zb-surface-raised) !important;
     border: 1px solid var(--zb-border) !important;
@@ -2606,12 +2873,81 @@ ${createPaletteVariables("mocha")}
     :is(
       [data-testid="Button:thinking_node"],
       [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"]
+      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     ):is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
     outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex]) {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    :where(div, span) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .Popover-content:has(
+      [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:nth-child(3) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:nth-child(4) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:last-child
+    :where(svg, path) {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme]
@@ -2708,6 +3044,909 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
     color: var(--zb-primary) !important;
     -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    > div
+    > div
+    > div:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"],
+        [data-testid="Block:zhida_input_box"]
+      )
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Block:zhida_answer_result_block"],
+      [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
+    ) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="discovery-answer-fade-mask"] {
+    background: linear-gradient(transparent, var(--zb-surface)) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]
+    > div {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]
+    :where(span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]:is(:hover, :focus-visible, :focus-within)
+    > div {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-content-discovery-heading] {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"] {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    .zhida-rn-skeleton-motion::after {
+    background-image: linear-gradient(
+      110deg,
+      transparent 0%,
+      transparent 35%,
+      color-mix(in srgb, var(--zb-text-subtle) 22%, transparent) 50%,
+      transparent 65%,
+      transparent 100%
+    ) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="answer-thinking-text"] {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom] {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"],
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"]
+    :where(div, span, svg, path),
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox] {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-subtle) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox][data-zb-ai-share-checkbox-checked="true"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-user-question] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-user-question]
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Block:thinking_blcok"]) {
+    justify-content: center !important;
+    height: auto !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:thinking_blcok"] {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:thinking_blcok"]
+    > div {
+    box-sizing: border-box !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: auto !important;
+    min-height: 44px !important;
+    padding: 4px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    ) {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    padding: 7px 8px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:reference_card_block_more_btn"] {
+    flex: 0 0 auto !important;
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    )
+    > div {
+    box-sizing: border-box !important;
+    width: auto !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    )
+    :where(div, span) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"] [data-zb-ai-source-panel] {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    :where(div, span) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:last-child
+    > div
+    > div {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"] {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div {
+    box-sizing: border-box !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:first-child
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:first-child
+    span:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]
+    div[style*="width: 24px"][style*="height: 24px"] {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]:is(:hover, :focus-visible)
+    div[style*="width: 24px"][style*="height: 24px"] {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [style*="color: rgb(23, 114, 246)"] {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      + div
+        > div
+        > div
+        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    )
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > div
+        > div
+        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    ) {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div
+    > div {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]:is(
+      :hover,
+      :focus-visible
+    )
+    > div {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div:not([style*="background-color: rgb(248, 248, 250)"]) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-surface) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:hover {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {
+    background-color: var(--zb-primary-soft) !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible
+    ):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    ) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"])
+    > div:first-child:not([data-testid]) {
+    background: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    ) {
+    padding: 0 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:last-child {
+    border-bottom: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:last-child[style*="background-color"] {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]
+    :where(div, span, p, h1, h2, h3, strong) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:first-child
+    > :is(div:nth-child(2), div:nth-child(4)) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:first-child
+    > div:nth-child(3) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="SearchExpansionWord:Button:related_question_word"],
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
+    > div {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div[style*="background-color: rgba(23, 114, 246, 0.12)"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    .InputLike.Editable {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="SearchExpansionWord:Button:related_question_word"],
+      [data-testid="Block:zhida_input_box"]
+    )
+    :where(div, span) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="SearchExpansionWord:Button:related_question_word"],
+      [data-testid="Block:zhida_input_box"]
+    ):is(:hover, :focus-visible, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    div[style*="background-color: rgb(173, 176, 183)"] {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    div[style*="background-color: rgb(173, 176, 183)"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme]
@@ -11181,6 +12420,78 @@ ${createPaletteVariables("mocha")}
   }
 `;
 
+  const EARLY_COLORS = {
+    latte: {
+      page: "#e6e9ef",
+      surface: "#eff1f5",
+      text: "#4c4f69",
+    },
+    frappe: {
+      page: "#292c3c",
+      surface: "#303446",
+      text: "#c6d0f5",
+    },
+    macchiato: {
+      page: "#1e2030",
+      surface: "#24273a",
+      text: "#cad3f5",
+    },
+    mocha: {
+      page: "#181825",
+      surface: "#1e1e2e",
+      text: "#cdd6f4",
+    },
+  };
+
+  const createEarlyFlavorRule = (name) => {
+    const colors = EARLY_COLORS[name];
+    return `
+  html[data-zb-theme="${name}"] {
+    --zb-early-page: ${colors.page};
+    --zb-early-surface: ${colors.surface};
+    --zb-early-text: ${colors.text};
+    color-scheme: ${name === "latte" ? "light" : "dark"};
+  }`;
+  };
+
+  const flavorRules = Object.keys(EARLY_COLORS).map(createEarlyFlavorRule).join("\n");
+
+  const CRITICAL_THEME_STYLE = `
+${flavorRules}
+
+  html[data-zb-theme="system"] {
+    --zb-early-page: ${EARLY_COLORS.latte.page};
+    --zb-early-surface: ${EARLY_COLORS.latte.surface};
+    --zb-early-text: ${EARLY_COLORS.latte.text};
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html[data-zb-theme="system"] {
+      --zb-early-page: ${EARLY_COLORS.mocha.page};
+      --zb-early-surface: ${EARLY_COLORS.mocha.surface};
+      --zb-early-text: ${EARLY_COLORS.mocha.text};
+      color-scheme: dark;
+    }
+  }
+
+  html[data-zb-theme],
+  html[data-zb-theme] body,
+  html[data-zb-theme] #root,
+  html[data-zb-theme] .App-main,
+  html[data-zb-theme] .Search-container,
+  html[data-zb-theme] .SearchMain {
+    background-color: var(--zb-early-page) !important;
+    color: var(--zb-early-text) !important;
+  }
+
+  html[data-zb-theme] .SearchMain > div,
+  html[data-zb-theme] .SearchMain > div > div {
+    background-color: var(--zb-early-surface) !important;
+    color: var(--zb-early-text) !important;
+  }
+`;
+
   const THEME_STORAGE_KEY = "zhihu-beautification:theme";
   const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
 
@@ -11194,6 +12505,7 @@ ${createPaletteVariables("mocha")}
     ".SimilarQuestions-item > a[href^='/question/']",
   ].join(",");
   const STYLE_ID = "zb-catppuccin-theme-style";
+  const CRITICAL_STYLE_ID = "zb-critical-theme-style";
   const THEME_LABELS = {
     system: "跟随系统（Latte / Mocha）",
     latte: "Latte",
@@ -11318,6 +12630,7 @@ ${createPaletteVariables("mocha")}
       if (started) return;
       started = true;
       mode = readStoredMode(settings, isThemeMode, "system");
+      ensureStyle(browserDocument, CRITICAL_STYLE_ID, CRITICAL_THEME_STYLE);
       browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
       ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
       markArrowPanels();
@@ -11336,6 +12649,7 @@ ${createPaletteVariables("mocha")}
       browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
       clearMenuCommands(settings?.menu, menuCommandIds);
       browserDocument.getElementById(STYLE_ID)?.remove();
+      browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
       browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
       markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
       markedArrowPanelWrappers.forEach((wrapper) =>

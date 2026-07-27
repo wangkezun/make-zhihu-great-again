@@ -1,4 +1,5 @@
 import { CATPPUCCIN_THEME_STYLE } from "../styles/catppuccin-theme.js";
+import { CRITICAL_THEME_STYLE } from "../styles/critical-theme.js";
 import { clearMenuCommands, ensureStyle, persistMode, readStoredMode } from "./shared.js";
 
 export const THEME_STORAGE_KEY = "zhihu-beautification:theme";
@@ -14,6 +15,7 @@ const RELATED_QUESTION_LINK_SELECTOR = [
   ".SimilarQuestions-item > a[href^='/question/']",
 ].join(",");
 const STYLE_ID = "zb-catppuccin-theme-style";
+const CRITICAL_STYLE_ID = "zb-critical-theme-style";
 const THEME_LABELS = {
   system: "跟随系统（Latte / Mocha）",
   latte: "Latte",
@@ -138,6 +140,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     if (started) return;
     started = true;
     mode = readStoredMode(settings, isThemeMode, "system");
+    ensureStyle(browserDocument, CRITICAL_STYLE_ID, CRITICAL_THEME_STYLE);
     browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
     ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
     markArrowPanels();
@@ -156,6 +159,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
     clearMenuCommands(settings?.menu, menuCommandIds);
     browserDocument.getElementById(STYLE_ID)?.remove();
+    browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
     markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
     markedArrowPanelWrappers.forEach((wrapper) =>
