@@ -7762,6 +7762,116 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"]) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > a[href*="/column/"] {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"] {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"]
+    > div
+    > div:first-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"]
+    > div
+    > div:nth-child(2)
+    :where(div, span) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"]
+    > div
+    > div:nth-child(2)
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"]
+    > div
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    > div
+    a[href*="/column/"]::before {
+    border-bottom-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerItem
+    .RichContent
+    section
+    > div:has(> a[href*="/column/"])
+    a[href*="/column/"]:focus-visible {
+    border-radius: 6px !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)),
   html[data-zb-theme]
     .Modal-content:has(.CommentContent)

@@ -1134,6 +1134,29 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText table");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText :is(th, td)");
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /\.AnswerItem[\s\S]*?section[\s\S]*?> div:has\(> a\[href\*="\/column\/"\]\) \{[\s\S]*?background-color: var\(--zb-surface-raised\) !important;[\s\S]*?border: 1px solid var\(--zb-border\) !important;[\s\S]*?border-radius: 8px !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:has\(> a\[href\*="\/column\/"\]\)[\s\S]*?> a\[href\*="\/column\/"\] \{[\s\S]*?color: var\(--zb-text-muted\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:has\(> a\[href\*="\/column\/"\]\)[\s\S]*?> div[\s\S]*?a\[href\*="\/column\/"\][\s\S]*?> div[\s\S]*?> div:first-child \{[\s\S]*?color: var\(--zb-text\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:nth-child\(2\)[\s\S]*?:where\(div, span\) \{[\s\S]*?color: var\(--zb-text-secondary\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:nth-child\(2\)[\s\S]*?> div:last-child \{[\s\S]*?color: var\(--zb-text-muted\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toMatch(
+      /> div:has\(> a\[href\*="\/column\/"\]\)[\s\S]*?a\[href\*="\/column\/"\]::before \{[\s\S]*?border-bottom-color: var\(--zb-border-strong\) !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/column/"]:focus-visible {\n' +
+        "    border-radius: 6px !important;\n" +
+        "    outline: 2px solid var(--zb-primary) !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain('a[href*="zhida_source=below_banner_question"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("width: auto !important");
