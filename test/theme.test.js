@@ -2006,6 +2006,60 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> a:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-hover) !important;",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Creator-mainColumn\n    > .Card\n    > div\n    > div:has(> [role="list"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div:has(> [role="list"])\n    .Sticky {\n    background-color: var(--zb-page) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Creator-mainColumn\n    > .Card\n    .CreatorRangePicker-Button {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('.Popover:has(> .Select-button[role="combobox"]) {');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Select-button[role="combobox"] {\n    height: 32px !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Popover-content:has(> .Select-list) {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> .Select-option:is(:hover, :focus, :focus-visible)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Creator-mainColumn\n    > .Card\n    .Tabs-item {\n    min-width: max-content !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin: 8px 0 !important;\n    padding: 6px 12px !important;\n    border-radius: 8px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("white-space: nowrap !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Creator-mainColumn\n    > .Card\n    .Tabs-link::after {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Tabs-link.is-active {\n    background-color: var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '> div:has(+ [role="list"])\n    .Sticky\n    > div:first-child',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".CreationManage-CreationCard");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin: 0 16px 10px !important;\n    padding: 20px 16px !important;\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreationManage-CreationCard:hover {\n    border-color: var(--zb-border-strong) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreationManage-CreationCard:focus-within {\n    border-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreationCardTitle-wrapper\n    > div\n    > div:first-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "font-size: 18px !important;\n    font-weight: 500 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".CreationManage-CreationCard\n    > a:first-of-type");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> a:first-of-type:is(:hover, :focus-visible)\n    .CreationCardTitle-wrapper",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-primary-hover) !important;");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain(

@@ -15549,6 +15549,388 @@ ${createPaletteVariables("mocha")}
     box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
   }
 
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Sticky:has(> .Tabs),
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"]),
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"])
+    .Sticky {
+    background-color: var(--zb-page) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-item {
+    min-width: max-content !important;
+    flex: 0 0 auto !important;
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs {
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link {
+    box-sizing: border-box !important;
+    width: auto !important;
+    min-width: max-content !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px 0 !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link.is-active {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Popover:has(> .Select-button[role="combobox"]) {
+    box-sizing: border-box !important;
+    height: 34px !important;
+    padding: 0 10px 0 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Popover:has(
+      > .Select-button[role="combobox"]:is(
+          :hover,
+          :focus-visible,
+          [aria-expanded="true"]
+        )
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Select-button[role="combobox"] {
+    height: 32px !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    color: inherit !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Select-button[role="combobox"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content:has(> .Select-list) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list {
+    padding: 6px 0 !important;
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list
+    > .Select-option {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin: 0 6px !important;
+    padding: 0 12px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list
+    > .Select-option:is(:hover, :focus, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreatorRangePicker-Button {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreatorRangePicker-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"])
+    > div:has(+ [role="list"])
+    .Sticky
+    > div:first-child {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard {
+    box-sizing: border-box !important;
+    margin: 0 16px 10px !important;
+    padding: 20px 16px !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      0 0 0 2px var(--zb-primary-soft),
+      var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    .CreationCardTitle-wrapper
+    > div
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    .CreationCardTitle-wrapper
+    > div
+    > span:last-child {
+    color: var(--zb-primary) !important;
+    font-size: 18px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type:is(:hover, :focus-visible)
+    .CreationCardTitle-wrapper
+    > div
+    > span:last-child {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:nth-of-type(2) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:nth-of-type(2)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > div:last-child
+    :is(a, button):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
   html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton {
     background-color: var(--zb-surface-raised) !important;
     background-image: linear-gradient(
