@@ -948,6 +948,14 @@ describe("Catppuccin theme feature", () => {
     expect(CRITICAL_THEME_STYLE).toContain('html[data-zb-theme="system"]');
     expect(CRITICAL_THEME_STYLE).toContain("html[data-zb-theme] .Search-container");
     expect(CRITICAL_THEME_STYLE).toContain("html[data-zb-theme] .SearchMain > div");
+    expect(CRITICAL_THEME_STYLE).toContain(
+      'html[data-zb-theme][data-zb-creator-associated-account-page="true"]',
+    );
+    expect(CRITICAL_THEME_STYLE).not.toContain(
+      '.Card:has(.Tabs a[href="/creator/account/associated-account"])',
+    );
+    expect(CRITICAL_THEME_STYLE).toContain("> .Card\n    > div\n    > div");
+    expect(CRITICAL_THEME_STYLE).toContain("background-color: var(--zb-early-surface) !important");
 
     for (const flavor of ["latte", "frappe", "macchiato", "mocha"]) {
       expect(CRITICAL_THEME_STYLE).toContain(`html[data-zb-theme="${flavor}"]`);
@@ -1992,6 +2000,15 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome',
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreatorIndex-BottomBox-Item {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreatorIndex-BottomBox-Item:is(:hover, :focus-within)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CreatorIndex-BottomBox-Item\n    > svg {\n    color: inherit !important;\n    fill: currentColor !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".LevelInfoV2-creatorInfo");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "div:has(> .ReactCollapse--collapse)\n    > div:first-child",
@@ -2037,6 +2054,30 @@ describe("Catppuccin theme feature", () => {
       ".Tabs-link.is-active {\n    background-color: var(--zb-primary-soft) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-creator-associated-account-page="true"]\n    .Creator-mainColumn\n    > .Card\n    > div {\n    background-color: var(--zb-surface) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      '.Card:has(.Tabs a[href="/creator/account/associated-account"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .Tabs\n    + div {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child\n    .Sticky {\n    background-color: var(--zb-surface-raised) !important;\n    border-bottom-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:not(:first-child) {\n    background-color: var(--zb-surface) !important;\n    border-bottom-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:not(:first-child)\n    > div:nth-child(-n + 3) {\n    color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'label:has(> input[type="checkbox"]) {\n    background-color: var(--zb-surface-hover) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'label:has(> input[type="checkbox"]:checked) {\n    background-color: var(--zb-primary) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       '> div:has(+ [role="list"])\n    .Sticky\n    > div:first-child',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".CreationManage-CreationCard");
@@ -2064,6 +2105,24 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "box-shadow: 0 0 70px 70px\n      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".WriteArea\n    > div\n    > div:has(> section) {\n    border-bottom-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> section)\n    + div\n    > div::after {\n    border-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> section)\n    + div\n    + div\n    > div\n    > div {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-raised) !important;\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))\n    > div:last-child {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(> .ZDI--Broadcast16)\n    > div:last-child {\n    background-color: var(--zb-primary-soft) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> div:not(:has(a, button, img))\n    div[class]:empty",

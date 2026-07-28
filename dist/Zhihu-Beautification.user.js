@@ -675,6 +675,7 @@
   const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
   const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
   const ROOT_CREATOR_ATTRIBUTE = "data-zb-creator-page";
+  const ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE = "data-zb-creator-associated-account-page";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
   const AI_SOURCE_PANEL_ATTRIBUTE = "data-zb-ai-source-panel";
   const AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE = "data-zb-ai-content-discovery-heading";
@@ -777,6 +778,10 @@
       browserWindow.location.hostname === "www.zhihu.com" &&
       /^\/creator(?:\/.*)?$/.test(browserWindow.location.pathname);
 
+    const isCreatorAssociatedAccountPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/creator\/account\/associated-account\/?$/.test(browserWindow.location.pathname);
+
     const getPageKind = () => {
       if (isHomeFeedPage()) return "home";
       if (isQuestionPage()) return "question";
@@ -853,6 +858,7 @@
       setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
       setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
       setRootAttribute(ROOT_CREATOR_ATTRIBUTE, isCreatorPage());
+      setRootAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE, isCreatorAssociatedAccountPage());
       setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
     };
 
@@ -1541,6 +1547,7 @@
       browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE);
       started = false;
     };
 
@@ -17042,6 +17049,31 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme][data-zb-creator-page="true"] .CreatorIndex-BottomBox-Item {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    box-shadow: none !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorIndex-BottomBox-Item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorIndex-BottomBox-Item
+    > svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
   html[data-zb-theme][data-zb-creator-page="true"]
     .Creator
     > div:first-child
@@ -17295,6 +17327,159 @@ ${createPaletteVariables("mocha")}
     font-weight: 500 !important;
     box-shadow: inset 0 0 0 1px
       color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    :where(div, span, p) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:first-child
+    .Sticky {
+    background-color: var(--zb-surface-raised) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:first-child
+    .Sticky
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child) {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    transition: background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child):hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    > div:nth-child(-n + 3) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    > div:nth-child(-n + 3)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    label:has(> input[type="checkbox"]) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    label:has(> input[type="checkbox"]:checked) {
+    background-color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -17619,6 +17804,122 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme][data-zb-creator-page="true"]
     .CreatorHome
     .WriteArea
+    > div
+    > div:has(> section) {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    > div::after {
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div {
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div
+    svg {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:has(> .ZDI--Broadcast16)
+    > div:last-child {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
     + div
     > div:first-child
     a[href^="/creator/analytics/work/"]
@@ -17753,6 +18054,30 @@ ${flavorRules}
   html[data-zb-theme] .SearchMain > div,
   html[data-zb-theme] .SearchMain > div > div {
     background-color: var(--zb-early-surface) !important;
+    color: var(--zb-early-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div
+    > div:first-child
+    .Sticky {
+    background-color: var(--zb-early-surface) !important;
+    border-color: var(--zb-early-page) !important;
     color: var(--zb-early-text) !important;
   }
 `;

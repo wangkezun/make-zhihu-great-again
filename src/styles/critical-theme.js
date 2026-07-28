@@ -68,4 +68,28 @@ ${flavorRules}
     background-color: var(--zb-early-surface) !important;
     color: var(--zb-early-text) !important;
   }
+
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div
+    > div:first-child
+    .Sticky {
+    background-color: var(--zb-early-surface) !important;
+    border-color: var(--zb-early-page) !important;
+    color: var(--zb-early-text) !important;
+  }
 `;

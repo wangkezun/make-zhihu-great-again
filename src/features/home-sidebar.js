@@ -19,6 +19,7 @@ const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
 const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
 const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
 const ROOT_CREATOR_ATTRIBUTE = "data-zb-creator-page";
+const ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE = "data-zb-creator-associated-account-page";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
 const AI_SOURCE_PANEL_ATTRIBUTE = "data-zb-ai-source-panel";
 const AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE = "data-zb-ai-content-discovery-heading";
@@ -121,6 +122,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/creator(?:\/.*)?$/.test(browserWindow.location.pathname);
 
+  const isCreatorAssociatedAccountPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/creator\/account\/associated-account\/?$/.test(browserWindow.location.pathname);
+
   const getPageKind = () => {
     if (isHomeFeedPage()) return "home";
     if (isQuestionPage()) return "question";
@@ -197,6 +202,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
     setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
     setRootAttribute(ROOT_CREATOR_ATTRIBUTE, isCreatorPage());
+    setRootAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE, isCreatorAssociatedAccountPage());
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
 
@@ -885,6 +891,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE);
     started = false;
   };
 

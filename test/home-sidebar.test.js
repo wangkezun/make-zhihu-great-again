@@ -813,15 +813,21 @@ describe("home sidebar feature", () => {
   });
 
   it("keeps the creator-page marker in sync across SPA navigation", async () => {
-    const page = createPage("https://www.zhihu.com/creator");
+    const page = createPage("https://www.zhihu.com/creator/account/associated-account");
     const feature = createHomeSidebarFeature(page.window);
     feature.start();
 
     expect(page.window.document.documentElement.dataset.zbCreatorPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbCreatorAssociatedAccountPage).toBe(
+      "true",
+    );
 
     page.window.history.pushState({}, "", "/creator/analytics");
     await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
     expect(page.window.document.documentElement.dataset.zbCreatorPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbCreatorAssociatedAccountPage).toBe(
+      "false",
+    );
 
     page.window.history.pushState({}, "", "/hot");
     await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
@@ -829,5 +835,8 @@ describe("home sidebar feature", () => {
 
     feature.destroy();
     expect(page.window.document.documentElement.dataset.zbCreatorPage).toBeUndefined();
+    expect(
+      page.window.document.documentElement.dataset.zbCreatorAssociatedAccountPage,
+    ).toBeUndefined();
   });
 });
