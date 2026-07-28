@@ -237,10 +237,15 @@
 
   const readBooleanPreference = (browserWindow, settings, storageKey, defaultValue = true) => {
     try {
-      if (settings?.getPreference) return Boolean(settings.getPreference(defaultValue));
+      if (settings?.getPreference) {
+        const storedValue = settings.getPreference(defaultValue);
+        return typeof storedValue === "boolean" ? storedValue : defaultValue;
+      }
 
       const storedValue = browserWindow.localStorage.getItem(storageKey);
-      return storedValue === null ? defaultValue : storedValue === "true";
+      if (storedValue === "true") return true;
+      if (storedValue === "false") return false;
+      return defaultValue;
     } catch {
       return defaultValue;
     }
@@ -664,7 +669,11 @@
       pendingInlineComposer = undefined;
       if (!pendingComposer?.inlineComposer.contains(event.target)) return;
 
-      browserWindow.requestAnimationFrame(() => pendingComposer.editor.focus());
+      const animationFrameId = browserWindow.requestAnimationFrame(() => {
+        pendingAnimationFrames.delete(animationFrameId);
+        if (started) pendingComposer.editor.focus();
+      });
+      pendingAnimationFrames.add(animationFrameId);
     };
 
     const handlePointerCancel = () => {
@@ -781,11 +790,14 @@
     };
 
     const destroy = () => {
+      if (!started) return;
       if (menuCommandId !== undefined && settings?.menu?.unregister) {
         settings.menu.unregister(menuCommandId);
       }
+      menuCommandId = undefined;
       browserDocument.getElementById(STYLE_ID$3)?.remove();
       browserDocument.documentElement?.removeAttribute(ROOT_ATTRIBUTE);
+      started = false;
     };
 
     return { destroy, start };
@@ -1646,6 +1658,12 @@
       if (ringHostReadyAnimationFrameId !== undefined) {
         browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
       }
+      animationFrameId = undefined;
+      positionAnimationFrameId = undefined;
+      ringHostReadyAnimationFrameId = undefined;
+      scheduled = false;
+      positionScheduled = false;
+      ringHostReady = false;
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
       browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
       browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
@@ -1655,6 +1673,7 @@
       if (menuCommandId !== undefined && settings?.menu?.unregister) {
         settings.menu.unregister(menuCommandId);
       }
+      menuCommandId = undefined;
       browserDocument.getElementById(STYLE_ID$2)?.remove();
       markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
       markedSidebar = undefined;
@@ -1777,9 +1796,11 @@
     };
 
     const destroy = () => {
+      if (!started) return;
       clearMenuCommands(settings?.menu, menuCommandIds);
       browserDocument.getElementById(STYLE_ID$1)?.remove();
       browserDocument.documentElement?.removeAttribute(WIDTH_ATTRIBUTE);
+      started = false;
     };
 
     return { destroy, setMode, start };
@@ -2048,6 +2069,7 @@
 
   const getRequestUrl = (input) => {
     if (typeof input === "string") return input;
+    if (input && typeof input.href === "string") return input.href;
     if (input && typeof input.url === "string") return input.url;
     return null;
   };
@@ -2079,6 +2101,13 @@
     let wrappedFetch;
     let originalWorker;
     let wrappedWorker;
+    let originalSendBeacon;
+    let wrappedSendBeacon;
+    let originalXhrOpen;
+    let originalXhrSend;
+    let wrappedXhrOpen;
+    let wrappedXhrSend;
+    const blockedXhrs = new WeakSet();
     let started = false;
     const isTelemetryCompressionWorker =
       matchers.telemetryCompressionWorker ?? matchesTelemetryCompressionWorker;
@@ -2091,7 +2120,7 @@
       }
 
       const status = enabled ? "已开启" : "已关闭";
-      menuCommandId = settings.menu.register(`屏蔽知乎遥测请求：${status}`, () => {
+      menuCommandId = settings.menu.register(`屏蔽已知知乎遥测请求：${status}`, () => {
         setEnabled(!enabled);
       });
     };
@@ -2172,6 +2201,65 @@
       browserWindow.Worker = wrappedWorker;
     };
 
+    const installSendBeaconWrapper = () => {
+      const navigator = browserWindow.navigator;
+      if (wrappedSendBeacon || typeof navigator?.sendBeacon !== "function") return;
+
+      const installedOriginalSendBeacon = navigator.sendBeacon;
+      originalSendBeacon = installedOriginalSendBeacon;
+      wrappedSendBeacon = function (url, data) {
+        if (enabled && isBlockedTelemetryUrl(browserWindow, url)) return true;
+        return installedOriginalSendBeacon.call(this, url, data);
+      };
+      try {
+        navigator.sendBeacon = wrappedSendBeacon;
+      } catch {
+        originalSendBeacon = undefined;
+        wrappedSendBeacon = undefined;
+      }
+    };
+
+    const installXMLHttpRequestWrapper = () => {
+      const prototype = browserWindow.XMLHttpRequest?.prototype;
+      if (
+        wrappedXhrOpen ||
+        typeof prototype?.open !== "function" ||
+        typeof prototype.send !== "function"
+      ) {
+        return;
+      }
+
+      const installedOriginalOpen = prototype.open;
+      const installedOriginalSend = prototype.send;
+      originalXhrOpen = installedOriginalOpen;
+      originalXhrSend = installedOriginalSend;
+      wrappedXhrOpen = function (method, url, ...args) {
+        if (enabled && isBlockedTelemetryUrl(browserWindow, url)) {
+          blockedXhrs.add(this);
+          const async = args[0] ?? true;
+          return installedOriginalOpen.call(this, "GET", "data:application/json,%7B%7D", async);
+        }
+
+        blockedXhrs.delete(this);
+        return installedOriginalOpen.call(this, method, url, ...args);
+      };
+      wrappedXhrSend = function (body) {
+        if (blockedXhrs.has(this)) return installedOriginalSend.call(this);
+        return installedOriginalSend.call(this, body);
+      };
+      try {
+        prototype.open = wrappedXhrOpen;
+        prototype.send = wrappedXhrSend;
+      } catch {
+        if (prototype.open === wrappedXhrOpen) prototype.open = installedOriginalOpen;
+        if (prototype.send === wrappedXhrSend) prototype.send = installedOriginalSend;
+        originalXhrOpen = undefined;
+        originalXhrSend = undefined;
+        wrappedXhrOpen = undefined;
+        wrappedXhrSend = undefined;
+      }
+    };
+
     function setEnabled(value) {
       enabled = Boolean(value);
       persistBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, enabled);
@@ -2184,6 +2272,8 @@
       enabled = readBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, true);
       installFetchWrapper();
       installWorkerWrapper();
+      installSendBeaconWrapper();
+      installXMLHttpRequestWrapper();
       updateMenuCommand();
     };
 
@@ -2201,6 +2291,22 @@
       }
       originalWorker = undefined;
       wrappedWorker = undefined;
+      if (wrappedSendBeacon && browserWindow.navigator?.sendBeacon === wrappedSendBeacon) {
+        browserWindow.navigator.sendBeacon = originalSendBeacon;
+      }
+      originalSendBeacon = undefined;
+      wrappedSendBeacon = undefined;
+      const xhrPrototype = browserWindow.XMLHttpRequest?.prototype;
+      if (wrappedXhrOpen && xhrPrototype?.open === wrappedXhrOpen) {
+        xhrPrototype.open = originalXhrOpen;
+      }
+      if (wrappedXhrSend && xhrPrototype?.send === wrappedXhrSend) {
+        xhrPrototype.send = originalXhrSend;
+      }
+      originalXhrOpen = undefined;
+      originalXhrSend = undefined;
+      wrappedXhrOpen = undefined;
+      wrappedXhrSend = undefined;
       if (menuCommandId !== undefined && settings?.menu?.unregister) {
         settings.menu.unregister(menuCommandId);
       }
@@ -9855,11 +9961,30 @@ ${flavorRules}
     const markedHoverCards = new Set();
     const markedHoverCardSingleActions = new Set();
     const markedRelatedQuestionLinks = new Set();
-    const observedPortalRoots = new WeakSet();
+    const portalObservers = new Map();
     const menuCommandIds = [];
-    let observer;
+    let bodyObserver;
     let mode;
     let started = false;
+
+    const portalMarkerSets = [
+      markedArrowPanels,
+      markedArrowPanelWrappers,
+      markedActionMenuPopovers,
+      markedCommentModals,
+      markedPollOptionPopovers,
+      markedHoverCardAvatarRows,
+      markedHoverCards,
+      markedHoverCardSingleActions,
+    ];
+
+    const pruneDisconnectedPortalMarkers = () => {
+      portalMarkerSets.forEach((markers) => {
+        markers.forEach((element) => {
+          if (!element.isConnected) markers.delete(element);
+        });
+      });
+    };
 
     const markArrowPanelFromIcon = (icon) => {
       const button = icon.closest("button");
@@ -10008,14 +10133,23 @@ ${flavorRules}
     };
 
     const observePortalRoot = (root) => {
-      if (root.nodeType !== 1 || root.id === "root" || observedPortalRoots.has(root)) return;
+      if (root.nodeType !== 1 || root.id === "root" || portalObservers.has(root)) return;
 
-      observedPortalRoots.add(root);
-      observer.observe(root, { childList: true, subtree: true });
+      const portalObserver = new browserWindow.MutationObserver(handlePortalMutations);
+      portalObservers.set(root, portalObserver);
+      portalObserver.observe(root, { childList: true, subtree: true });
       markPortalComponents(root);
     };
 
-    const handleMutations = (records) => {
+    const disconnectPortalRoot = (root) => {
+      const portalObserver = portalObservers.get(root);
+      if (!portalObserver) return;
+
+      portalObserver.disconnect();
+      portalObservers.delete(root);
+    };
+
+    function handlePortalMutations(records) {
       records.forEach(({ addedNodes, target }) => {
         const closestModalContent = target.closest?.(".Modal-content");
         if (closestModalContent) markCommentModal(closestModalContent);
@@ -10024,14 +10158,20 @@ ${flavorRules}
 
         addedNodes.forEach((node) => {
           if (node.nodeType !== 1) return;
-
-          if (target === browserDocument.body) {
-            observePortalRoot(node);
-          } else {
-            markPortalComponents(node);
-          }
+          markPortalComponents(node);
         });
       });
+      pruneDisconnectedPortalMarkers();
+      updateChatModalState();
+      updatePollModalState();
+    }
+
+    const handleBodyMutations = (records) => {
+      records.forEach(({ addedNodes, removedNodes }) => {
+        addedNodes.forEach(observePortalRoot);
+        removedNodes.forEach(disconnectPortalRoot);
+      });
+      pruneDisconnectedPortalMarkers();
       updateChatModalState();
       updatePollModalState();
     };
@@ -10040,8 +10180,8 @@ ${flavorRules}
       const body = browserDocument.body;
       if (!body) return;
 
-      observer ??= new browserWindow.MutationObserver(handleMutations);
-      observer.observe(body, { childList: true });
+      bodyObserver ??= new browserWindow.MutationObserver(handleBodyMutations);
+      bodyObserver.observe(body, { childList: true });
       Array.from(body.children).forEach(observePortalRoot);
       updateChatModalState();
       updatePollModalState();
@@ -10097,8 +10237,10 @@ ${flavorRules}
     };
 
     const destroy = () => {
-      observer?.disconnect();
-      observer = undefined;
+      bodyObserver?.disconnect();
+      bodyObserver = undefined;
+      portalObservers.forEach((portalObserver) => portalObserver.disconnect());
+      portalObservers.clear();
       browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
       browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
       browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);

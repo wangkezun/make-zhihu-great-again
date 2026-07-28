@@ -19,6 +19,7 @@ export const matchesTelemetryCompressionWorker = ({ stack }) =>
 
 const getRequestUrl = (input) => {
   if (typeof input === "string") return input;
+  if (input && typeof input.href === "string") return input.href;
   if (input && typeof input.url === "string") return input.url;
   return null;
 };
@@ -50,6 +51,13 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
   let wrappedFetch;
   let originalWorker;
   let wrappedWorker;
+  let originalSendBeacon;
+  let wrappedSendBeacon;
+  let originalXhrOpen;
+  let originalXhrSend;
+  let wrappedXhrOpen;
+  let wrappedXhrSend;
+  const blockedXhrs = new WeakSet();
   let started = false;
   const isTelemetryCompressionWorker =
     matchers.telemetryCompressionWorker ?? matchesTelemetryCompressionWorker;
@@ -62,7 +70,7 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
     }
 
     const status = enabled ? "已开启" : "已关闭";
-    menuCommandId = settings.menu.register(`屏蔽知乎遥测请求：${status}`, () => {
+    menuCommandId = settings.menu.register(`屏蔽已知知乎遥测请求：${status}`, () => {
       setEnabled(!enabled);
     });
   };
@@ -143,6 +151,65 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
     browserWindow.Worker = wrappedWorker;
   };
 
+  const installSendBeaconWrapper = () => {
+    const navigator = browserWindow.navigator;
+    if (wrappedSendBeacon || typeof navigator?.sendBeacon !== "function") return;
+
+    const installedOriginalSendBeacon = navigator.sendBeacon;
+    originalSendBeacon = installedOriginalSendBeacon;
+    wrappedSendBeacon = function (url, data) {
+      if (enabled && isBlockedTelemetryUrl(browserWindow, url)) return true;
+      return installedOriginalSendBeacon.call(this, url, data);
+    };
+    try {
+      navigator.sendBeacon = wrappedSendBeacon;
+    } catch {
+      originalSendBeacon = undefined;
+      wrappedSendBeacon = undefined;
+    }
+  };
+
+  const installXMLHttpRequestWrapper = () => {
+    const prototype = browserWindow.XMLHttpRequest?.prototype;
+    if (
+      wrappedXhrOpen ||
+      typeof prototype?.open !== "function" ||
+      typeof prototype.send !== "function"
+    ) {
+      return;
+    }
+
+    const installedOriginalOpen = prototype.open;
+    const installedOriginalSend = prototype.send;
+    originalXhrOpen = installedOriginalOpen;
+    originalXhrSend = installedOriginalSend;
+    wrappedXhrOpen = function (method, url, ...args) {
+      if (enabled && isBlockedTelemetryUrl(browserWindow, url)) {
+        blockedXhrs.add(this);
+        const async = args[0] ?? true;
+        return installedOriginalOpen.call(this, "GET", "data:application/json,%7B%7D", async);
+      }
+
+      blockedXhrs.delete(this);
+      return installedOriginalOpen.call(this, method, url, ...args);
+    };
+    wrappedXhrSend = function (body) {
+      if (blockedXhrs.has(this)) return installedOriginalSend.call(this);
+      return installedOriginalSend.call(this, body);
+    };
+    try {
+      prototype.open = wrappedXhrOpen;
+      prototype.send = wrappedXhrSend;
+    } catch {
+      if (prototype.open === wrappedXhrOpen) prototype.open = installedOriginalOpen;
+      if (prototype.send === wrappedXhrSend) prototype.send = installedOriginalSend;
+      originalXhrOpen = undefined;
+      originalXhrSend = undefined;
+      wrappedXhrOpen = undefined;
+      wrappedXhrSend = undefined;
+    }
+  };
+
   function setEnabled(value) {
     enabled = Boolean(value);
     persistBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, enabled);
@@ -155,6 +222,8 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
     enabled = readBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, true);
     installFetchWrapper();
     installWorkerWrapper();
+    installSendBeaconWrapper();
+    installXMLHttpRequestWrapper();
     updateMenuCommand();
   };
 
@@ -172,6 +241,22 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
     }
     originalWorker = undefined;
     wrappedWorker = undefined;
+    if (wrappedSendBeacon && browserWindow.navigator?.sendBeacon === wrappedSendBeacon) {
+      browserWindow.navigator.sendBeacon = originalSendBeacon;
+    }
+    originalSendBeacon = undefined;
+    wrappedSendBeacon = undefined;
+    const xhrPrototype = browserWindow.XMLHttpRequest?.prototype;
+    if (wrappedXhrOpen && xhrPrototype?.open === wrappedXhrOpen) {
+      xhrPrototype.open = originalXhrOpen;
+    }
+    if (wrappedXhrSend && xhrPrototype?.send === wrappedXhrSend) {
+      xhrPrototype.send = originalXhrSend;
+    }
+    originalXhrOpen = undefined;
+    originalXhrSend = undefined;
+    wrappedXhrOpen = undefined;
+    wrappedXhrSend = undefined;
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }

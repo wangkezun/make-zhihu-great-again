@@ -45,11 +45,30 @@ export const createThemeFeature = (browserWindow, settings) => {
   const markedHoverCards = new Set();
   const markedHoverCardSingleActions = new Set();
   const markedRelatedQuestionLinks = new Set();
-  const observedPortalRoots = new WeakSet();
+  const portalObservers = new Map();
   const menuCommandIds = [];
-  let observer;
+  let bodyObserver;
   let mode;
   let started = false;
+
+  const portalMarkerSets = [
+    markedArrowPanels,
+    markedArrowPanelWrappers,
+    markedActionMenuPopovers,
+    markedCommentModals,
+    markedPollOptionPopovers,
+    markedHoverCardAvatarRows,
+    markedHoverCards,
+    markedHoverCardSingleActions,
+  ];
+
+  const pruneDisconnectedPortalMarkers = () => {
+    portalMarkerSets.forEach((markers) => {
+      markers.forEach((element) => {
+        if (!element.isConnected) markers.delete(element);
+      });
+    });
+  };
 
   const markArrowPanelFromIcon = (icon) => {
     const button = icon.closest("button");
@@ -198,14 +217,23 @@ export const createThemeFeature = (browserWindow, settings) => {
   };
 
   const observePortalRoot = (root) => {
-    if (root.nodeType !== 1 || root.id === "root" || observedPortalRoots.has(root)) return;
+    if (root.nodeType !== 1 || root.id === "root" || portalObservers.has(root)) return;
 
-    observedPortalRoots.add(root);
-    observer.observe(root, { childList: true, subtree: true });
+    const portalObserver = new browserWindow.MutationObserver(handlePortalMutations);
+    portalObservers.set(root, portalObserver);
+    portalObserver.observe(root, { childList: true, subtree: true });
     markPortalComponents(root);
   };
 
-  const handleMutations = (records) => {
+  const disconnectPortalRoot = (root) => {
+    const portalObserver = portalObservers.get(root);
+    if (!portalObserver) return;
+
+    portalObserver.disconnect();
+    portalObservers.delete(root);
+  };
+
+  function handlePortalMutations(records) {
     records.forEach(({ addedNodes, target }) => {
       const closestModalContent = target.closest?.(".Modal-content");
       if (closestModalContent) markCommentModal(closestModalContent);
@@ -214,14 +242,20 @@ export const createThemeFeature = (browserWindow, settings) => {
 
       addedNodes.forEach((node) => {
         if (node.nodeType !== 1) return;
-
-        if (target === browserDocument.body) {
-          observePortalRoot(node);
-        } else {
-          markPortalComponents(node);
-        }
+        markPortalComponents(node);
       });
     });
+    pruneDisconnectedPortalMarkers();
+    updateChatModalState();
+    updatePollModalState();
+  }
+
+  const handleBodyMutations = (records) => {
+    records.forEach(({ addedNodes, removedNodes }) => {
+      addedNodes.forEach(observePortalRoot);
+      removedNodes.forEach(disconnectPortalRoot);
+    });
+    pruneDisconnectedPortalMarkers();
     updateChatModalState();
     updatePollModalState();
   };
@@ -230,8 +264,8 @@ export const createThemeFeature = (browserWindow, settings) => {
     const body = browserDocument.body;
     if (!body) return;
 
-    observer ??= new browserWindow.MutationObserver(handleMutations);
-    observer.observe(body, { childList: true });
+    bodyObserver ??= new browserWindow.MutationObserver(handleBodyMutations);
+    bodyObserver.observe(body, { childList: true });
     Array.from(body.children).forEach(observePortalRoot);
     updateChatModalState();
     updatePollModalState();
@@ -287,8 +321,10 @@ export const createThemeFeature = (browserWindow, settings) => {
   };
 
   const destroy = () => {
-    observer?.disconnect();
-    observer = undefined;
+    bodyObserver?.disconnect();
+    bodyObserver = undefined;
+    portalObservers.forEach((portalObserver) => portalObserver.disconnect());
+    portalObservers.clear();
     browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
     browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
     browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);

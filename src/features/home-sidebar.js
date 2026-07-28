@@ -789,6 +789,12 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     if (ringHostReadyAnimationFrameId !== undefined) {
       browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
     }
+    animationFrameId = undefined;
+    positionAnimationFrameId = undefined;
+    ringHostReadyAnimationFrameId = undefined;
+    scheduled = false;
+    positionScheduled = false;
+    ringHostReady = false;
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
     browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
     browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
@@ -798,6 +804,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }
+    menuCommandId = undefined;
     browserDocument.getElementById(STYLE_ID)?.remove();
     markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
     markedSidebar = undefined;

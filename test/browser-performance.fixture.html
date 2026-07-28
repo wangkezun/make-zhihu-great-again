@@ -62,6 +62,7 @@
       editor.focus();
 
       setTimeout(() => {
+        const themeStyle = document.getElementById("zb-catppuccin-theme-style")?.textContent ?? "";
         const result = {
           unrelatedMutationDocumentQueries: window.__documentQueryCount - baselineDocumentQueries,
           commentEditorBlurred: document.activeElement !== editor,
@@ -74,8 +75,8 @@
           arrowWrapperMarked: document
             .getElementById("prompt-wrapper")
             .hasAttribute("data-zb-arrow-action-panel-wrapper"),
-          themeStyleBytes:
-            document.getElementById("zb-catppuccin-theme-style")?.textContent.length ?? 0,
+          themeStyleBytes: themeStyle.length,
+          themeRelationalSelectors: themeStyle.match(/:has\(/g)?.length ?? 0,
         };
         window.__performanceProbeResult = result;
         document.documentElement.dataset.probeResult = JSON.stringify(result);
@@ -85,7 +86,9 @@
           result.commentComposerCollapsed &&
           result.arrowPanelMarked &&
           result.arrowWrapperMarked &&
-          result.themeStyleBytes > 0
+          result.themeStyleBytes > 0 &&
+          result.themeStyleBytes <= 210000 &&
+          result.themeRelationalSelectors <= 285
             ? "PASS"
             : "FAIL";
       }, 350);

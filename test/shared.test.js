@@ -39,6 +39,17 @@ describe("shared feature helpers", () => {
     page.window.close();
   });
 
+  it("falls back for invalid boolean preference values", () => {
+    const page = new JSDOM("<!doctype html>", { url: "https://www.zhihu.com/" });
+
+    expect(
+      readBooleanPreference(page.window, { getPreference: () => "false" }, "preference", true),
+    ).toBe(true);
+    page.window.localStorage.setItem("preference", "invalid");
+    expect(readBooleanPreference(page.window, undefined, "preference", false)).toBe(false);
+    page.window.close();
+  });
+
   it("validates modes, persists selections, and clears registered commands", () => {
     const settings = {
       getMode: () => "wide",

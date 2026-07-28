@@ -52,9 +52,11 @@ export const createHomeWidthFeature = (browserWindow, settings) => {
   };
 
   const destroy = () => {
+    if (!started) return;
     clearMenuCommands(settings?.menu, menuCommandIds);
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(WIDTH_ATTRIBUTE);
+    started = false;
   };
 
   return { destroy, setMode, start };

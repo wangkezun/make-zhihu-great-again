@@ -143,6 +143,25 @@ describe("comment composer feature", () => {
     feature.destroy();
   });
 
+  it("cancels pending inline focus when destroyed", async () => {
+    const page = createPage();
+    const feature = createCommentComposerFeature(page.window);
+    feature.start();
+    const comments = createInlineCommentComposer(page.window.document);
+    page.window.document.body.append(comments);
+    const editor = comments.querySelector('[contenteditable="true"]');
+    const editable = comments.querySelector(".InputLike.Editable");
+
+    editable.dispatchEvent(
+      new page.window.MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    editable.dispatchEvent(new page.window.MouseEvent("pointerup", { bubbles: true }));
+    feature.destroy();
+    await flushMutations();
+
+    expect(page.window.document.activeElement).not.toBe(editor);
+  });
+
   it("does not rescan the document for unrelated DOM mutations", async () => {
     const page = createPage();
     const feature = createCommentComposerFeature(page.window);

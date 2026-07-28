@@ -12,10 +12,15 @@ export const ensureStyle = (browserDocument, styleId, styleText) => {
 
 export const readBooleanPreference = (browserWindow, settings, storageKey, defaultValue = true) => {
   try {
-    if (settings?.getPreference) return Boolean(settings.getPreference(defaultValue));
+    if (settings?.getPreference) {
+      const storedValue = settings.getPreference(defaultValue);
+      return typeof storedValue === "boolean" ? storedValue : defaultValue;
+    }
 
     const storedValue = browserWindow.localStorage.getItem(storageKey);
-    return storedValue === null ? defaultValue : storedValue === "true";
+    if (storedValue === "true") return true;
+    if (storedValue === "false") return false;
+    return defaultValue;
   } catch {
     return defaultValue;
   }

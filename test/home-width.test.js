@@ -99,4 +99,17 @@ describe("home width feature", () => {
     expect(HOME_WIDTH_STYLE).toContain("calc(var(--zb-home-main-width, 694px) + 306px)");
     feature.destroy();
   });
+
+  it("can restart after destroy", () => {
+    const page = createPage();
+    const feature = createHomeWidthFeature(page.window);
+
+    feature.start();
+    feature.destroy();
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbHomeWidth).toBe("standard");
+    expect(page.window.document.getElementById("zb-home-width-style")).not.toBeNull();
+    feature.destroy();
+  });
 });

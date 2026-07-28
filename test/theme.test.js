@@ -183,6 +183,45 @@ describe("Catppuccin theme feature", () => {
     expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(false);
   });
 
+  it("reconnects existing portal roots after destroy and restart", async () => {
+    const page = createPage();
+    const portalRoot = page.window.document.createElement("div");
+    page.window.document.body.append(portalRoot);
+    const feature = createThemeFeature(page.window);
+
+    feature.start();
+    feature.destroy();
+    feature.start();
+    const popover = page.window.document.createElement("div");
+    popover.className = "Popover-content";
+    popover.innerHTML = '<div class="ActionMenu"></div>';
+    portalRoot.append(popover);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(true);
+    feature.destroy();
+  });
+
+  it("stops tracking a portal root when it leaves the body", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const portalRoot = page.window.document.createElement("div");
+    page.window.document.body.append(portalRoot);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    portalRoot.remove();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    const popover = page.window.document.createElement("div");
+    popover.className = "Popover-content";
+    popover.innerHTML = '<div class="ActionMenu"></div>';
+    portalRoot.append(popover);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(false);
+    feature.destroy();
+  });
+
   it("tracks the chat modal on body without a root-level relational selector", async () => {
     const page = createPage();
     const feature = createThemeFeature(page.window);

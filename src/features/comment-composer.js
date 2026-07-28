@@ -74,7 +74,11 @@ export const createCommentComposerFeature = (browserWindow) => {
     pendingInlineComposer = undefined;
     if (!pendingComposer?.inlineComposer.contains(event.target)) return;
 
-    browserWindow.requestAnimationFrame(() => pendingComposer.editor.focus());
+    const animationFrameId = browserWindow.requestAnimationFrame(() => {
+      pendingAnimationFrames.delete(animationFrameId);
+      if (started) pendingComposer.editor.focus();
+    });
+    pendingAnimationFrames.add(animationFrameId);
   };
 
   const handlePointerCancel = () => {

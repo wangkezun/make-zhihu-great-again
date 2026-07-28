@@ -119,6 +119,21 @@ describe("home sidebar feature", () => {
     feature.destroy();
   });
 
+  it("can restart after destroy without leaving scheduling state behind", () => {
+    const page = createPage();
+    const feature = createHomeSidebarFeature(page.window);
+
+    feature.start();
+    feature.destroy();
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbHideHomeSidebar).toBe("true");
+    expect(
+      page.window.document.querySelector(".right-column").hasAttribute("data-zb-home-sidebar"),
+    ).toBe(true);
+    feature.destroy();
+  });
+
   it("marks follow-card structure inside the discovered sidebar and cleans it on destroy", () => {
     const page = createPage();
     const sidebar = page.window.document.querySelector(".right-column");

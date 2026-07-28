@@ -104,4 +104,17 @@ describe("home composer feature", () => {
     feature.destroy();
     expect(commands.size).toBe(0);
   });
+
+  it("can restart after destroy", () => {
+    const page = createPage();
+    const feature = createHomeComposerFeature(page.window);
+
+    feature.start();
+    feature.destroy();
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbShowHomeComposer).toBe("true");
+    expect(page.window.document.getElementById("zb-home-composer-style")).not.toBeNull();
+    feature.destroy();
+  });
 });

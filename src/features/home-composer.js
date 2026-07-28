@@ -49,11 +49,14 @@ export const createHomeComposerFeature = (browserWindow, settings) => {
   };
 
   const destroy = () => {
+    if (!started) return;
     if (menuCommandId !== undefined && settings?.menu?.unregister) {
       settings.menu.unregister(menuCommandId);
     }
+    menuCommandId = undefined;
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(ROOT_ATTRIBUTE);
+    started = false;
   };
 
   return { destroy, start };

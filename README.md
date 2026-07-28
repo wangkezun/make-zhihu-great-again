@@ -11,7 +11,7 @@
 - 支持 Catppuccin Latte、Frappé、Macchiato、Mocha 四套主题。
 - 默认跟随系统明暗模式：浅色使用 Latte，深色使用 Mocha；也可以固定使用任意主题。
 - 停用已确认无用的轮播和提示词定时任务，减少页面空闲开销。
-- 可屏蔽知乎遥测请求和对应的压缩 Worker。
+- 可屏蔽已知知乎遥测请求和对应的压缩 Worker。
 - 用户选择保存在用户脚本专用存储中，刷新页面后仍然有效。
 
 ## 开关位置
@@ -46,8 +46,9 @@ pnpm dev
 pnpm lint          # ESLint 静态检查
 pnpm format:check  # Prettier 格式检查
 pnpm test          # Vitest 行为测试
+pnpm test:browser  # 使用系统 Chrome 运行浏览器回归
 pnpm build         # Rollup 生产构建
-pnpm check         # 执行全部检查并构建
+pnpm check         # 执行全部检查、构建和 Chrome 回归
 ```
 
 构建产物为 `dist/Make-Zhihu-Great-Again.user.js`，可以安装到支持用户脚本的浏览器扩展中。

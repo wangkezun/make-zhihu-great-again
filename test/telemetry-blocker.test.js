@@ -99,6 +99,82 @@ describe("telemetry blocker feature", () => {
     feature.destroy();
   });
 
+  it("blocks URL objects and sendBeacon calls to known telemetry endpoints", async () => {
+    const page = createPage();
+    const originalFetch = page.window.fetch;
+    const originalSendBeacon = vi.fn(() => true);
+    Object.defineProperty(page.window.navigator, "sendBeacon", {
+      configurable: true,
+      value: originalSendBeacon,
+      writable: true,
+    });
+    const feature = createTelemetryBlockerFeature(page.window);
+
+    feature.start();
+    const response = await page.window.fetch(
+      new page.window.URL("https://zhihu-web-analytics.zhihu.com/api/v2/za/logs/batch"),
+    );
+    const telemetryQueued = page.window.navigator.sendBeacon(
+      new page.window.URL("https://datahub.zhihu.com/collector/zlab"),
+      "telemetry",
+    );
+    const businessQueued = page.window.navigator.sendBeacon(
+      "https://www.zhihu.com/api/v4/feed/topstory",
+      "business",
+    );
+
+    expect(response.status).toBe(204);
+    expect(telemetryQueued).toBe(true);
+    expect(businessQueued).toBe(true);
+    expect(originalFetch).not.toHaveBeenCalled();
+    expect(originalSendBeacon).toHaveBeenCalledOnce();
+    expect(originalSendBeacon).toHaveBeenCalledWith(
+      "https://www.zhihu.com/api/v4/feed/topstory",
+      "business",
+    );
+    feature.destroy();
+    expect(page.window.navigator.sendBeacon).toBe(originalSendBeacon);
+  });
+
+  it("redirects known telemetry XMLHttpRequests to a local data URL", () => {
+    const page = createPage();
+    const open = vi.fn();
+    const send = vi.fn();
+    page.window.XMLHttpRequest = class {
+      open(...args) {
+        return open(...args);
+      }
+
+      send(...args) {
+        return send(...args);
+      }
+    };
+    const originalOpen = page.window.XMLHttpRequest.prototype.open;
+    const originalSend = page.window.XMLHttpRequest.prototype.send;
+    const feature = createTelemetryBlockerFeature(page.window);
+
+    feature.start();
+    const telemetryRequest = new page.window.XMLHttpRequest();
+    telemetryRequest.open(
+      "POST",
+      "https://zhihu-web-analytics.zhihu.com/api/v2/za/logs/batch",
+      true,
+    );
+    telemetryRequest.send("telemetry");
+    const businessRequest = new page.window.XMLHttpRequest();
+    businessRequest.open("POST", "https://www.zhihu.com/api/v4/feed/topstory", true);
+    businessRequest.send("business");
+
+    expect(open.mock.calls).toEqual([
+      ["GET", "data:application/json,%7B%7D", true],
+      ["POST", "https://www.zhihu.com/api/v4/feed/topstory", true],
+    ]);
+    expect(send.mock.calls).toEqual([[], ["business"]]);
+    feature.destroy();
+    expect(page.window.XMLHttpRequest.prototype.open).toBe(originalOpen);
+    expect(page.window.XMLHttpRequest.prototype.send).toBe(originalSend);
+  });
+
   it("restores a saved disabled state and toggles immediately from the menu", async () => {
     const page = createPage();
     const originalFetch = page.window.fetch;
@@ -121,13 +197,13 @@ describe("telemetry blocker feature", () => {
     });
 
     feature.start();
-    expect([...commands.values()][0].label).toBe("屏蔽知乎遥测请求：已关闭");
+    expect([...commands.values()][0].label).toBe("屏蔽已知知乎遥测请求：已关闭");
     await page.window.fetch("https://zhihu-web-analytics.zhihu.com/api/v2/za/logs/batch");
     expect(originalFetch).toHaveBeenCalledOnce();
 
     [...commands.values()][0].callback();
     expect(storedPreference).toBe(true);
-    expect([...commands.values()][0].label).toBe("屏蔽知乎遥测请求：已开启");
+    expect([...commands.values()][0].label).toBe("屏蔽已知知乎遥测请求：已开启");
     const response = await page.window.fetch(
       "https://zhihu-web-analytics.zhihu.com/api/v2/za/logs/batch",
     );

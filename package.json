@@ -10,20 +10,22 @@
   },
   "scripts": {
     "build": "rollup --config",
-    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build && pnpm test:browser",
     "dev": "rollup --config --watch",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:browser": "node scripts/browser-regression.mjs",
     "test:watch": "vitest"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@rollup/plugin-node-resolve": "^16.0.3",
-    "eslint": "^10.7.0",
+    "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^29.1.1",
+    "playwright-core": "^1.62.0",
     "prettier": "^3.9.5",
     "rollup": "^4.62.2",
     "vitest": "^4.1.10"

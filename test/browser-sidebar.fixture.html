@@ -22,15 +22,23 @@
 
     <script type="module">
       import { createHomeSidebarFeature } from "../src/features/home-sidebar.js";
+      import { createPageContextFeature } from "../src/features/page-context.js";
 
-      const browserLocation = { hostname: "www.zhihu.com", pathname: "/" };
+      const browserLocation = {
+        hostname: "www.zhihu.com",
+        href: "https://www.zhihu.com/",
+        pathname: "/",
+        search: "",
+      };
       let intersectionObserverCount = 0;
       let scrollListenerCount = 0;
       const browserWindow = {
         document,
         location: browserLocation,
         localStorage,
+        CustomEvent,
         MutationObserver,
+        URLSearchParams,
         IntersectionObserver: class {
           constructor(...args) {
             intersectionObserverCount += 1;
@@ -43,9 +51,12 @@
           if (eventName === "scroll") scrollListenerCount += 1;
           window.addEventListener(eventName, ...args);
         },
+        dispatchEvent: window.dispatchEvent.bind(window),
         removeEventListener: window.removeEventListener.bind(window),
       };
+      const pageContextFeature = createPageContextFeature(browserWindow);
       const feature = createHomeSidebarFeature(browserWindow);
+      pageContextFeature.start();
       feature.start();
 
       setTimeout(() => {
@@ -69,6 +80,7 @@
             };
 
             browserLocation.pathname = "/question/123";
+            browserLocation.href = "https://www.zhihu.com/question/123";
             document.querySelector("main").innerHTML = `
               <div class="PageHeader is-shown">吸顶标题</div>
               <div class="QuestionPage">
@@ -78,7 +90,7 @@
                 <div id="question-sidebar" class="Question-sideColumn">右侧栏</div>
               </div>
             `;
-            window.dispatchEvent(new PopStateEvent("popstate"));
+            pageContextFeature.refresh();
 
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
@@ -105,6 +117,7 @@
                     ? "PASS"
                     : "FAIL";
                 feature.destroy();
+                pageContextFeature.destroy();
               });
             });
           });

@@ -19,11 +19,18 @@ export default [
     },
   },
   {
-    files: ["rollup.config.js", "vitest.config.js", "test/**/*.js"],
+    files: [
+      "rollup.config.js",
+      "vitest.config.js",
+      "scripts/**/*.js",
+      "scripts/**/*.mjs",
+      "test/**/*.js",
+    ],
     languageOptions: {
       globals: {
         console: "readonly",
         process: "readonly",
+        URL: "readonly",
       },
     },
   },
