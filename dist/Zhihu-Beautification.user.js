@@ -10,6 +10,7 @@
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
+// @grant        unsafeWindow
 // ==/UserScript==
 (function () {
   'use strict';
@@ -657,26 +658,159 @@
   }
 `;
 
+  const PAGE_CONTEXT_CHANGE_EVENT = "zb:page-context-change";
+
+  const PAGE_ATTRIBUTES = {
+    aiSearch: "data-zb-ai-search-page",
+    column: "data-zb-column-page",
+    creator: "data-zb-creator-page",
+    creatorAssociatedAccount: "data-zb-creator-associated-account-page",
+    home: "data-zb-home-page",
+    messages: "data-zb-messages-page",
+    paper: "data-zb-paper-page",
+    paperPreview: "data-zb-paper-preview-page",
+    profile: "data-zb-profile-page",
+    question: "data-zb-question-page",
+    ringFeeds: "data-zb-ring-feeds-page",
+    ringHost: "data-zb-ring-host-page",
+    ringIndex: "data-zb-ring-index-page",
+    search: "data-zb-search-page",
+    topic: "data-zb-topic-page",
+  };
+
+  const PAGE_CONTEXT_KEYS = Object.freeze(Object.keys(PAGE_ATTRIBUTES));
+
+  const getPageContext = (browserWindow) => {
+    const { hostname, pathname, search } = browserWindow.location;
+    const isZhihu = hostname === "www.zhihu.com";
+    const matches = (pattern) => isZhihu && pattern.test(pathname);
+
+    return {
+      aiSearch:
+        matches(/^\/search\/?$/) && new browserWindow.URLSearchParams(search).get("type") === "zhida",
+      column: matches(/^\/column\/[^/]+\/?$/),
+      creator: matches(/^\/creator(?:\/.*)?$/),
+      creatorAssociatedAccount: matches(/^\/creator\/account\/associated-account\/?$/),
+      home: matches(/^\/(?:follow\/?)?$/),
+      messages: matches(/^\/messages(?:\/.*)?$/),
+      paper: matches(/^\/kvip\/sku\/paper\/\d+\/?$/),
+      paperPreview: matches(/^\/kvip\/pdf\/paper\/\d+\/?$/),
+      profile: matches(/^\/people\/[^/]+(?:\/.*)?$/),
+      question: matches(/^\/question\/\d+(?:\/answer\/\d+)?\/?$/),
+      ringFeeds: matches(/^\/ring-feeds\/?$/),
+      ringHost: matches(/^\/ring\/host\/\d+\/?$/),
+      ringIndex: matches(/^\/ring\/?$/),
+      search: matches(/^\/search\/?$/),
+      topic: matches(/^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/),
+    };
+  };
+
+  const createPageContextFeature = (browserWindow) => {
+    const browserDocument = browserWindow.document;
+    let animationFrameId;
+    let originalPushState;
+    let originalReplaceState;
+    let wrappedPushState;
+    let wrappedReplaceState;
+    let scheduled = false;
+    let started = false;
+
+    const refresh = () => {
+      const root = browserDocument.documentElement;
+      if (!root) return;
+
+      const context = getPageContext(browserWindow);
+      Object.entries(PAGE_ATTRIBUTES).forEach(([key, attribute]) => {
+        root.setAttribute(attribute, String(context[key]));
+      });
+      browserWindow.dispatchEvent(
+        new browserWindow.CustomEvent(PAGE_CONTEXT_CHANGE_EVENT, { detail: context }),
+      );
+    };
+
+    const scheduleRefresh = () => {
+      if (scheduled) return;
+      scheduled = true;
+      animationFrameId = browserWindow.requestAnimationFrame(() => {
+        scheduled = false;
+        animationFrameId = undefined;
+        refresh();
+      });
+    };
+
+    const installRouteListeners = () => {
+      browserWindow.addEventListener("popstate", scheduleRefresh);
+      if (browserWindow.navigation?.addEventListener) {
+        browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
+        return;
+      }
+
+      const history = browserWindow.history;
+      if (!history?.pushState || !history?.replaceState) return;
+
+      originalPushState = history.pushState;
+      originalReplaceState = history.replaceState;
+      wrappedPushState = function (...args) {
+        const result = originalPushState.apply(this, args);
+        scheduleRefresh();
+        return result;
+      };
+      wrappedReplaceState = function (...args) {
+        const result = originalReplaceState.apply(this, args);
+        scheduleRefresh();
+        return result;
+      };
+      history.pushState = wrappedPushState;
+      history.replaceState = wrappedReplaceState;
+    };
+
+    const removeRouteListeners = () => {
+      browserWindow.removeEventListener("popstate", scheduleRefresh);
+      browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
+      const history = browserWindow.history;
+      if (history && wrappedPushState && history.pushState === wrappedPushState) {
+        history.pushState = originalPushState;
+      }
+      if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
+        history.replaceState = originalReplaceState;
+      }
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      refresh();
+      installRouteListeners();
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      removeRouteListeners();
+      if (animationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(animationFrameId);
+      }
+      Object.values(PAGE_ATTRIBUTES).forEach((attribute) => {
+        browserDocument.documentElement?.removeAttribute(attribute);
+      });
+      animationFrameId = undefined;
+      scheduled = false;
+      started = false;
+    };
+
+    return { destroy, refresh, start };
+  };
+
   const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar";
 
   const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
-  const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
-  const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
   const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
-  const ROOT_PROFILE_ATTRIBUTE = "data-zb-profile-page";
-  const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
   const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
-  const ROOT_TOPIC_ATTRIBUTE = "data-zb-topic-page";
-  const ROOT_RING_INDEX_ATTRIBUTE = "data-zb-ring-index-page";
-  const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
-  const ROOT_RING_HOST_ATTRIBUTE = "data-zb-ring-host-page";
   const ROOT_RING_HOST_READY_ATTRIBUTE = "data-zb-ring-host-ready";
-  const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
-  const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
-  const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
-  const ROOT_CREATOR_ATTRIBUTE = "data-zb-creator-page";
-  const ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE = "data-zb-creator-associated-account-page";
   const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
+  const FOLLOW_CARD_ATTRIBUTE = "data-zb-follow-card";
+  const FOLLOW_CARD_TRACK_ATTRIBUTE = "data-zb-follow-card-track";
+  const FOLLOW_CARD_SLIDE_ATTRIBUTE = "data-zb-follow-card-slide";
+  const AUTHOR_FOLLOW_ROW_ATTRIBUTE = "data-zb-author-follow-row";
   const AI_SOURCE_PANEL_ATTRIBUTE = "data-zb-ai-source-panel";
   const AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE = "data-zb-ai-content-discovery-heading";
   const AI_USER_QUESTION_ATTRIBUTE = "data-zb-ai-user-question";
@@ -705,6 +839,10 @@
     let menuCommandId;
     let markedSidebar;
     let markedAiSourcePanel;
+    const markedFollowCards = new Set();
+    const markedFollowCardTracks = new Set();
+    const markedFollowCardSlides = new Set();
+    const markedAuthorFollowRows = new Set();
     const markedAiContentDiscoveryHeadings = new Set();
     const markedAiUserQuestions = new Set();
     const markedAiScrollToBottomButtons = new Set();
@@ -716,75 +854,22 @@
     let observedAiSearchMain;
     let observedPageHeader;
     let observedQuestionContent;
+    let pageContext = getPageContext(browserWindow);
     let pageKind;
-    let originalPushState;
-    let originalReplaceState;
-    let wrappedPushState;
-    let wrappedReplaceState;
     let columnScrollListening = false;
     let positionScheduled = false;
     let scheduled = false;
     let started = false;
     let ringHostReady = false;
 
-    const isHomeFeedPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/(?:follow\/?)?$/.test(browserWindow.location.pathname);
-
-    const isQuestionPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
-
-    const isColumnPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/column\/[^/]+\/?$/.test(browserWindow.location.pathname);
-
-    const isRingFeedsPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/ring-feeds\/?$/.test(browserWindow.location.pathname);
-
-    const isRingIndexPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/ring\/?$/.test(browserWindow.location.pathname);
-
-    const isRingHostPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/ring\/host\/\d+\/?$/.test(browserWindow.location.pathname);
-
-    const isProfilePage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/people\/[^/]+(?:\/.*)?$/.test(browserWindow.location.pathname);
-
-    const isTopicPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/.test(
-        browserWindow.location.pathname,
-      );
-
-    const isPaperPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/kvip\/sku\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
-
-    const isPaperPreviewPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/kvip\/pdf\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
-
-    const isAiSearchPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/search\/?$/.test(browserWindow.location.pathname) &&
-      new browserWindow.URLSearchParams(browserWindow.location.search).get("type") === "zhida";
-
-    const isCreatorPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/creator(?:\/.*)?$/.test(browserWindow.location.pathname);
-
-    const isCreatorAssociatedAccountPage = () =>
-      browserWindow.location.hostname === "www.zhihu.com" &&
-      /^\/creator\/account\/associated-account\/?$/.test(browserWindow.location.pathname);
+    const isColumnPage = () => pageContext.column;
+    const isRingIndexPage = () => pageContext.ringIndex;
+    const isRingHostPage = () => pageContext.ringHost;
+    const isAiSearchPage = () => pageContext.aiSearch;
 
     const getPageKind = () => {
-      if (isHomeFeedPage()) return "home";
-      if (isQuestionPage()) return "question";
+      if (pageContext.home) return "home";
+      if (pageContext.question) return "question";
       return "other";
     };
 
@@ -838,6 +923,7 @@
     };
 
     const updateRootState = () => {
+      pageContext = getPageContext(browserWindow);
       const nextPageKind = getPageKind();
       const isRingHost = isRingHostPage();
       if (nextPageKind !== pageKind) {
@@ -845,20 +931,7 @@
         markedSidebar = undefined;
       }
       pageKind = nextPageKind;
-      setRootAttribute(ROOT_HOME_ATTRIBUTE, pageKind === "home");
-      setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
-      setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
-      setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
-      setRootAttribute(ROOT_TOPIC_ATTRIBUTE, isTopicPage());
-      setRootAttribute(ROOT_RING_INDEX_ATTRIBUTE, isRingIndexPage());
-      setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
-      setRootAttribute(ROOT_RING_HOST_ATTRIBUTE, isRingHost);
       updateRingHostReadyState(isRingHost);
-      setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
-      setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
-      setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
-      setRootAttribute(ROOT_CREATOR_ATTRIBUTE, isCreatorPage());
-      setRootAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE, isCreatorAssociatedAccountPage());
       setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
     };
 
@@ -992,6 +1065,62 @@
     };
 
     const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
+
+    const clearSidebarFollowMarkers = () => {
+      markedFollowCards.forEach((card) => card.removeAttribute(FOLLOW_CARD_ATTRIBUTE));
+      markedFollowCardTracks.forEach((track) => track.removeAttribute(FOLLOW_CARD_TRACK_ATTRIBUTE));
+      markedFollowCardSlides.forEach((slide) => slide.removeAttribute(FOLLOW_CARD_SLIDE_ATTRIBUTE));
+      markedAuthorFollowRows.forEach((row) => row.removeAttribute(AUTHOR_FOLLOW_ROW_ATTRIBUTE));
+      markedFollowCards.clear();
+      markedFollowCardTracks.clear();
+      markedFollowCardSlides.clear();
+      markedAuthorFollowRows.clear();
+    };
+
+    const markSidebarFollowCards = () => {
+      if (!markedSidebar) return;
+
+      markedSidebar.querySelectorAll(".FollowButton").forEach((button) => {
+        const card = button.closest(".Card");
+        if (!card || !markedSidebar.contains(card)) return;
+
+        card.setAttribute(FOLLOW_CARD_ATTRIBUTE, "");
+        markedFollowCards.add(card);
+
+        const authorRow = button.parentElement;
+        if (button.previousElementSibling?.matches(".AuthorInfo") && authorRow) {
+          authorRow.setAttribute(AUTHOR_FOLLOW_ROW_ATTRIBUTE, "");
+          markedAuthorFollowRows.add(authorRow);
+        }
+
+        let track = button.parentElement;
+        while (track && track.parentElement !== card) {
+          track = track.parentElement;
+        }
+        if (!track) return;
+
+        const buttonDepthFromTrack = (() => {
+          let depth = 0;
+          for (let current = button; current && current !== track; current = current.parentElement) {
+            depth += 1;
+          }
+          return depth;
+        })();
+        if (buttonDepthFromTrack < 3) return;
+
+        track.setAttribute(FOLLOW_CARD_TRACK_ATTRIBUTE, "");
+        markedFollowCardTracks.add(track);
+
+        let slide = button;
+        while (slide.parentElement && slide.parentElement !== track) {
+          slide = slide.parentElement;
+        }
+        if (slide.parentElement === track) {
+          slide.setAttribute(FOLLOW_CARD_SLIDE_ATTRIBUTE, "");
+          markedFollowCardSlides.add(slide);
+        }
+      });
+    };
 
     const findAiSourcePanel = () => {
       if (!isAiSearchPage()) return null;
@@ -1179,11 +1308,16 @@
         nextSidebar = findQuestionSidebar();
       }
 
-      if (nextSidebar === markedSidebar) return;
+      if (nextSidebar === markedSidebar) {
+        markSidebarFollowCards();
+        return;
+      }
 
       markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
+      clearSidebarFollowMarkers();
       markedSidebar = nextSidebar;
       markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+      markSidebarFollowCards();
     };
 
     const markRingIndexActions = (root = browserDocument) => {
@@ -1425,44 +1559,6 @@
       });
     }
 
-    const installRouteListeners = () => {
-      browserWindow.addEventListener("popstate", scheduleRefresh);
-      if (browserWindow.navigation?.addEventListener) {
-        browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
-        return;
-      }
-
-      const history = browserWindow.history;
-      if (!history?.pushState || !history?.replaceState) return;
-
-      originalPushState = history.pushState;
-      originalReplaceState = history.replaceState;
-      wrappedPushState = function (...args) {
-        const result = originalPushState.apply(this, args);
-        scheduleRefresh();
-        return result;
-      };
-      wrappedReplaceState = function (...args) {
-        const result = originalReplaceState.apply(this, args);
-        scheduleRefresh();
-        return result;
-      };
-      history.pushState = wrappedPushState;
-      history.replaceState = wrappedReplaceState;
-    };
-
-    const removeRouteListeners = () => {
-      browserWindow.removeEventListener("popstate", scheduleRefresh);
-      browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
-      const history = browserWindow.history;
-      if (history && wrappedPushState && history.pushState === wrappedPushState) {
-        history.pushState = originalPushState;
-      }
-      if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
-        history.replaceState = originalReplaceState;
-      }
-    };
-
     const start = () => {
       if (started) return;
       started = true;
@@ -1470,7 +1566,7 @@
       updateMenuCommand();
       browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
       browserDocument.addEventListener("click", handleAiSourcePanelInteraction, true);
-      installRouteListeners();
+      browserWindow.addEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
       browserWindow.addEventListener("resize", schedulePositionRefresh);
       if (!browserWindow.IntersectionObserver) {
         browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
@@ -1493,7 +1589,7 @@
       }
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
       browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
-      removeRouteListeners();
+      browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
       browserWindow.removeEventListener("resize", schedulePositionRefresh);
       browserWindow.removeEventListener("scroll", schedulePositionRefresh);
       columnScrollListening = false;
@@ -1503,6 +1599,7 @@
       browserDocument.getElementById(STYLE_ID$2)?.remove();
       markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
       markedSidebar = undefined;
+      clearSidebarFollowMarkers();
       markedAiSourcePanel?.removeAttribute(AI_SOURCE_PANEL_ATTRIBUTE);
       markedAiSourcePanel = undefined;
       markedAiContentDiscoveryHeadings.forEach((heading) =>
@@ -1531,23 +1628,10 @@
       observedAiSearchMain = undefined;
       observedPageHeader = undefined;
       observedQuestionContent = undefined;
-      browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_PROFILE_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_TOPIC_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_RING_INDEX_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_READY_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ATTRIBUTE);
-      browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE);
       started = false;
     };
 
@@ -1642,16 +1726,434 @@
     return { destroy, setMode, start };
   };
 
-  const PALETTE_HEX = {
-    latte:
-      "rosewater:#dc8a78,flamingo:#dd7878,pink:#ea76cb,mauve:#8839ef,red:#d20f39,maroon:#e64553,peach:#fe640b,yellow:#df8e1d,green:#40a02b,teal:#179299,sky:#04a5e5,sapphire:#209fb5,blue:#1e66f5,lavender:#7287fd,text:#4c4f69,subtext1:#5c5f77,subtext0:#6c6f85,overlay2:#7c7f93,overlay1:#8c8fa1,overlay0:#9ca0b0,surface2:#acb0be,surface1:#bcc0cc,surface0:#ccd0da,base:#eff1f5,mantle:#e6e9ef,crust:#dce0e8",
-    frappe:
-      "rosewater:#f2d5cf,flamingo:#eebebe,pink:#f4b8e4,mauve:#ca9ee6,red:#e78284,maroon:#ea999c,peach:#ef9f76,yellow:#e5c890,green:#a6d189,teal:#81c8be,sky:#99d1db,sapphire:#85c1dc,blue:#8caaee,lavender:#babbf1,text:#c6d0f5,subtext1:#b5bfe2,subtext0:#a5adce,overlay2:#949cbb,overlay1:#838ba7,overlay0:#737994,surface2:#626880,surface1:#51576d,surface0:#414559,base:#303446,mantle:#292c3c,crust:#232634",
-    macchiato:
-      "rosewater:#f4dbd6,flamingo:#f0c6c6,pink:#f5bde6,mauve:#c6a0f6,red:#ed8796,maroon:#ee99a0,peach:#f5a97f,yellow:#eed49f,green:#a6da95,teal:#8bd5ca,sky:#91d7e3,sapphire:#7dc4e4,blue:#8aadf4,lavender:#b7bdf8,text:#cad3f5,subtext1:#b8c0e0,subtext0:#a5adcb,overlay2:#939ab7,overlay1:#8087a2,overlay0:#6e738d,surface2:#5b6078,surface1:#494d64,surface0:#363a4f,base:#24273a,mantle:#1e2030,crust:#181926",
-    mocha:
-      "rosewater:#f5e0dc,flamingo:#f2cdcd,pink:#f5c2e7,mauve:#cba6f7,red:#f38ba8,maroon:#eba0ac,peach:#fab387,yellow:#f9e2af,green:#a6e3a1,teal:#94e2d5,sky:#89dceb,sapphire:#74c7ec,blue:#89b4fa,lavender:#b4befe,text:#cdd6f4,subtext1:#bac2de,subtext0:#a6adc8,overlay2:#9399b2,overlay1:#7f849c,overlay0:#6c7086,surface2:#585b70,surface1:#45475a,surface0:#313244,base:#1e1e2e,mantle:#181825,crust:#11111b",
+  const ROOT_HIDE_SIDEBAR_ATTRIBUTE = "data-zb-hide-home-sidebar";
+  const CAROUSEL_DELAY = 5000;
+  const PRESET_WORDS_DELAY = 8000;
+
+  const normalizeDelay = (delay) => {
+    const numericDelay = Number(delay);
+    return Number.isFinite(numericDelay) ? Math.max(0, numericDelay) : 0;
   };
+
+  const captureStack$1 = () => new Error().stack ?? "";
+
+  const matchesCarouselTimeout = ({ delay, stack }) =>
+    delay === CAROUSEL_DELAY &&
+    stack.includes("/heifetz/chunks/1057.") &&
+    /\bat n\.play \(/.test(stack);
+
+  const matchesPresetWordsInterval = ({ delay, stack }) =>
+    delay === PRESET_WORDS_DELAY && stack.includes("startPresetWordsRotation");
+
+  const createIdleTimerBlockerFeature = (browserWindow, matchers = {}) => {
+    const browserDocument = browserWindow.document;
+    const originalSetTimeout = browserWindow.setTimeout;
+    const originalSetInterval = browserWindow.setInterval;
+    const originalClearTimeout = browserWindow.clearTimeout;
+    const originalClearInterval = browserWindow.clearInterval;
+    const isCarouselTimeout = matchers.carouselTimeout ?? matchesCarouselTimeout;
+    const isPresetWordsInterval = matchers.presetWordsInterval ?? matchesPresetWordsInterval;
+    const suspendedTimeouts = new Map();
+    const blockedIntervals = new Set();
+    let nextSuspendedTimerId = -1;
+    let rootObserver;
+    let documentObserver;
+    let started = false;
+
+    const isSidebarHidden = () =>
+      browserDocument.documentElement?.getAttribute(ROOT_HIDE_SIDEBAR_ATTRIBUTE) === "true";
+
+    const resumeSuspendedTimeouts = () => {
+      if (isSidebarHidden() || suspendedTimeouts.size === 0) return;
+
+      const suspended = [...suspendedTimeouts.values()];
+      suspendedTimeouts.clear();
+      suspended.forEach(({ args, callback }) =>
+        originalSetTimeout.call(browserWindow, callback, 0, ...args),
+      );
+    };
+
+    const observeRoot = () => {
+      const root = browserDocument.documentElement;
+      if (!root) return;
+
+      documentObserver?.disconnect();
+      documentObserver = undefined;
+      rootObserver ??= new browserWindow.MutationObserver(resumeSuspendedTimeouts);
+      rootObserver.observe(root, {
+        attributes: true,
+        attributeFilter: [ROOT_HIDE_SIDEBAR_ATTRIBUTE],
+      });
+    };
+
+    const setTimeout = (callback, delay, ...args) => {
+      const normalizedDelay = normalizeDelay(delay);
+      if (typeof callback === "function" && isSidebarHidden() && normalizedDelay === CAROUSEL_DELAY) {
+        const stack = captureStack$1();
+        if (isCarouselTimeout({ callback, delay: normalizedDelay, stack })) {
+          const timerId = nextSuspendedTimerId--;
+          suspendedTimeouts.set(timerId, { args, callback });
+          return timerId;
+        }
+      }
+      return originalSetTimeout.call(browserWindow, callback, delay, ...args);
+    };
+
+    const setInterval = (callback, delay, ...args) => {
+      const normalizedDelay = normalizeDelay(delay);
+      if (typeof callback === "function" && normalizedDelay === PRESET_WORDS_DELAY) {
+        const stack = captureStack$1();
+        if (isPresetWordsInterval({ callback, delay: normalizedDelay, stack })) {
+          const timerId = nextSuspendedTimerId--;
+          blockedIntervals.add(timerId);
+          return timerId;
+        }
+      }
+      return originalSetInterval.call(browserWindow, callback, delay, ...args);
+    };
+
+    const clearTimeout = (timerId) => {
+      if (suspendedTimeouts.delete(timerId) || blockedIntervals.delete(timerId)) return;
+      return originalClearTimeout.call(browserWindow, timerId);
+    };
+
+    const clearInterval = (timerId) => {
+      if (suspendedTimeouts.delete(timerId) || blockedIntervals.delete(timerId)) return;
+      return originalClearInterval.call(browserWindow, timerId);
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      browserWindow.setTimeout = setTimeout;
+      browserWindow.setInterval = setInterval;
+      browserWindow.clearTimeout = clearTimeout;
+      browserWindow.clearInterval = clearInterval;
+      if (browserDocument.documentElement) {
+        observeRoot();
+      } else {
+        documentObserver = new browserWindow.MutationObserver(observeRoot);
+        documentObserver.observe(browserDocument, { childList: true });
+      }
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      rootObserver?.disconnect();
+      rootObserver = undefined;
+      documentObserver?.disconnect();
+      documentObserver = undefined;
+      if (browserWindow.setTimeout === setTimeout) browserWindow.setTimeout = originalSetTimeout;
+      if (browserWindow.setInterval === setInterval) browserWindow.setInterval = originalSetInterval;
+      if (browserWindow.clearTimeout === clearTimeout) {
+        browserWindow.clearTimeout = originalClearTimeout;
+      }
+      if (browserWindow.clearInterval === clearInterval) {
+        browserWindow.clearInterval = originalClearInterval;
+      }
+      suspendedTimeouts.clear();
+      blockedIntervals.clear();
+      started = false;
+    };
+
+    return { destroy, start };
+  };
+
+  const VALID_PAGE_KEYS = new Set(PAGE_CONTEXT_KEYS);
+
+  const normalizeEntries = (entries) => {
+    if (!Array.isArray(entries)) {
+      throw new TypeError("Page style entries must be an array.");
+    }
+
+    const styleIds = new Set();
+    return entries.map((entry) => {
+      if (!entry || typeof entry.styleId !== "string" || entry.styleId.length === 0) {
+        throw new TypeError("Each page style entry must have a non-empty styleId.");
+      }
+      if (styleIds.has(entry.styleId)) {
+        throw new TypeError(`Duplicate page style id: ${entry.styleId}`);
+      }
+      if (typeof entry.styleText !== "string") {
+        throw new TypeError(`Page style "${entry.styleId}" must have string styleText.`);
+      }
+      if (entry.matches !== undefined && typeof entry.matches !== "function") {
+        throw new TypeError(`Page style "${entry.styleId}" must have a function matches predicate.`);
+      }
+      if (entry.matches && entry.pageKeys !== undefined) {
+        throw new TypeError(`Page style "${entry.styleId}" cannot define matches and pageKeys.`);
+      }
+
+      const pageKeys =
+        entry.pageKeys === undefined
+          ? undefined
+          : Array.isArray(entry.pageKeys)
+            ? [...entry.pageKeys]
+            : [entry.pageKeys];
+      if (
+        pageKeys?.length === 0 ||
+        pageKeys?.some(
+          (pageKey) =>
+            typeof pageKey !== "string" || pageKey.length === 0 || !VALID_PAGE_KEYS.has(pageKey),
+        )
+      ) {
+        throw new TypeError(`Page style "${entry.styleId}" has invalid pageKeys.`);
+      }
+
+      styleIds.add(entry.styleId);
+      return { ...entry, pageKeys };
+    });
+  };
+
+  const matchesPageContext = (entry, context) => {
+    if (entry.matches) return Boolean(entry.matches(context));
+    if (entry.pageKeys) return entry.pageKeys.some((pageKey) => Boolean(context[pageKey]));
+    return true;
+  };
+
+  const createPageStylesFeature = (browserWindow, entries) => {
+    const browserDocument = browserWindow.document;
+    const normalizedEntries = normalizeEntries(entries);
+    const ownedStyles = new Map();
+    let started = false;
+
+    const removeOwnedStyle = (styleId) => {
+      const style = ownedStyles.get(styleId);
+      if (!style) return;
+      style.remove();
+      ownedStyles.delete(styleId);
+    };
+
+    const ensureOwnedStyle = (entry) => {
+      const ownedStyle = ownedStyles.get(entry.styleId);
+      if (ownedStyle?.isConnected && browserDocument.getElementById(entry.styleId) === ownedStyle) {
+        return;
+      }
+      ownedStyle?.remove();
+      ownedStyles.delete(entry.styleId);
+
+      if (browserDocument.getElementById(entry.styleId)) return;
+      ensureStyle(browserDocument, entry.styleId, entry.styleText);
+      const style = browserDocument.getElementById(entry.styleId);
+      if (style) ownedStyles.set(entry.styleId, style);
+    };
+
+    const refresh = (context = getPageContext(browserWindow)) => {
+      normalizedEntries.forEach((entry) => {
+        if (matchesPageContext(entry, context)) {
+          ensureOwnedStyle(entry);
+        } else {
+          removeOwnedStyle(entry.styleId);
+        }
+      });
+    };
+
+    const handlePageContextChange = (event) => {
+      refresh(event.detail ?? getPageContext(browserWindow));
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      refresh();
+      browserWindow.addEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+      ownedStyles.forEach((style) => style.remove());
+      ownedStyles.clear();
+      started = false;
+    };
+
+    return { destroy, start };
+  };
+
+  const TELEMETRY_BLOCKER_STORAGE_KEY = "zhihu-beautification:block-telemetry";
+
+  const BLOCKED_ENDPOINTS = new Map([
+    [
+      "zhihu-web-analytics.zhihu.com",
+      new Set(["/api/v2/za/logs/batch", "/api/v3inv2/za/logs/batch"]),
+    ],
+    ["crash2.zhihu.com", new Set(["/api/1224/store/"])],
+    ["datahub.zhihu.com", new Set(["/collector/zlab"])],
+  ]);
+
+  const captureStack = () => new Error().stack ?? "";
+
+  const matchesTelemetryCompressionWorker = ({ stack }) =>
+    stack.includes("unpkg.zhimg.com/za-js-sdk@") ||
+    (stack.includes("/heifetz/chunks/5946.") && stack.includes("/heifetz/chunks/6642."));
+
+  const getRequestUrl = (input) => {
+    if (typeof input === "string") return input;
+    if (input && typeof input.url === "string") return input.url;
+    return null;
+  };
+
+  const isBlockedTelemetryUrl = (browserWindow, input) => {
+    const requestUrl = getRequestUrl(input);
+    if (!requestUrl) return false;
+
+    try {
+      const url = new browserWindow.URL(requestUrl, browserWindow.location.href);
+      return (
+        url.protocol === "https:" && BLOCKED_ENDPOINTS.get(url.hostname)?.has(url.pathname) === true
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  const createSuccessfulResponse = (browserWindow) =>
+    new browserWindow.Response(null, {
+      status: 204,
+      statusText: "No Content",
+    });
+
+  const createTelemetryBlockerFeature = (browserWindow, settings, matchers = {}) => {
+    let enabled = readBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, true);
+    let menuCommandId;
+    let originalFetch;
+    let wrappedFetch;
+    let originalWorker;
+    let wrappedWorker;
+    let started = false;
+    const isTelemetryCompressionWorker =
+      matchers.telemetryCompressionWorker ?? matchesTelemetryCompressionWorker;
+
+    const updateMenuCommand = () => {
+      if (!settings?.menu?.register) return;
+
+      if (menuCommandId !== undefined && settings.menu.unregister) {
+        settings.menu.unregister(menuCommandId);
+      }
+
+      const status = enabled ? "已开启" : "已关闭";
+      menuCommandId = settings.menu.register(`屏蔽知乎遥测请求：${status}`, () => {
+        setEnabled(!enabled);
+      });
+    };
+
+    const installFetchWrapper = () => {
+      if (wrappedFetch || typeof browserWindow.fetch !== "function") return;
+
+      const installedOriginalFetch = browserWindow.fetch;
+      originalFetch = installedOriginalFetch;
+      wrappedFetch = function (...args) {
+        if (enabled && isBlockedTelemetryUrl(browserWindow, args[0])) {
+          return browserWindow.Promise.resolve(createSuccessfulResponse(browserWindow));
+        }
+        return installedOriginalFetch.apply(this, args);
+      };
+      browserWindow.fetch = wrappedFetch;
+    };
+
+    const createBlockedWorker = () => {
+      const messageListeners = new Set();
+      let terminated = false;
+      let onmessage = null;
+
+      return {
+        addEventListener(type, callback) {
+          if (type === "message" && typeof callback === "function") messageListeners.add(callback);
+        },
+        get onmessage() {
+          return onmessage;
+        },
+        set onmessage(callback) {
+          onmessage = callback;
+        },
+        postMessage(message) {
+          if (terminated || !Array.isArray(message)) return;
+          browserWindow.Promise.resolve().then(() => {
+            if (terminated) return;
+            const event = {
+              data: {
+                $e$: [
+                  "Telemetry compression skipped",
+                  "ZB_TELEMETRY_BLOCKED",
+                  "Telemetry compression worker blocked by Zhihu Beautification",
+                ],
+              },
+            };
+            onmessage?.call(this, event);
+            messageListeners.forEach((callback) => callback.call(this, event));
+          });
+        },
+        removeEventListener(type, callback) {
+          if (type === "message") messageListeners.delete(callback);
+        },
+        terminate() {
+          terminated = true;
+          messageListeners.clear();
+          onmessage = null;
+        },
+      };
+    };
+
+    const installWorkerWrapper = () => {
+      if (wrappedWorker || typeof browserWindow.Worker !== "function") return;
+
+      const installedOriginalWorker = browserWindow.Worker;
+      originalWorker = installedOriginalWorker;
+      wrappedWorker = function (url, options) {
+        if (enabled) {
+          const stack = captureStack();
+          if (isTelemetryCompressionWorker({ options, stack, url })) {
+            return createBlockedWorker();
+          }
+        }
+        return Reflect.construct(installedOriginalWorker, [url, options], installedOriginalWorker);
+      };
+      Object.setPrototypeOf(wrappedWorker, installedOriginalWorker);
+      wrappedWorker.prototype = installedOriginalWorker.prototype;
+      browserWindow.Worker = wrappedWorker;
+    };
+
+    function setEnabled(value) {
+      enabled = Boolean(value);
+      persistBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, enabled);
+      updateMenuCommand();
+    }
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      enabled = readBooleanPreference(browserWindow, settings, TELEMETRY_BLOCKER_STORAGE_KEY, true);
+      installFetchWrapper();
+      installWorkerWrapper();
+      updateMenuCommand();
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      started = false;
+      enabled = false;
+      if (wrappedFetch && browserWindow.fetch === wrappedFetch) {
+        browserWindow.fetch = originalFetch;
+      }
+      originalFetch = undefined;
+      wrappedFetch = undefined;
+      if (wrappedWorker && browserWindow.Worker === wrappedWorker) {
+        browserWindow.Worker = originalWorker;
+      }
+      originalWorker = undefined;
+      wrappedWorker = undefined;
+      if (menuCommandId !== undefined && settings?.menu?.unregister) {
+        settings.menu.unregister(menuCommandId);
+      }
+      menuCommandId = undefined;
+    };
+
+    return { destroy, setEnabled, start };
+  };
+
+  const FLAVOR_NAMES = ["latte","frappe","macchiato","mocha"];
+        const PALETTE_HEX = {"latte":"rosewater:#dc8a78,flamingo:#dd7878,pink:#ea76cb,mauve:#8839ef,red:#d20f39,maroon:#e64553,peach:#fe640b,yellow:#df8e1d,green:#40a02b,teal:#179299,sky:#04a5e5,sapphire:#209fb5,blue:#1e66f5,lavender:#7287fd,text:#4c4f69,subtext1:#5c5f77,subtext0:#6c6f85,overlay2:#7c7f93,overlay1:#8c8fa1,overlay0:#9ca0b0,surface2:#acb0be,surface1:#bcc0cc,surface0:#ccd0da,base:#eff1f5,mantle:#e6e9ef,crust:#dce0e8","frappe":"rosewater:#f2d5cf,flamingo:#eebebe,pink:#f4b8e4,mauve:#ca9ee6,red:#e78284,maroon:#ea999c,peach:#ef9f76,yellow:#e5c890,green:#a6d189,teal:#81c8be,sky:#99d1db,sapphire:#85c1dc,blue:#8caaee,lavender:#babbf1,text:#c6d0f5,subtext1:#b5bfe2,subtext0:#a5adce,overlay2:#949cbb,overlay1:#838ba7,overlay0:#737994,surface2:#626880,surface1:#51576d,surface0:#414559,base:#303446,mantle:#292c3c,crust:#232634","macchiato":"rosewater:#f4dbd6,flamingo:#f0c6c6,pink:#f5bde6,mauve:#c6a0f6,red:#ed8796,maroon:#ee99a0,peach:#f5a97f,yellow:#eed49f,green:#a6da95,teal:#8bd5ca,sky:#91d7e3,sapphire:#7dc4e4,blue:#8aadf4,lavender:#b7bdf8,text:#cad3f5,subtext1:#b8c0e0,subtext0:#a5adcb,overlay2:#939ab7,overlay1:#8087a2,overlay0:#6e738d,surface2:#5b6078,surface1:#494d64,surface0:#363a4f,base:#24273a,mantle:#1e2030,crust:#181926","mocha":"rosewater:#f5e0dc,flamingo:#f2cdcd,pink:#f5c2e7,mauve:#cba6f7,red:#f38ba8,maroon:#eba0ac,peach:#fab387,yellow:#f9e2af,green:#a6e3a1,teal:#94e2d5,sky:#89dceb,sapphire:#74c7ec,blue:#89b4fa,lavender:#b4befe,text:#cdd6f4,subtext1:#bac2de,subtext0:#a6adc8,overlay2:#9399b2,overlay1:#7f849c,overlay0:#6c7086,surface2:#585b70,surface1:#45475a,surface0:#313244,base:#1e1e2e,mantle:#181825,crust:#11111b"};
+        const EARLY_COLORS = {"latte":{"page":"#e6e9ef","surface":"#eff1f5","text":"#4c4f69"},"frappe":{"page":"#292c3c","surface":"#303446","text":"#c6d0f5"},"macchiato":{"page":"#1e2030","surface":"#24273a","text":"#cad3f5"},"mocha":{"page":"#181825","surface":"#1e1e2e","text":"#cdd6f4"}};
 
   const paletteVariables = Object.fromEntries(
     Object.entries(PALETTE_HEX).map(([flavor, colors]) => [
@@ -1672,7 +2174,7 @@ ${createPaletteVariables(name)}
     color-scheme: ${name === "latte" ? "light" : "dark"};
   }`;
 
-  const flavorRules$1 = ["latte", "frappe", "macchiato", "mocha"].map(createFlavorRule).join("\n");
+  const flavorRules$1 = FLAVOR_NAMES.map(createFlavorRule).join("\n");
 
   const CATPPUCCIN_THEME_STYLE = `
 ${flavorRules$1}
@@ -1810,8 +2312,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text-subtle) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
     box-sizing: border-box !important;
     width: 100% !important;
     background-color: var(--zb-surface-raised) !important;
@@ -1822,39 +2324,43 @@ ${createPaletteVariables("mocha")}
       box-shadow 0.16s ease !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input {
     min-height: 46px !important;
     padding: 9px 12px !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
     min-height: 104px !important;
     padding: 11px 12px !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input:focus-within,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input:focus-within {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input:focus-within,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input:focus-within {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .DraftEditor-root,
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .DraftEditor-root,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .DraftEditor-editorContainer,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditor-content,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditorPlaceholder-root,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditorPlaceholder-inner {
     background-color: transparent !important;
@@ -1863,50 +2369,53 @@ ${createPaletteVariables("mocha")}
     box-shadow: none !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea {
     width: 100% !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content {
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content {
     min-height: 80px !important;
   }
 
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .public-DraftEditorPlaceholder-inner {
     color: var(--zb-text-subtle) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-controls {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-controls {
     background-color: transparent !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control {
     background-color: transparent !important;
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control:hover,
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control:hover,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .Editable-toolbar
     .Editable-control.is-active,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .Editable-toolbar
     .Editable-control[aria-pressed="true"] {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-separator {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-separator {
     background-color: var(--zb-border-strong) !important;
   }
 
@@ -2112,3102 +2621,6 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .SearchTabs {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link:hover,
-  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
-  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Search-container,
-  html[data-zb-theme] .SearchMain,
-  html[data-zb-theme] .HotLanding {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .SearchMain > .ListShortcut,
-  html[data-zb-theme] .SearchMain > .ListShortcut > .List {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card,
-  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card {
-    padding-top: 0 !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      0 0 0 2px var(--zb-primary-soft),
-      var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(.ContentItem-title, .ContentItem-title a) {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(
-      .ContentItem-title:hover,
-      .ContentItem-title:focus-within,
-      .ContentItem-title a:hover,
-      .ContentItem-title a:focus-visible
-    ) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(
-      .RichContent-inner,
-      .RichContent-inner .RichText,
-      .SearchItem-meta.Highlight
-    ) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    .FollowButton.Button--grey:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(
-      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
-    )
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
-    margin-bottom: 12px !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs {
-    box-sizing: border-box !important;
-    display: flex !important;
-    height: auto !important;
-    min-height: 58px !important;
-    padding: 12px 16px !important;
-    align-items: center !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    line-height: normal !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs {
-    display: flex !important;
-    height: auto !important;
-    width: 100% !important;
-    align-items: center !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    border-bottom: 0 !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-item {
-    display: flex !important;
-    height: auto !important;
-    padding: 0 !important;
-    align-items: center !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    min-height: 32px !important;
-    padding: 5px 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    font-weight: 400 !important;
-    line-height: 20px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(
-      in srgb,
-      var(--zb-primary) 36%,
-      transparent
-    ) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link.is-active:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div
-    > div:first-child {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 0 0 12px 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child
-    .Button:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child
-    .Button:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child {
-    background-color: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div
-    > div:first-child {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 0 0 12px 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> a[href*="/kvip/sku/paper/"]) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]
-    a[href*="/kvip/sku/paper/"] {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]
-    a[href*="/kvip/sku/paper/"]:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    font-weight: 600 !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)
-    > div:first-child {
-    color: var(--zb-primary-hover) !important;
-    -webkit-text-fill-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(2),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(4),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(5) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3)
-    span {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3)
-    span:has(.ZDI--ArrowRight24) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"],
-  html[data-zb-theme][data-zb-paper-page="true"] body,
-  html[data-zb-theme][data-zb-paper-page="true"] body > div:first-child {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-inline: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child {
-    background-color: var(--zb-surface-raised) !important;
-    background-image: none !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div:first-child {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:nth-child(2) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div:last-child {
-    color: var(--zb-text-subtle) !important;
-    -webkit-text-fill-color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section
-    h2 {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section
-    :is(p, li, div) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(1)
-    p,
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(3) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(4) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(2)
-    button {
-    box-sizing: border-box !important;
-    padding: 2px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(2)
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 14%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button {
-    box-sizing: border-box !important;
-    border-radius: 999px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:has(.ZDI--BookOpen24) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:nth-child(2) {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:last-child {
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:is(:hover, :focus-visible) {
-    border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> svg[viewBox="0 0 150 50"])
-    :where(svg, path) {
-    color: var(--zb-text-subtle) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"] body,
-  html[data-zb-theme][data-zb-paper-preview-page="true"] #app {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-root_"] {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-logo_"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-avatar_"] {
-    border: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"]) {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    div {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    input {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    input:focus-visible {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16) {
-    background-color: var(--zb-primary-soft) !important;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--zb-primary) 42%, var(--zb-border)) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16)
-    > button {
-    color: inherit !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16)
-    > button:is(:hover, :focus-visible) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary-soft) 72%,
-      var(--zb-surface-hover)
-    ) !important;
-    color: var(--zb-primary-hover) !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(.pdfViewer) {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="放大"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="缩小"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="下载"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="放大"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="缩小"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="下载"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {
-    background-color: #fff !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"]
-      )
-    )
-    > div,
-  html[data-zb-theme]
-    .SearchMain:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"]
-      )
-    )
-    > div
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Block:thinking_blcok"],
-      [data-testid="Block:zhida_answer_result_block"]
-    )
-    :is(.Render-markdown, div[dir="auto"]) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex]) {
-    background-color: transparent !important;
-    border: 0 !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    :where(div, span) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .Popover-content:has(
-      [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(3) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(4) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:last-child
-    :where(svg, path) {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    h1 {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item:is(:hover, :focus-visible)
-    h1 {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    h1
-    + div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 999px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    div:has(> h1)
-    + div,
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item
-    > div
-    > div:last-child {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item
-    > div
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid
-      color-mix(in srgb, var(--zb-primary) 36%, transparent) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      .KfeCollection-PcCollegeCard-wrapper,
-      .KfeCollection-PcCollegeCard-root,
-      .KfeCollection-PcCollegeCard
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-    -webkit-text-fill-color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    > div
-    > div
-    > div:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"],
-        [data-testid="Block:zhida_input_box"]
-      )
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Block:zhida_answer_result_block"],
-      [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
-    ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="discovery-answer-fade-mask"] {
-    background: linear-gradient(transparent, var(--zb-surface)) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]
-    > div {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]:is(:hover, :focus-visible, :focus-within)
-    > div {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-content-discovery-heading] {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"] {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    .zhida-rn-skeleton-motion::after {
-    background-image: linear-gradient(
-      110deg,
-      transparent 0%,
-      transparent 35%,
-      color-mix(in srgb, var(--zb-text-subtle) 22%, transparent) 50%,
-      transparent 65%,
-      transparent 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="answer-thinking-text"] {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"],
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"]
-    :where(div, span, svg, path),
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox] {
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-subtle) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox][data-zb-ai-share-checkbox-checked="true"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-user-question] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-user-question]
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Block:thinking_blcok"]) {
-    justify-content: center !important;
-    height: auto !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:thinking_blcok"] {
-    flex: 0 1 auto !important;
-    width: auto !important;
-    height: auto !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:thinking_blcok"]
-    > div {
-    box-sizing: border-box !important;
-    align-items: center !important;
-    gap: 8px !important;
-    width: auto !important;
-    min-height: 44px !important;
-    padding: 4px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    ) {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    height: 34px !important;
-    padding: 7px 8px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:reference_card_block_more_btn"] {
-    flex: 0 0 auto !important;
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    )
-    > div {
-    box-sizing: border-box !important;
-    width: auto !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    )
-    :where(div, span) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"] [data-zb-ai-source-panel] {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child
-    > div {
-    background-color: transparent !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:last-child
-    > div
-    > div {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"] {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div {
-    box-sizing: border-box !important;
-    padding: 8px !important;
-    border-radius: 8px !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:first-child
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:first-child
-    span:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]
-    div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]:is(:hover, :focus-visible)
-    div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [style*="color: rgb(23, 114, 246)"] {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      + div
-        > div
-        > div
-        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    )
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > div
-        > div
-        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div
-    > div {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]:is(
-      :hover,
-      :focus-visible
-    )
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div:not([style*="background-color: rgb(248, 248, 250)"]) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-surface) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:hover {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {
-    background-color: var(--zb-primary-soft) !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible
-    ):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    ) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"])
-    > div:first-child:not([data-testid]) {
-    background: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    ) {
-    padding: 0 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:last-child {
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:last-child[style*="background-color"] {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]
-    :where(div, span, p, h1, h2, h3, strong) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:first-child
-    > :is(div:nth-child(2), div:nth-child(4)) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:first-child
-    > div:nth-child(3) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="SearchExpansionWord:Button:related_question_word"],
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div {
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div[style*="background-color: rgba(23, 114, 246, 0.12)"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    .InputLike.Editable {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="SearchExpansionWord:Button:related_question_word"],
-      [data-testid="Block:zhida_input_box"]
-    )
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="SearchExpansionWord:Button:related_question_word"],
-      [data-testid="Block:zhida_input_box"]
-    ):is(:hover, :focus-visible, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    div[style*="background-color: rgb(173, 176, 183)"] {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    div[style*="background-color: rgb(173, 176, 183)"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    > .List-item
-    > div
-    > div:has(+ div .HotLanding-title) {
-    background: var(--zb-surface-raised) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-title,
-  html[data-zb-theme] .HotLanding-ListTitle,
-  html[data-zb-theme] .HotLanding-contentItemTitle {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-title + div,
-  html[data-zb-theme] .HotLanding-contentItemCount,
-  html[data-zb-theme] .SearchItem-time {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-content {
-    border-left-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-contentItem {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .HotLanding .Highlight em {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: border-box !important;
-    border: 0 !important;
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    .RichContent-actions.is-fixed
-    > .ContentItem-actions.ContentItem-action {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .VoteButton {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-title,
-  html[data-zb-theme] .Search-container .HotSearchCard-itemText,
-  html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-heat {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    :is(.HotSearchCard-item, .HotSearchCard-itemLink) {
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item {
-    box-sizing: border-box !important;
-    margin: 4px -8px !important;
-    padding: 6px 8px !important;
-    overflow: hidden !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item:focus-within {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-itemLink:focus-visible {
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-tag {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 24px !important;
-    padding: 0 5px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme] .Search-container footer[role="contentinfo"],
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    :is(a, button, div, span, svg) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    :is(a, button):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child {
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px 12px 0 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
-    .App-main
-    > div
-    > .Card
-    + div {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child {
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:first-child {
-    background-color: var(--zb-page) !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div {
-    box-sizing: border-box !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-    margin-top: -2px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div:has(.ContentItem) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    margin-bottom: 10px !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child {
-    height: auto !important;
-    padding-bottom: 20px !important;
-    border-top: 0 !important;
-    border-radius: 0 0 12px 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section {
-    box-sizing: border-box !important;
-    margin-top: 16px !important;
-    padding: 16px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > h4 {
-    margin: 0 !important;
-    color: var(--zb-text) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:first-of-type {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 16px !important;
-    margin: 12px 0 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:first-of-type
-    > div:first-child {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type {
-    display: flex !important;
-    align-items: baseline !important;
-    gap: 12px !important;
-    height: auto !important;
-    margin-top: 14px !important;
-    padding-top: 12px !important;
-    border-top: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type
-    > div:first-child {
-    flex: 0 0 auto !important;
-    color: var(--zb-text-subtle) !important;
-    -webkit-text-fill-color: var(--zb-text-subtle) !important;
-    font-size: 13px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type
-    > div:last-child {
-    min-width: 0 !important;
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div:has(.ContentItem):hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    :where(a, div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child
-    > div:first-child
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .UserLink-link {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 64px !important;
-    min-height: 34px !important;
-    padding-inline: 12px !important;
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-    font-weight: 500 !important;
-    flex: 0 0 auto !important;
-    margin-left: auto !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue
-    :where(span, svg, path) {
-    color: var(--ctp-crust) !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:hover
-    :where(span, svg, path) {
-    color: var(--ctp-crust) !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    > div
-    > div:nth-child(2),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    > div
-    > div:nth-child(2)
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .AuthorInfo
-    + div,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .AuthorInfo
-    + div
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue {
-    box-sizing: border-box !important;
-    min-width: 96px !important;
-    min-height: 34px !important;
-    padding-inline: 14px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--blue,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--blue:hover,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:hover {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton:focus-visible,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-    padding: 5px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots)
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    height: 32px !important;
-    padding-inline: 12px !important;
-    border-radius: 3px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
-    box-sizing: border-box !important;
-    margin-top: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard p {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .Column-EmptyCard
-    svg
-    path:first-of-type {
-    fill: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .Column-EmptyCard
-    svg
-    path:last-of-type {
-    fill: var(--zb-surface-raised) !important;
-  }
 
   html[data-zb-theme] div:has(> .Modal-content) {
     background-color: var(--zb-surface) !important;
@@ -6297,18 +3710,16 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-surface-raised) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu {
     background-color: var(--zb-surface) !important;
     border-radius: 8px !important;
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item {
     box-sizing: border-box !important;
@@ -6322,18 +3733,16 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:is(:hover, :focus-visible) {
     background-color: var(--zb-surface-hover) !important;
     outline: 0 !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child {
     background-color: color-mix(
@@ -6344,9 +3753,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-danger) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
     background-color: color-mix(
@@ -8085,14 +5493,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    ) {
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
@@ -8100,27 +5502,15 @@ ${createPaletteVariables("mocha")}
     scrollbar-color: var(--ctp-overlay0) transparent;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg {
     color: var(--zb-surface) !important;
     fill: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg
     + div
     > div {
@@ -8128,14 +5518,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg
     + div
     > div:hover {
@@ -8152,1332 +5536,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .Button--blue:hover {
     background-color: var(--zb-primary-hover) !important;
     border-color: var(--zb-primary-hover) !important;
-  }
-
-  /* Profile page */
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card {
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-userCover
-    :is(.UserCover, .UserCoverGuide) {
-    border-radius: 12px 12px 0 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper {
-    border-radius: 0 0 12px 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader .UserAvatar {
-    background-color: var(--zb-surface) !important;
-    box-shadow: 0 0 0 4px var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-name, .ProfileHeader-detailValue) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-detailLabel, .ProfileHeader-expandButton) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-expandButton:hover {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-expandButton:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-iconWrapper {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-iconWrapper
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-divider {
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .UserCoverGuide-dialog
-    :is(.UserCoverGuide-dialogHead, h4) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .UserCoverGuide-dialog
-    :is(.UserCoverGuide-dialogContent, .UserCoverGuide-dialogDescription) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button {
-    box-sizing: border-box !important;
-    min-height: 34px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button {
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain-header {
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link {
-    color: var(--zb-text-secondary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link:hover {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link.is-active {
-    color: var(--zb-primary) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-meta {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    div:has(> button :is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background: linear-gradient(
-      to left,
-      var(--zb-surface) 0,
-      var(--zb-surface) 56px,
-      transparent 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):hover {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-header {
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    :is(.List-header, .List-item)::after {
-    background-color: var(--zb-border) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-item {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > a:first-child
-    > div {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > a
-    > div {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child,
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    a:hover
-    > div {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button--iconOnly:not(.VoteButton) {
-    min-width: 28px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    height: 34px !important;
-    padding-inline: 10px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .VoteButton:disabled {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: transparent !important;
-    color: var(--zb-text-subtle) !important;
-    cursor: not-allowed !important;
-    opacity: 0.72 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Card,
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Profile-lightList {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 40px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"])
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Profile-sideColumnTitle,
-      .Profile-sideColumnItemValue,
-      .Profile-lightItemValue,
-      .NumberBoard-itemValue,
-      .ProfileSideCreator-readCountNumber
-    ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Profile-sideColumnItemTitle,
-      .Profile-lightItemName,
-      .NumberBoard-itemName,
-      .ProfileSideCreator-readCountTitle
-    ) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .NumberBoard-itemInner,
-      .Profile-sideColumnItem,
-      .Profile-lightItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Card-header,
-      .Profile-footerOperations,
-      .ProfileSideCreator-readCountItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    .Profile-lightItem {
-    border-top: 1px solid var(--zb-border) !important;
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    .Profile-lightItem:first-child {
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.Footer, footer) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.Footer, footer)
-    :where(a, button, div, span, p, svg) {
-    color: inherit !important;
-  }
-
-  /* Question page */
-  html[data-zb-theme] .QuestionHeader,
-  html[data-zb-theme] .QuestionHeader-content,
-  html[data-zb-theme] .QuestionHeader-main,
-  html[data-zb-theme] .QuestionHeader-side,
-  html[data-zb-theme] .QuestionHeader-footer,
-  html[data-zb-theme] .QuestionHeader-footer-inner,
-  html[data-zb-theme] .QuestionHeader-footer-main {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader {
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-title,
-  html[data-zb-theme] .QuestionHeader-title a,
-  html[data-zb-theme] .QuestionHeader-detail,
-  html[data-zb-theme] .QuestionHeader-detail .RichText,
-  html[data-zb-theme] .QuestionHeader .NumberBoard-itemValue {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-itemName,
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts,
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts div,
-  html[data-zb-theme] .QuestionHeader .QuestionHeaderActions-label {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-item {
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts {
-    column-gap: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionFollowStatus-counts
-    .NumberBoard-itemInner {
-    border-left-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-item.Button:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .NumberBoard-item.Button:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
-    padding-right: 8px !important;
-    padding-left: 8px !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionFollowStatus-people:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  /* Topic entity cards use generated class names. Target the semantic label
-     and direct-child position so the selector survives Zhihu CSS rebuilds
-     without also matching the compact topic chips above the question. */
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-text) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type,
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    .topicMetaTitle {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    > div:last-child,
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    > div:first-child
-    > div:not(.topicMetaTitle) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    span {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button[aria-pressed="true"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  /* Latest-progress cards use generated class names and receive analytics
-     attributes during hydration. Anchor to the server-rendered semantic icon
-     so the title color applies on the first paint instead of after hydration. */
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child,
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child
-    svg {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible)
-    > div:last-child,
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible)
-    > div:last-child
-    :where(div, span, svg) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  /* Question and answer page links follow semantic roles instead of Zhihu's
-     native blue palette. Keep identity links calm, metadata subdued, and
-     reserve the accent color for topics, content links, and interaction. */
-  html[data-zb-theme] .QuestionHeader-topics :is(a, .TopicLink, .Tag-content),
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content)
-    :where(span, div) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content):hover,
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content):hover
-    :where(span, div) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-topics .QuestionTopic {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    .QuestionTopic:is(:hover, :focus-within) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 24%,
-      transparent
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"]) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    > svg {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > div:first-of-type {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > div:last-of-type {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > svg:first-child {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > svg:last-child {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .BrandQuestionSymbol-name,
-      .AuthorInfo-name a,
-      .UserLink-link
-    ) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .BrandQuestionSymbol-name,
-      .AuthorInfo-name a,
-      .UserLink-link
-    ):hover {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-time, .ContentItem-time a) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-time
-    a:hover {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag),
-  html[data-zb-theme] .QuestionHeader-detail .RichText a,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord {
-    color: var(--zb-primary) !important;
-    text-decoration-color: transparent !important;
-    text-decoration-thickness: 1px !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):hover,
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):focus-visible,
-  html[data-zb-theme] .QuestionHeader-detail .RichText a:hover,
-  html[data-zb-theme] .QuestionHeader-detail .RichText a:focus-visible,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:hover,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:focus-visible {
-    color: var(--zb-primary-hover) !important;
-    text-decoration: underline !important;
-    text-decoration-color: currentColor !important;
-    text-decoration-thickness: 1px !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .RichText
-    a.LinkCard:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-desc {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard .tag {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText table {
-    border: 1px solid var(--zb-border) !important;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText :is(th, td) {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-right: 1px solid var(--zb-border) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText th {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
-    border-right: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .RichText
-    tbody
-    tr:last-child
-    > td {
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    div:has(
-      > div
-        > a[href*="zhida_source=below_banner_question"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"] {
-    border-radius: 6px !important;
-    color: var(--zb-text-secondary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]
-    > p {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]
-    :is(svg, path) {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-    stroke: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .AuthorInfo-name a,
-      .UserLink-link,
-      .ContentItem-time a,
-      .QuestionHeader-topics a,
-      .RelatedQuestions-item a,
-      .SimilarQuestions-item a,
-      .NumberBoard-item
-    ):focus-visible {
-    color: var(--zb-primary) !important;
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .BrandQuestionSymbol-brandLink:is(:hover, :focus-visible)
-    .BrandQuestionSymbol-name {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage img.Avatar {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem .AuthorInfo, .AnswerAuthor)
-    img.Avatar {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AuthorInfo
-    .UserLink:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    )
-    :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    ):hover {
-    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    )
-    :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ):is(:hover, :focus-visible) {
-    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    > svg {
-    color: var(--zb-surface-raised) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"],
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"]
-    * {
-    color: var(--zb-text) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    > :first-child
-    > :first-child {
-    color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
@@ -9501,248 +5559,6 @@ ${createPaletteVariables("mocha")}
     * {
     color: var(--zb-text-secondary) !important;
     font-weight: 400 !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    body
-    div:has(
-      > div
-        > div
-        > div
-        > .QuestionStatus-notification-inner
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-inner,
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-content {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-content
-    .UserLink-link {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .Button {
-    min-height: 24px !important;
-    padding: 2px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .QuestionStatus-notification-primary {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-divider {
-    margin: 0 2px !important;
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-closeButton {
-    width: 24px !important;
-    min-width: 24px !important;
-    padding: 2px !important;
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-closeButton
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
-    background-color: var(--zb-surface) !important;
-    border-radius: inherit !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal:has(.QuestionInvitation) {
-    background-color: transparent !important;
-    border-radius: 12px !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal-inner:has(.QuestionInvitation) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal-content:has(> .QuestionInvitation) {
-    border-radius: inherit !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    > .Topbar {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input
-    :is(.Input, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    .AutoInviteItem-wrapper--desktop {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item {
-    box-sizing: border-box !important;
-    width: calc(100% - 24px) !important;
-    margin: 0 12px !important;
-    padding: 12px !important;
-    background-color: transparent !important;
-    border-radius: 8px !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item::after {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    :is(.ContentItem-statusItem, .ContentItem-meta) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .ContentItem-extra
-    .Button:not(.Button--blue) {
-    background-color: transparent !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .ContentItem-extra
-    .Button:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link {
-    min-width: 80px !important;
-    min-height: 32px !important;
-    padding: 0 8px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    outline: 0 !important;
-    white-space: nowrap !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
@@ -10232,7 +6048,7 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) {
+  html[data-zb-theme] [data-zb-hover-card] {
     background-color: var(--zb-surface) !important;
     background-clip: padding-box !important;
     padding-right: 16px !important;
@@ -10243,56 +6059,61 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .Avatar {
+  html[data-zb-theme] [data-zb-hover-card] .Avatar {
     top: -8px !important;
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) div:has(> .Avatar) {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-avatar-row] {
     padding-bottom: 21px !important;
     border-bottom-color: var(--zb-border) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-description {
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-description {
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .UserLink-link {
+  html[data-zb-theme] [data-zb-hover-card] .UserLink-link {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .UserLink-link:is(:hover, :focus-visible) {
     color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-itemName {
     color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-itemValue {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-item:hover {
     background-color: var(--zb-surface-raised) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons {
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-buttons {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons .Button {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .HoverCard-buttons
+    .Button {
     box-sizing: border-box !important;
     min-width: 0 !important;
     width: auto !important;
@@ -10302,16 +6123,18 @@ ${createPaletteVariables("mocha")}
     font-weight: 500 !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item {
+  html[data-zb-theme] [data-zb-hover-card] .NumberBoard-item {
     border-radius: 8px !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item:hover {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-item:hover {
     background-color: var(--zb-surface-raised) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-item:focus-visible {
     background-color: var(--zb-surface-raised) !important;
     box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
@@ -10319,7 +6142,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--blue {
     background-color: var(--zb-primary) !important;
@@ -10328,7 +6151,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--grey {
     background-color: var(--zb-surface-raised) !important;
@@ -10337,7 +6160,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
@@ -10346,7 +6169,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .Button:not(.FollowButton) {
     background-color: transparent !important;
@@ -10355,7 +6178,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .Button:not(.FollowButton):is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
@@ -10364,8 +6187,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--blue {
     background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
@@ -10373,8 +6196,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey {
     position: relative !important;
     height: 34px !important;
@@ -10385,8 +6208,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
     border-color: var(--zb-danger) !important;
@@ -10394,8 +6217,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey:is(:hover, :focus-visible)::after {
     content: "取消关注" !important;
     position: absolute !important;
@@ -11074,7 +6897,7 @@ ${createPaletteVariables("mocha")}
     .QuestionPage
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)),
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)) {
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -11087,7 +6910,7 @@ ${createPaletteVariables("mocha")}
       :focus-visible
     ),
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)):is(
       :hover,
       :focus-visible
@@ -11568,18 +7391,15 @@ ${createPaletteVariables("mocha")}
     display: none !important;
   }
 
-  html[data-zb-theme] .Modal-content:has(.CommentContent) {
+  html[data-zb-theme] [data-zb-comment-modal] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Modal-content:has(.CommentContent) {
     box-shadow: var(--zb-shadow) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child {
@@ -11589,7 +7409,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -11600,7 +7420,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -11611,7 +7431,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child {
@@ -11619,7 +7439,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child
@@ -11628,7 +7448,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div:has(> div:nth-child(2) > div:nth-child(3) [data-id])
     > div:first-child
     > div:only-child {
@@ -11637,7 +7457,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2):has(> div:nth-child(3) [data-id])
     > div:nth-child(2)
@@ -11647,7 +7467,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -11657,13 +7477,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .CommentContent {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:not(:has(img.Avatar)) {
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -11671,7 +7491,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:not(.Button--blue) {
     background-color: transparent !important;
     color: var(--zb-text-muted) !important;
@@ -11679,7 +7499,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary) {
     box-sizing: border-box !important;
     border-radius: 6px !important;
@@ -11689,7 +7509,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary):is(
       :hover,
       :focus-visible
@@ -11700,7 +7520,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary):is(
       :hover,
       :focus-visible
@@ -11711,7 +7531,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(
       .Button--red,
       .is-active,
@@ -11725,13 +7545,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id] {
     border-bottom: 1px solid var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     > div:first-child {
     animation: none !important;
@@ -11739,7 +7559,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     [data-id] {
     border-bottom-color: transparent !important;
@@ -11747,7 +7567,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     [data-id]::before {
     border-top: 1px solid var(--zb-border-strong) !important;
@@ -11759,14 +7579,14 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     img.Avatar {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable) {
     background-color: var(--zb-surface-raised) !important;
     border: 1px solid var(--zb-border-strong) !important;
@@ -11774,7 +7594,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable)
     > div:first-child {
     border-radius: 6px !important;
@@ -11782,7 +7602,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .InputLike.Editable {
     background-color: var(--zb-surface) !important;
     border-color: transparent !important;
@@ -11793,41 +7613,41 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button.Button--primary {
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
     background-color: transparent !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .InputLike.Editable:focus-within {
     border-color: transparent !important;
     box-shadow: none !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable:focus-within) {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     div[data-zb-comment-composer-collapsed]
     > div:nth-child(2) {
     display: none !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
     background-color: transparent !important;
     color: var(--zb-text-subtle) !important;
@@ -11835,14 +7655,14 @@ ${createPaletteVariables("mocha")}
 
   /* Keep the comment theme active while sorting temporarily unmounts CommentContent. */
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar) {
+    [data-zb-comment-modal] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child {
@@ -11850,7 +7670,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child
@@ -11859,7 +7679,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child {
@@ -11869,7 +7689,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -11880,7 +7700,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -11891,7 +7711,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     :is(
@@ -11909,7 +7729,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     .PlaceHolder-bg {
@@ -11923,7 +7743,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
@@ -11932,7 +7752,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"]) {
@@ -11941,7 +7761,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
@@ -11956,13 +7776,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
     > svg,
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
@@ -11973,14 +7793,14 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     img.Avatar {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     .comment_img {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
@@ -13115,7 +8935,4526 @@ ${createPaletteVariables("mocha")}
     color: var(--ctp-crust) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title
+    a {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title:is(:hover, :focus-within),
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-title
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .FollowButton.Button--blue {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .FollowButton.Button--blue:hover {
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-more {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-more:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-more:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(
+      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
+    )
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .VoteButton {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: transparent !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .VoteButton:hover,
+  html[data-zb-theme] .VoteButton[aria-pressed="true"],
+  html[data-zb-theme] .VoteButton.is-active {
+    background-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] .PinItem .PinToolbar-actions {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    .LinkCard-wrapper {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-excerpt, .LinkCard-desc) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
+    background-color: var(--zb-surface-hover) !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard:is(:hover, :focus-visible) {
+    background: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    > .PinToolbar-actions {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: -10px 0 !important;
+    padding: 10px 0 !important;
+    background-color: transparent !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    min-height: 32px !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .VoteButton:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"] {
+    color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    main
+    .PinDetail
+    .PinItem
+    .Comments-container
+    > div
+    > div:has(.InputLike.Editable) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding: 10px 0 !important;
+    padding-inline: 0 !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .Comments-container
+    .InputLike.Editable {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .PinDetail .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible)
+    :where(span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"] {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .ProfileSideCreator-analytics,
+  html[data-zb-theme] .KfeCollection-CreateSaltCard-content {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + *,
+  html[data-zb-theme] [data-zb-home-sidebar] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] [data-zb-home-sidebar] :where(div, span),
+  html[data-zb-theme]
+    [data-za-detail-view-path-module="RightSideBar"]
+    .Card
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [aria-label="创作中心卡片"]
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [aria-label="创作中心卡片"]
+    .CreatorEntrance-creatorIcon {
+    color: var(--zb-text) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card > div {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    [data-za-detail-view-path-module="RightSideBar"]
+    .Card,
+  html[data-zb-theme]
+    [data-za-detail-view-path-module="RightSideBar"]
+    .Card
+    > div {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    :is(.Card, .HotSearchCard) {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    .Card:is(:focus-visible, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card,
+  html[data-zb-theme] [data-zb-home-sidebar] .Card,
+  html[data-zb-theme] [aria-label="创作中心卡片"] {
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border-color: var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      .CreatorEntrance-hint,
+      .ProfileSideCreator-readCountNumber,
+      .HotSearchCard-title,
+      .HotSearchCard-itemText,
+      .KfeCollection-CreateSaltCard-content-title
+    ) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      .HotSearchCard-heat,
+      .KfeCollection-CreateSaltCard-content-sub-title
+  ) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(.HotSearchCard-item, .HotSearchCard-itemLink) {
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-item {
+    box-sizing: border-box !important;
+    margin: 4px -8px !important;
+    overflow: hidden !important;
+    padding: 6px 8px !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-item:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-itemLink:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-tag {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 24px !important;
+    padding: 0 5px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    > [data-zb-follow-card-track] {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    > [data-zb-follow-card-track]
+    > [data-zb-follow-card-slide] {
+    box-sizing: border-box !important;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    padding-right: 8px !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 36px !important;
+    padding-inline: 12px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    )
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    [data-zb-author-follow-row] {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    [data-zb-author-follow-row]
+    > .AuthorInfo {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .AuthorInfo-content {
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    :is(.AuthorInfo-head, .AuthorInfo-detail) {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    min-width: 64px !important;
+    min-height: 34px !important;
+    margin-left: 8px !important;
+    padding-inline: 12px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      [data-za-detail-view-path-module="RightSideBar"]
+    )
+    [data-zb-follow-card]
+    .FollowButton
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .HotSearchCard-tagHot {
+    background-color: var(--zb-danger-soft) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme] .HotSearchCard-tagActivity {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .HotSearchCard-dot {
+    background-color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> [role="dialog"][id^="react-aria-"]) {
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> [role="dialog"][id^="react-aria-"])
+    > svg {
+    color: var(--zb-surface) !important;
+    fill: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > svg {
+    color: var(--zb-surface-raised) !important;
+    fill: var(--zb-surface-raised) !important;
+    filter: drop-shadow(0 1px 0 var(--zb-border-strong)) !important;
+    left: 50% !important;
+    margin-top: 4px !important;
+    stroke: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div {
+    background-color: transparent !important;
+    padding-block: 4px !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > svg
+    + div {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div
+    > div {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    box-sizing: border-box !important;
+    color: var(--zb-text-muted) !important;
+    cursor: pointer !important;
+    margin-inline: 4px !important;
+    min-height: 36px !important;
+    padding-inline: 10px !important;
+    width: calc(100% - 8px) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[width="26"][height="10"] + div)
+    > div
+    > div:is(:hover, :focus, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    )
+    > :where(a, div) {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:is(
+      :has(.OrgCreateButton),
+      :has(a[href^="/term/"]),
+      :has(a[href*="/certificates"]),
+      :has(a[href="/question/19581624"])
+    )
+    > :where(a, div):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(.OrgCreateButton)
+    .OrgCreateButton {
+    width: 100% !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(.OrgCreateButton)
+    .OrgCreateButton:hover {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    [role="dialog"]:has(a[href*="/certificates"])
+    > div:last-child {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] blockquote {
+    border-color: var(--ctp-lavender) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] pre,
+  html[data-zb-theme] code,
+  html[data-zb-theme] .highlight {
+    background-color: var(--ctp-crust) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] hr {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .LoadingBar {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(
+      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(
+      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
+    )
+    .BounceLoading-child {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Skeleton,
+  html[data-zb-theme] [class*="Skeleton"],
+  html[data-zb-theme] .PlaceHolder,
+  html[data-zb-theme] .PlaceHolder-inner {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder,
+  html[data-zb-theme] .QuestionPage .PlaceHolder-inner {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .PlaceHolder-mask,
+  html[data-zb-theme] .QuestionPage .PlaceHolder-mask path {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme] .skeleton {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .skeleton__line {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 25%,
+      var(--zb-surface-hover) 75%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme] .skeleton__line::after {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-surface-hover) 80%,
+      transparent
+    ) !important;
+    box-shadow: 0 0 20px 20px
+      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
+  }
+
+  html[data-zb-theme] .Topstory-mainColumnCard:empty {
+    background-color: var(--zb-page) !important;
+    box-shadow: none !important;
+  }
+
+`;
+
+  const createEarlyFlavorRule = (name) => {
+    const colors = EARLY_COLORS[name];
+    return `
+  html[data-zb-theme="${name}"] {
+    --zb-early-page: ${colors.page};
+    --zb-early-surface: ${colors.surface};
+    --zb-early-text: ${colors.text};
+    color-scheme: ${name === "latte" ? "light" : "dark"};
+  }`;
+  };
+
+  const flavorRules = FLAVOR_NAMES.map(createEarlyFlavorRule).join("\n");
+
+  const CRITICAL_THEME_STYLE = `
+${flavorRules}
+
+  html[data-zb-theme="system"] {
+    --zb-early-page: ${EARLY_COLORS.latte.page};
+    --zb-early-surface: ${EARLY_COLORS.latte.surface};
+    --zb-early-text: ${EARLY_COLORS.latte.text};
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html[data-zb-theme="system"] {
+      --zb-early-page: ${EARLY_COLORS.mocha.page};
+      --zb-early-surface: ${EARLY_COLORS.mocha.surface};
+      --zb-early-text: ${EARLY_COLORS.mocha.text};
+      color-scheme: dark;
+    }
+  }
+
+  html[data-zb-theme],
+  html[data-zb-theme] body,
+  html[data-zb-theme] #root,
+  html[data-zb-theme] .App-main,
+  html[data-zb-theme] .Search-container,
+  html[data-zb-theme] .SearchMain {
+    background-color: var(--zb-early-page) !important;
+    color: var(--zb-early-text) !important;
+  }
+
+  html[data-zb-theme] .SearchMain > div,
+  html[data-zb-theme] .SearchMain > div > div {
+    background-color: var(--zb-early-surface) !important;
+    color: var(--zb-early-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div,
+  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div
+    > div:first-child
+    .Sticky {
+    background-color: var(--zb-early-surface) !important;
+    border-color: var(--zb-early-page) !important;
+    color: var(--zb-early-text) !important;
+  }
+`;
+
+  const THEME_STORAGE_KEY = "zhihu-beautification:theme";
+  const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
+
+  const THEME_ATTRIBUTE = "data-zb-theme";
+  const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
+  const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
+  const ACTION_MENU_POPOVER_ATTRIBUTE = "data-zb-action-menu-popover";
+  const COMMENT_MODAL_ATTRIBUTE = "data-zb-comment-modal";
+  const POLL_MODAL_OPEN_ATTRIBUTE = "data-zb-poll-modal-open";
+  const POLL_OPTION_POPOVER_ATTRIBUTE = "data-zb-poll-option-popover";
+  const HOVER_CARD_ATTRIBUTE = "data-zb-hover-card";
+  const HOVER_CARD_AVATAR_ROW_ATTRIBUTE = "data-zb-hover-card-avatar-row";
+  const HOVER_CARD_SINGLE_ACTION_ATTRIBUTE = "data-zb-hover-card-single-action";
+  const RELATED_QUESTION_TOOLTIP_ATTRIBUTE = "data-zb-related-question-tooltip";
+  const RELATED_QUESTION_LINK_SELECTOR = [
+    ".RelatedQuestions-item > a[href^='/question/']",
+    ".RelatedQuestions-listItem > a[href^='/question/']",
+    ".SimilarQuestions-item > a[href^='/question/']",
+  ].join(",");
+  const STYLE_ID = "zb-catppuccin-theme-style";
+  const CRITICAL_STYLE_ID = "zb-critical-theme-style";
+  const THEME_LABELS = {
+    system: "跟随系统（Latte / Mocha）",
+    latte: "Latte",
+    frappe: "Frappé",
+    macchiato: "Macchiato",
+    mocha: "Mocha",
+  };
+
+  const isThemeMode = (value) => THEME_MODES.includes(value);
+
+  const createThemeFeature = (browserWindow, settings) => {
+    const browserDocument = browserWindow.document;
+    const markedArrowPanels = new Set();
+    const markedArrowPanelWrappers = new Set();
+    const markedActionMenuPopovers = new Set();
+    const markedCommentModals = new Set();
+    const markedPollOptionPopovers = new Set();
+    const markedHoverCardAvatarRows = new Set();
+    const markedHoverCards = new Set();
+    const markedHoverCardSingleActions = new Set();
+    const markedRelatedQuestionLinks = new Set();
+    const observedPortalRoots = new WeakSet();
+    const menuCommandIds = [];
+    let observer;
+    let mode;
+    let started = false;
+
+    const markArrowPanelFromIcon = (icon) => {
+      const button = icon.closest("button");
+      const thirdRow = button?.parentElement;
+      const panel = thirdRow?.parentElement;
+      const firstRow = panel?.firstElementChild;
+      const secondRow = panel?.children[1];
+      if (
+        !panel ||
+        panel.children[2] !== thirdRow ||
+        button?.parentElement !== thirdRow ||
+        firstRow?.childElementCount !== 1 ||
+        firstRow.firstElementChild?.tagName !== "SPAN" ||
+        secondRow?.hasChildNodes()
+      ) {
+        return;
+      }
+
+      panel.setAttribute(ARROW_PANEL_ATTRIBUTE, "");
+      markedArrowPanels.add(panel);
+
+      const wrapper = panel.parentElement;
+      if (wrapper) {
+        wrapper.setAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE, "");
+        markedArrowPanelWrappers.add(wrapper);
+      }
+    };
+
+    const markArrowPanels = (root = browserDocument) => {
+      if (root.nodeType === 1 && root.matches(".ZDI--ArrowRight24")) {
+        markArrowPanelFromIcon(root);
+      }
+      root.querySelectorAll?.(".ZDI--ArrowRight24").forEach(markArrowPanelFromIcon);
+    };
+
+    const markActionMenuPopoverFromMenu = (menu) => {
+      const popover = menu.parentElement;
+      if (!popover?.matches(".Popover-content")) return;
+
+      popover.setAttribute(ACTION_MENU_POPOVER_ATTRIBUTE, "");
+      markedActionMenuPopovers.add(popover);
+    };
+
+    const markActionMenuPopovers = (root) => {
+      if (root.nodeType !== 1) return;
+
+      if (root.matches(".ActionMenu")) markActionMenuPopoverFromMenu(root);
+      root.querySelectorAll?.(".ActionMenu").forEach(markActionMenuPopoverFromMenu);
+    };
+
+    const markHoverCardFromItem = (item) => {
+      const hoverCard = item.parentElement;
+      if (!hoverCard) return;
+
+      hoverCard.setAttribute(HOVER_CARD_ATTRIBUTE, "");
+      markedHoverCards.add(hoverCard);
+
+      item.querySelectorAll(".Avatar").forEach((avatar) => {
+        const avatarRow = avatar.parentElement;
+        if (!avatarRow) return;
+        avatarRow.setAttribute(HOVER_CARD_AVATAR_ROW_ATTRIBUTE, "");
+        markedHoverCardAvatarRows.add(avatarRow);
+      });
+
+      const actionRow = item.querySelector(".HoverCard-buttons");
+      if (!actionRow) return;
+
+      const hasSingleButton =
+        actionRow.childElementCount === 1 && actionRow.firstElementChild?.matches(".Button");
+      if (hasSingleButton) {
+        actionRow.setAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE, "");
+        markedHoverCardSingleActions.add(actionRow);
+      } else if (actionRow.hasAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE)) {
+        actionRow.removeAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE);
+        markedHoverCardSingleActions.delete(actionRow);
+      }
+    };
+
+    const markHoverCards = (root) => {
+      if (root.nodeType !== 1) return;
+
+      const closestItem = root.matches(".HoverCard-item") ? root : root.closest?.(".HoverCard-item");
+      if (closestItem) markHoverCardFromItem(closestItem);
+      root.querySelectorAll?.(".HoverCard-item").forEach(markHoverCardFromItem);
+    };
+
+    const markCommentModal = (modalContent) => {
+      const isCommentModal =
+        modalContent.querySelector(".CommentContent") ||
+        (modalContent.querySelector(".InputLike.Editable") &&
+          modalContent.querySelector("img.Avatar"));
+      if (!isCommentModal) return;
+
+      modalContent.setAttribute(COMMENT_MODAL_ATTRIBUTE, "");
+      markedCommentModals.add(modalContent);
+    };
+
+    const markCommentModals = (root) => {
+      if (root.nodeType !== 1) return;
+
+      const closestModalContent = root.matches(".Modal-content")
+        ? root
+        : root.closest?.(".Modal-content");
+      if (closestModalContent) markCommentModal(closestModalContent);
+      root.querySelectorAll?.(".Modal-content").forEach(markCommentModal);
+    };
+
+    const markPollOptionPopover = (popover) => {
+      const arrow = popover.firstElementChild;
+      const content = arrow?.nextElementSibling;
+      if (!arrow?.matches("svg") || content?.tagName !== "DIV" || content.childElementCount !== 8) {
+        return;
+      }
+
+      popover.setAttribute(POLL_OPTION_POPOVER_ATTRIBUTE, "");
+      markedPollOptionPopovers.add(popover);
+    };
+
+    const markPollOptionPopovers = (root) => {
+      if (root.nodeType !== 1) return;
+
+      if (root.tagName === "DIV") markPollOptionPopover(root);
+      root.querySelectorAll?.("div").forEach(markPollOptionPopover);
+    };
+
+    const updatePollModalState = () => {
+      const isOpen = Boolean(
+        browserDocument.querySelector(
+          '.Modal input[placeholder*="PK 标题"], .Modal input[placeholder*="投票 标题"]',
+        ),
+      );
+      browserDocument.documentElement?.setAttribute(POLL_MODAL_OPEN_ATTRIBUTE, String(isOpen));
+    };
+
+    const markPortalComponents = (root) => {
+      markActionMenuPopovers(root);
+      markArrowPanels(root);
+      markCommentModals(root);
+      markHoverCards(root);
+      markPollOptionPopovers(root);
+    };
+
+    const observePortalRoot = (root) => {
+      if (root.nodeType !== 1 || root.id === "root" || observedPortalRoots.has(root)) return;
+
+      observedPortalRoots.add(root);
+      observer.observe(root, { childList: true, subtree: true });
+      markPortalComponents(root);
+    };
+
+    const handleMutations = (records) => {
+      records.forEach(({ addedNodes, target }) => {
+        const closestModalContent = target.closest?.(".Modal-content");
+        if (closestModalContent) markCommentModal(closestModalContent);
+        const closestHoverCardItem = target.closest?.(".HoverCard-item");
+        if (closestHoverCardItem) markHoverCardFromItem(closestHoverCardItem);
+
+        addedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+
+          if (target === browserDocument.body) {
+            observePortalRoot(node);
+          } else {
+            markPortalComponents(node);
+          }
+        });
+      });
+      updatePollModalState();
+    };
+
+    const setupPortalObserver = () => {
+      const body = browserDocument.body;
+      if (!body) return;
+
+      observer ??= new browserWindow.MutationObserver(handleMutations);
+      observer.observe(body, { childList: true });
+      Array.from(body.children).forEach(observePortalRoot);
+      updatePollModalState();
+    };
+
+    const addRelatedQuestionTooltip = ({ target }) => {
+      const link = target?.closest?.(RELATED_QUESTION_LINK_SELECTOR);
+      if (!link) return;
+
+      const title = link.textContent.trim();
+      if (!title) return;
+
+      if (!link.hasAttribute("title") || link.hasAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE)) {
+        link.title = title;
+        link.setAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE, "");
+        markedRelatedQuestionLinks.add(link);
+      }
+    };
+
+    const updateMenuCommands = () => {
+      if (!settings?.menu?.register) return;
+
+      clearMenuCommands(settings.menu, menuCommandIds);
+      THEME_MODES.forEach((themeMode) => {
+        const marker = themeMode === mode ? "✓" : "○";
+        const commandId = settings.menu.register(`${marker} 主题：${THEME_LABELS[themeMode]}`, () =>
+          setMode(themeMode),
+        );
+        menuCommandIds.push(commandId);
+      });
+    };
+
+    function setMode(nextMode) {
+      mode = isThemeMode(nextMode) ? nextMode : "system";
+      browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
+      persistMode(settings, mode);
+      updateMenuCommands();
+    }
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      mode = readStoredMode(settings, isThemeMode, "system");
+      ensureStyle(browserDocument, CRITICAL_STYLE_ID, CRITICAL_THEME_STYLE);
+      browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
+      ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
+      markArrowPanels();
+      setupPortalObserver();
+      browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
+      browserDocument.addEventListener("focusin", addRelatedQuestionTooltip);
+      browserDocument.addEventListener("mouseover", addRelatedQuestionTooltip);
+      updateMenuCommands();
+    };
+
+    const destroy = () => {
+      observer?.disconnect();
+      observer = undefined;
+      browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
+      browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
+      browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
+      clearMenuCommands(settings?.menu, menuCommandIds);
+      browserDocument.getElementById(STYLE_ID)?.remove();
+      browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
+      browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(POLL_MODAL_OPEN_ATTRIBUTE);
+      markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
+      markedArrowPanelWrappers.forEach((wrapper) =>
+        wrapper.removeAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE),
+      );
+      markedArrowPanels.clear();
+      markedArrowPanelWrappers.clear();
+      markedActionMenuPopovers.forEach((popover) =>
+        popover.removeAttribute(ACTION_MENU_POPOVER_ATTRIBUTE),
+      );
+      markedActionMenuPopovers.clear();
+      markedCommentModals.forEach((modalContent) =>
+        modalContent.removeAttribute(COMMENT_MODAL_ATTRIBUTE),
+      );
+      markedCommentModals.clear();
+      markedPollOptionPopovers.forEach((popover) =>
+        popover.removeAttribute(POLL_OPTION_POPOVER_ATTRIBUTE),
+      );
+      markedPollOptionPopovers.clear();
+      markedHoverCards.forEach((hoverCard) => hoverCard.removeAttribute(HOVER_CARD_ATTRIBUTE));
+      markedHoverCardAvatarRows.forEach((avatarRow) =>
+        avatarRow.removeAttribute(HOVER_CARD_AVATAR_ROW_ATTRIBUTE),
+      );
+      markedHoverCardSingleActions.forEach((actionRow) =>
+        actionRow.removeAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE),
+      );
+      markedHoverCards.clear();
+      markedHoverCardAvatarRows.clear();
+      markedHoverCardSingleActions.clear();
+      markedRelatedQuestionLinks.forEach((link) => {
+        link.removeAttribute("title");
+        link.removeAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE);
+      });
+      markedRelatedQuestionLinks.clear();
+      started = false;
+    };
+
+    return { destroy, setMode, start };
+  };
+
+  const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
+    .SearchMain:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"]
+      )
+    )
+    > div,
+  html[data-zb-theme]
+    .SearchMain:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"]
+      )
+    )
+    > div
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Block:thinking_blcok"],
+      [data-testid="Block:zhida_answer_result_block"]
+    )
+    :is(.Render-markdown, div[dir="auto"]) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"],
+      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"],
+      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex]) {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    :where(div, span) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .Popover-content:has(
+      [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:nth-child(3) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:nth-child(4) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
+    > div:last-child
+    :where(svg, path) {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    h1 {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item:is(:hover, :focus-visible)
+    h1 {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    h1
+    + div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    div:has(> h1)
+    + div,
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item
+    > div
+    > div:last-child {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item
+    > div
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid
+      color-mix(in srgb, var(--zb-primary) 36%, transparent) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      .KfeCollection-PcCollegeCard-wrapper,
+      .KfeCollection-PcCollegeCard-root,
+      .KfeCollection-PcCollegeCard
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    > div
+    > div
+    > div:has(
+      :is(
+        [data-testid="Block:thinking_blcok"],
+        [data-testid="Block:zhida_answer_result_block"],
+        [data-testid="Block:zhida_input_box"]
+      )
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Block:zhida_answer_result_block"],
+      [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
+    ) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="discovery-answer-fade-mask"] {
+    background: linear-gradient(transparent, var(--zb-surface)) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]
+    > div {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]
+    :where(span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:expand_btn"]:is(:hover, :focus-visible, :focus-within)
+    > div {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-content-discovery-heading] {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"] {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    .zhida-rn-skeleton-motion::after {
+    background-image: linear-gradient(
+      110deg,
+      transparent 0%,
+      transparent 35%,
+      color-mix(in srgb, var(--zb-text-subtle) 22%, transparent) 50%,
+      transparent 65%,
+      transparent 100%
+    ) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="answer-thinking-text"] {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom] {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"],
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"]
+    :where(div, span, svg, path),
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > [tabindex="0"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox] {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-subtle) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox][data-zb-ai-share-checkbox-checked="true"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-user-question] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-user-question]
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Block:thinking_blcok"]) {
+    justify-content: center !important;
+    height: auto !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:thinking_blcok"] {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:thinking_blcok"]
+    > div {
+    box-sizing: border-box !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: auto !important;
+    min-height: 44px !important;
+    padding: 4px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    ) {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    padding: 7px 8px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:reference_card_block_more_btn"] {
+    flex: 0 0 auto !important;
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    )
+    > div {
+    box-sizing: border-box !important;
+    width: auto !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    )
+    :where(div, span) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="Button:thinking_node"],
+      [data-testid="Button:reference_card_block_more_btn"]
+    ):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"] [data-zb-ai-source-panel] {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    :where(div, span) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child
+    > div {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:first-child
+    > div:last-child
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    > div:last-child
+    > div
+    > div {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"] {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div {
+    box-sizing: border-box !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:first-child
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:first-child
+    span:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    div[style*="border-bottom-width"]
+    > div
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]
+    div[style*="width: 24px"][style*="height: 24px"] {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]:is(:hover, :focus-visible)
+    div[style*="width: 24px"][style*="height: 24px"] {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [data-testid="Card:reference_card"]
+    div[style*="cursor: pointer"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    [data-zb-ai-source-panel]
+    [style*="color: rgb(23, 114, 246)"] {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      + div
+        > div
+        > div
+        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    )
+    :where(div, span) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > div
+        > div
+        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    ) {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div
+    > div {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]:is(
+      :hover,
+      :focus-visible
+    )
+    > div {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
+    > div:not([style*="background-color: rgb(248, 248, 250)"]) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-surface) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:hover {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {
+    background-color: var(--zb-primary-soft) !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible
+    ):not(
+      :has(
+        > [data-testid="Card:OpenUrl:ai_search_content_card"]
+          + [data-testid="Card:OpenUrl:ai_search_content_card"]
+      )
+    ) {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"])
+    > div:first-child:not([data-testid]) {
+    background: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    ) {
+    padding: 0 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]:last-child {
+    border-bottom: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:last-child[style*="background-color"] {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]
+    :where(div, span, p, h1, h2, h3, strong) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:first-child
+    > :is(div:nth-child(2), div:nth-child(4)) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    div:has(
+      > [data-testid="Card:OpenUrl:ai_search_content_card"]
+        + [data-testid="Card:OpenUrl:ai_search_content_card"]
+    )
+    > [data-testid="Card:OpenUrl:ai_search_content_card"]
+    > div:first-child
+    > div:nth-child(3) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Card:OpenUrl:ai_search_content_card"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="SearchExpansionWord:Button:related_question_word"],
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
+    > div {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Button:ai_search_input_field_button"]
+    > div[style*="background-color: rgba(23, 114, 246, 0.12)"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    .InputLike.Editable {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="SearchExpansionWord:Button:related_question_word"],
+      [data-testid="Block:zhida_input_box"]
+    )
+    :where(div, span) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    :is(
+      [data-testid="SearchExpansionWord:Button:related_question_word"],
+      [data-testid="Block:zhida_input_box"]
+    ):is(:hover, :focus-visible, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    div[style*="background-color: rgb(173, 176, 183)"] {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-testid="Block:zhida_input_box"]
+    div[style*="background-color: rgb(173, 176, 183)"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+`;
+
+  const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child {
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px 12px 0 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child {
+    border-radius: 12px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:first-child {
+    background-color: var(--zb-page) !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div {
+    box-sizing: border-box !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+    margin-top: -2px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > section
+    > div
+    > div:has(.ContentItem) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    margin-bottom: 10px !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child {
+    height: auto !important;
+    padding-bottom: 20px !important;
+    border-top: 0 !important;
+    border-radius: 0 0 12px 12px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section {
+    box-sizing: border-box !important;
+    margin-top: 16px !important;
+    padding: 16px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > h4 {
+    margin: 0 !important;
+    color: var(--zb-text) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > div:first-of-type {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    margin: 12px 0 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > div:first-of-type
+    > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > div:last-of-type {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 12px !important;
+    height: auto !important;
+    margin-top: 14px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > div:last-of-type
+    > div:first-child {
+    flex: 0 0 auto !important;
+    color: var(--zb-text-subtle) !important;
+    -webkit-text-fill-color: var(--zb-text-subtle) !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    > section
+    > div:last-of-type
+    > div:last-child {
+    min-width: 0 !important;
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > section
+    > div
+    > div:has(.ContentItem):hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > section
+    > div
+    > div {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child
+    :where(div, span),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    :where(a, div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    > div:last-child
+    > div:first-child
+    :where(div, span),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .UserLink-link {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .FollowButton.Button--blue {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 64px !important;
+    min-height: 34px !important;
+    padding-inline: 12px !important;
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--ctp-crust) !important;
+    -webkit-text-fill-color: var(--ctp-crust) !important;
+    font-weight: 500 !important;
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .FollowButton.Button--blue
+    :where(span, svg, path) {
+    color: var(--ctp-crust) !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .FollowButton.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--ctp-crust) !important;
+    -webkit-text-fill-color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .FollowButton.Button--blue:hover
+    :where(span, svg, path) {
+    color: var(--ctp-crust) !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    + div
+    + div
+    > div:first-child
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    > div
+    > div:nth-child(2),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    > div
+    > div:nth-child(2)
+    :where(div, span),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .AuthorInfo
+    + div,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .AuthorInfo
+    + div
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton
+    + .Button.Button--blue {
+    box-sizing: border-box !important;
+    min-width: 96px !important;
+    min-height: 34px !important;
+    padding-inline: 14px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton.Button--blue,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton
+    + .Button.Button--blue {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+    -webkit-text-fill-color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton.Button--blue:hover,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton
+    + .Button.Button--blue:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton.Button--grey:hover {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton:focus-visible,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton
+    + .Button.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .Button--plain:has(.Zi--Dots) {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    padding: 5px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .Button--plain:has(.Zi--Dots):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .Button--plain:has(.Zi--Dots):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .App-main
+    > div
+    > .Card
+    .Button--plain:has(.Zi--Dots)
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    height: 32px !important;
+    padding-inline: 12px !important;
+    border-radius: 3px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    )
+    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-more:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-more:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
+    box-sizing: border-box !important;
+    margin-top: 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard p {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .Column-EmptyCard
+    svg
+    path:first-of-type {
+    fill: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-column-page="true"]
+    .Column-EmptyCard
+    svg
+    path:last-of-type {
+    fill: var(--zb-surface-raised) !important;
+  }
+
+`;
+
+  const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .CreatorIndex-BottomBox-Item {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    box-shadow: none !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorIndex-BottomBox-Item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorIndex-BottomBox-Item
+    > svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    .LevelInfoV2-creatorInfo {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a {
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> .ReactCollapse--collapse)
+    > div:first-child {
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> .ReactCollapse--collapse)
+    > div:first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a[href="/creator"],
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(
+      a[href="/creator/account/rights"],
+      a[href="/creator/account/growth-level"]
+    ) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a[href="/creator"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"]) {
+    z-index: 20 !important;
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    opacity: 1 !important;
+    box-shadow: var(--zb-shadow) !important;
+    isolation: isolate !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a {
+    background-color: transparent !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a
+    svg {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Sticky:has(> .Tabs),
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"]),
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"])
+    .Sticky {
+    background-color: var(--zb-page) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-item {
+    min-width: max-content !important;
+    flex: 0 0 auto !important;
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs {
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link {
+    box-sizing: border-box !important;
+    width: auto !important;
+    min-width: max-content !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px 0 !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Tabs-link.is-active {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    :where(div, span, p) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:first-child
+    .Sticky {
+    background-color: var(--zb-surface-raised) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:first-child
+    .Sticky
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child) {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    transition: background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child):hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    > div:nth-child(-n + 3) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    > div:nth-child(-n + 3)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    label:has(> input[type="checkbox"]) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > .Tabs
+    + div
+    + div
+    > div:not(:first-child)
+    label:has(> input[type="checkbox"]:checked) {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Popover:has(> .Select-button[role="combobox"]) {
+    box-sizing: border-box !important;
+    height: 34px !important;
+    padding: 0 10px 0 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Popover:has(
+      > .Select-button[role="combobox"]:is(
+          :hover,
+          :focus-visible,
+          [aria-expanded="true"]
+        )
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Select-button[role="combobox"] {
+    height: 32px !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    color: inherit !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .Select-button[role="combobox"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content:has(> .Select-list) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list {
+    padding: 6px 0 !important;
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list
+    > .Select-option {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin: 0 6px !important;
+    padding: 0 12px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Popover-content
+    > .Select-list
+    > .Select-option:is(:hover, :focus, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreatorRangePicker-Button {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreatorRangePicker-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    > div
+    > div:has(> [role="list"])
+    > div:has(+ [role="list"])
+    .Sticky
+    > div:first-child {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard {
+    box-sizing: border-box !important;
+    margin: 0 16px 10px !important;
+    padding: 20px 16px !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      0 0 0 2px var(--zb-primary-soft),
+      var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    .CreationCardTitle-wrapper
+    > div
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    .CreationCardTitle-wrapper
+    > div
+    > span:last-child {
+    color: var(--zb-primary) !important;
+    font-size: 18px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type:is(:hover, :focus-visible)
+    .CreationCardTitle-wrapper
+    > div
+    > span:last-child {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:first-of-type:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:nth-of-type(2) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > a:nth-of-type(2)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator-mainColumn
+    > .Card
+    .CreationManage-CreationCard
+    > div:last-child
+    :is(a, button):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton {
+    background-color: var(--zb-surface-raised) !important;
+    background-image: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 25%,
+      var(--zb-surface-hover) 75%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton::after {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-surface-hover) 80%,
+      transparent
+    ) !important;
+    box-shadow: 0 0 70px 70px
+      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div > div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    ) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card):not(:has(> div:only-child)),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    ) {
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section) {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    > div::after {
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div {
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div
+    svg {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    > div
+    > div:has(> section)
+    + div
+    + div
+    > div
+    > div:has(> .ZDI--Broadcast16)
+    > div:last-child {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    + div
+    > div:first-child
+    a[href^="/creator/analytics/work/"]
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    [role="complementary"]
+    > div:not(.Card):not(:has(> div:only-child))
+    > div:last-child {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    [role="complementary"]
+    > div:not(.Card):not(:has(> div:only-child))
+    > div:not(:has(a, button, img))
+    div[class]:empty {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    :where(div, span, p, strong) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    :is(a, button):is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+`;
+
+  const HOME_PAGE_STYLE = `  html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-mainColumnCard,
   html[data-zb-theme][data-zb-home-page="true"]
     .Topstory-mainColumnCard
@@ -13125,6 +13464,2192 @@ ${createPaletteVariables("mocha")}
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: visible !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-mainColumn
+    > .WriteArea
+    > div
+    > div:has(> img[src*="/heifetz/assets/"])::after {
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem {
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title
+    a {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title:is(:hover, :focus-within),
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-title
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue:hover {
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-container
+    .FollowButton.Button--blue:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(
+      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
+    )
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
+  }
+`;
+
+  const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"],
+  html[data-zb-theme][data-zb-paper-page="true"] body,
+  html[data-zb-theme][data-zb-paper-page="true"] body > div:first-child {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-inline: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child {
+    background-color: var(--zb-surface-raised) !important;
+    background-image: none !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div:first-child {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div:last-child {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:nth-child(2) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child
+    > div:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:first-child
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child
+    > div:last-child {
+    color: var(--zb-text-subtle) !important;
+    -webkit-text-fill-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section
+    h2 {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section
+    :is(p, li, div) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(1)
+    p,
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(3) {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(4) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(2)
+    button {
+    box-sizing: border-box !important;
+    padding: 2px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > section:nth-of-type(2)
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 14%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button {
+    box-sizing: border-box !important;
+    border-radius: 999px !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:has(.ZDI--BookOpen24) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:nth-child(2) {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:last-child {
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
+    > button:is(:hover, :focus-visible) {
+    border-color: var(--zb-primary-hover) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-page="true"]
+    body
+    div:has(> section + section)
+    > div:has(> svg[viewBox="0 0 150 50"])
+    :where(svg, path) {
+    color: var(--zb-text-subtle) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"] body,
+  html[data-zb-theme][data-zb-paper-preview-page="true"] #app {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-root_"] {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-logo_"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    [class^="ShelfTopNav-module-avatar_"] {
+    border: 1px solid var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"]) {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    div {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    input {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(input[size="1"])
+    input:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16) {
+    background-color: var(--zb-primary-soft) !important;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--zb-primary) 42%, var(--zb-border)) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16)
+    > button {
+    color: inherit !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(> button .ZDI--ArrowRightSmall16)
+    > button:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary-soft) 72%,
+      var(--zb-surface-hover)
+    ) !important;
+    color: var(--zb-primary-hover) !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    > div:has(.pdfViewer) {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="放大"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="缩小"],
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="下载"] {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="放大"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="缩小"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label="下载"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"]
+    #app
+    button[aria-label]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {
+    background-color: #fff !important;
+  }
+
+`;
+
+  const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card {
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    :is(.UserCover, .UserCoverGuide) {
+    border-radius: 12px 12px 0 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper {
+    border-radius: 0 0 12px 12px !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader .UserAvatar {
+    background-color: var(--zb-surface) !important;
+    box-shadow: 0 0 0 4px var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    :is(.ProfileHeader-name, .ProfileHeader-detailValue) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    :is(.ProfileHeader-detailLabel, .ProfileHeader-expandButton) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    .ProfileHeader-expandButton:hover {
+    background-color: transparent !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    .ProfileHeader-expandButton:focus-visible {
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    .ProfileHeader-iconWrapper {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader
+    .ProfileHeader-iconWrapper
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-divider {
+    background-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .UserCoverGuide-dialog
+    :is(.UserCoverGuide-dialogHead, h4) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .UserCoverGuide-dialog
+    :is(.UserCoverGuide-dialogContent, .UserCoverGuide-dialogDescription) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .Button {
+    box-sizing: border-box !important;
+    min-height: 34px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .FollowButton
+    + .Button {
+    background-color: transparent !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .FollowButton
+    + .Button:hover {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .Button:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain-header {
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-tabs
+    .Tabs-link {
+    color: var(--zb-text-secondary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-tabs
+    .Tabs-link:hover {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-tabs
+    .Tabs-link.is-active {
+    color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-tabs
+    .Tabs-link:focus-visible {
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-tabs
+    .Tabs-meta {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-header
+    div:has(> button :is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
+    background: linear-gradient(
+      to left,
+      var(--zb-surface) 0,
+      var(--zb-surface) 56px,
+      transparent 100%
+    ) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-header
+    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-header
+    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):hover {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-header
+    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain-header
+    button
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-header {
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    :is(.List-header, .List-item)::after {
+    background-color: var(--zb-border) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-item {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-lineComments
+    .List-item
+    > div
+    > div
+    > div
+    > a:first-child
+    > div {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-lineComments
+    .List-item
+    > div
+    > div
+    > div
+    > div:last-child
+    > div:last-child
+    > a
+    > div {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-lineComments
+    .List-item
+    > div
+    > div
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child,
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-lineComments
+    .List-item
+    > div
+    > div
+    > div
+    > div:last-child
+    > div:last-child
+    > div:last-child
+    > div {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-lineComments
+    .List-item
+    a:hover
+    > div {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button--iconOnly:not(.VoteButton) {
+    min-width: 28px !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton):focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button[aria-label="已收藏"] {
+    color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    height: 34px !important;
+    padding-inline: 10px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .VoteButton:disabled {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: transparent !important;
+    color: var(--zb-text-subtle) !important;
+    cursor: not-allowed !important;
+    opacity: 0.72 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Card,
+  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Profile-lightList {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(a[href="/creator"], a[href="/question/waiting"]) {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 40px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(a[href="/creator"], a[href="/question/waiting"]):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(a[href="/creator"], a[href="/question/waiting"]):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(a[href="/creator"], a[href="/question/waiting"])
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(
+      .Profile-sideColumnTitle,
+      .Profile-sideColumnItemValue,
+      .Profile-lightItemValue,
+      .NumberBoard-itemValue,
+      .ProfileSideCreator-readCountNumber
+    ) {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(
+      .Profile-sideColumnItemTitle,
+      .Profile-lightItemName,
+      .NumberBoard-itemName,
+      .ProfileSideCreator-readCountTitle
+    ) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(
+      .NumberBoard-itemInner,
+      .Profile-sideColumnItem,
+      .Profile-lightItem
+    ) {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(
+      .Card-header,
+      .Profile-footerOperations,
+      .ProfileSideCreator-readCountItem
+    ) {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    .Profile-lightItem {
+    border-top: 1px solid var(--zb-border) !important;
+    border-bottom: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    .Profile-lightItem:first-child {
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(.NumberBoard-item.Button, .Profile-lightItem):focus-visible {
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(.Footer, footer) {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(.Footer, footer)
+    :where(a, button, div, span, p, svg) {
+    color: inherit !important;
+  }
+
+`;
+
+  const QUESTION_PAGE_STYLE = `  /* Question page */
+  html[data-zb-theme] .QuestionHeader,
+  html[data-zb-theme] .QuestionHeader-content,
+  html[data-zb-theme] .QuestionHeader-main,
+  html[data-zb-theme] .QuestionHeader-side,
+  html[data-zb-theme] .QuestionHeader-footer,
+  html[data-zb-theme] .QuestionHeader-footer-inner,
+  html[data-zb-theme] .QuestionHeader-footer-main {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader {
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-title,
+  html[data-zb-theme] .QuestionHeader-title a,
+  html[data-zb-theme] .QuestionHeader-detail,
+  html[data-zb-theme] .QuestionHeader-detail .RichText,
+  html[data-zb-theme] .QuestionHeader .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .NumberBoard-itemName,
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts,
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts div,
+  html[data-zb-theme] .QuestionHeader .QuestionHeaderActions-label {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts {
+    column-gap: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionFollowStatus-counts
+    .NumberBoard-itemInner {
+    border-left-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .NumberBoard-item.Button:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .NumberBoard-item.Button:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionFollowStatus-people:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  /* Topic entity cards use generated class names. Target the semantic label
+     and direct-child position so the selector survives Zhihu CSS rebuilds
+     without also matching the compact topic chips above the question. */
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-text) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type,
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    .topicMetaTitle {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    > div:last-child,
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    > div:first-child
+    > div:not(.topicMetaTitle) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:first-of-type
+    span {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-main
+    > a[aria-label^="话题 "][href*="/topic/"]
+    > div:last-of-type
+    > button[aria-pressed="true"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  /* Latest-progress cards use generated class names and receive analytics
+     attributes during hydration. Anchor to the server-rendered semantic icon
+     so the title color applies on the first paint instead of after hydration. */
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child,
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child
+    :where(div, span) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a
+    > div:last-child
+    svg {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible)
+    > div:last-child,
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:is(:hover, :focus-visible)
+    > div:last-child
+    :where(div, span, svg) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Card:has(> div:first-child .Zi--LabelSpecial)
+    > div:last-child
+    > div
+    > a:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  /* Question and answer page links follow semantic roles instead of Zhihu's
+     native blue palette. Keep identity links calm, metadata subdued, and
+     reserve the accent color for topics, content links, and interaction. */
+  html[data-zb-theme] .QuestionHeader-topics :is(a, .TopicLink, .Tag-content),
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content)
+    :where(span, div) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content):hover,
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    :is(a, .TopicLink, .Tag-content):hover
+    :where(span, div) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-topics .QuestionTopic {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-topics
+    .QuestionTopic:is(:hover, :focus-within) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary) 24%,
+      transparent
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"]) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    > svg {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > div:first-of-type {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > div:last-of-type {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > svg:first-child {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
+    a
+    > svg:last-child {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .BrandQuestionSymbol-name,
+      .AuthorInfo-name a,
+      .UserLink-link
+    ) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .BrandQuestionSymbol-name,
+      .AuthorInfo-name a,
+      .UserLink-link
+    ):hover {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-time, .ContentItem-time a) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-time
+    a:hover {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag),
+  html[data-zb-theme] .QuestionHeader-detail .RichText a,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord {
+    color: var(--zb-primary) !important;
+    text-decoration-color: transparent !important;
+    text-decoration-thickness: 1px !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):hover,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.RichText, .RichContent-inner)
+    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):focus-visible,
+  html[data-zb-theme] .QuestionHeader-detail .RichText a:hover,
+  html[data-zb-theme] .QuestionHeader-detail .RichText a:focus-visible,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:hover,
+  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:focus-visible {
+    color: var(--zb-primary-hover) !important;
+    text-decoration: underline !important;
+    text-decoration-color: currentColor !important;
+    text-decoration-thickness: 1px !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .RichText
+    a.LinkCard:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-desc {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText .LinkCard .tag {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText table {
+    border: 1px solid var(--zb-border) !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText :is(th, td) {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-right: 1px solid var(--zb-border) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText th {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
+    border-right: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .RichText
+    tbody
+    tr:last-child
+    > td {
+    border-bottom: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    div:has(
+      > div
+        > a[href*="zhida_source=below_banner_question"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"] {
+    border-radius: 6px !important;
+    color: var(--zb-text-secondary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]
+    > p {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]:is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    a[href*="zhida_source=below_banner_question"]
+    :is(svg, path) {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(
+      .BrandQuestionSymbol-brandLink,
+      .AuthorInfo-name a,
+      .UserLink-link,
+      .ContentItem-time a,
+      .QuestionHeader-topics a,
+      .RelatedQuestions-item a,
+      .SimilarQuestions-item a,
+      .NumberBoard-item
+    ):focus-visible {
+    color: var(--zb-primary) !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .BrandQuestionSymbol-brandLink:is(:hover, :focus-visible)
+    .BrandQuestionSymbol-name {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem .AuthorInfo, .AnswerAuthor)
+    img.Avatar {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AuthorInfo
+    .UserLink:focus-visible {
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    )
+    :is(div, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    div[style*="cursor: pointer"]:has(
+      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
+    ):hover {
+    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    )
+    :is(div, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ):is(:hover, :focus-visible) {
+    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .ContentItem-meta
+    :is(
+      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
+      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
+    ):focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    > svg {
+    color: var(--zb-surface-raised) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"],
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    * {
+    color: var(--zb-text) !important;
+    font-weight: 600 !important;
+  }
+
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    body
+    div:has(
+      > div
+        > div
+        > div
+        > .QuestionStatus-notification-inner
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-inner,
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-content {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-content
+    .UserLink-link {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .Button {
+    min-height: 24px !important;
+    padding: 2px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    outline: 0 !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .QuestionStatus-notification-primary {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-actions
+    .Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-divider {
+    margin: 0 2px !important;
+    background-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-closeButton {
+    width: 24px !important;
+    min-width: 24px !important;
+    padding: 2px !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionStatus-notification-closeButton
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
+    background-color: var(--zb-surface) !important;
+    border-radius: inherit !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal:has(.QuestionInvitation) {
+    background-color: transparent !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal-inner:has(.QuestionInvitation) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .Modal-content:has(> .QuestionInvitation) {
+    border-radius: inherit !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    > .Topbar {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input
+    :is(.Input, svg) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    .AutoInviteItem-wrapper--desktop {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 24px) !important;
+    margin: 0 12px !important;
+    padding: 12px !important;
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-content
+    > .List
+    > .List-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    :is(.ContentItem-statusItem, .ContentItem-meta) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .ContentItem-extra
+    .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .ContentItem-extra
+    .Button:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link {
+    min-width: 80px !important;
+    min-height: 32px !important;
+    padding: 0 8px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+    outline: 0 !important;
+    white-space: nowrap !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link:is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+`;
+
+  const RING_PAGE_STYLE = `
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    > :first-child
+    > :first-child {
+    color: var(--zb-text) !important;
   }
 
   html[data-zb-theme][data-zb-ring-index-page="true"] .App-main,
@@ -15150,735 +17675,861 @@ ${createPaletteVariables("mocha")}
     svg {
     fill: currentColor !important;
   }
+`;
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea {
+  const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link {
+    color: var(--zb-text-muted) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link:hover,
+  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .SearchTabs-customFilterEntry {
+    color: var(--zb-text-muted) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Search-container,
+  html[data-zb-theme] .SearchMain,
+  html[data-zb-theme] .HotLanding {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .SearchMain > .ListShortcut,
+  html[data-zb-theme] .SearchMain > .ListShortcut > .List {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card,
+  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
     box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea
-    > div
-    > div:has(> img[src*="/heifetz/assets/"])::after {
-    border-top-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem,
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
-    box-sizing: border-box !important;
-    margin-bottom: 10px !important;
-    background-clip: padding-box !important;
+    background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
-    overflow: clip !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card {
+    padding-top: 0 !important;
     transition: border-color 0.16s ease !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:hover,
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
+  html[data-zb-theme] .SearchMain .SearchResult-Card:hover {
     border-color: var(--zb-border-strong) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:focus-visible,
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible {
+  html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {
     border-color: var(--zb-primary) !important;
     box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+      0 0 0 2px var(--zb-primary-soft),
+      var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title
-    a,
   html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-title,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-title
-    a {
+    .SearchMain
+    .SearchResult-Card
+    :is(.ContentItem-title, .ContentItem-title a) {
     color: var(--zb-primary) !important;
     transition: color 0.16s ease !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title:is(:hover, :focus-within),
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title
-    a:is(:hover, :focus-visible),
   html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-title:is(:hover, :focus-within),
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-title
-    a:is(:hover, :focus-visible) {
+    .SearchMain
+    .SearchResult-Card
+    :is(
+      .ContentItem-title:hover,
+      .ContentItem-title:focus-within,
+      .ContentItem-title a:hover,
+      .ContentItem-title a:focus-visible
+    ) {
     color: var(--zb-primary-hover) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue,
   html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .FollowButton.Button--blue {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 999px !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue:hover,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .FollowButton.Button--blue:hover {
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue:focus-visible,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton),
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:focus-visible,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):hover,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):focus-visible,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(
-      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
-    )
-    svg,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(
-      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
-    )
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .VoteButton {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: transparent !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .VoteButton:hover,
-  html[data-zb-theme] .VoteButton[aria-pressed="true"],
-  html[data-zb-theme] .VoteButton.is-active {
-    background-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .PinItem .PinToolbar-actions {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    .LinkCard-wrapper {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-excerpt, .LinkCard-desc) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
-    background-color: var(--zb-surface-hover) !important;
-    border-radius: 4px !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard:is(:hover, :focus-visible) {
-    background: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    > .PinToolbar-actions {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    margin: -10px 0 !important;
-    padding: 10px 0 !important;
-    background-color: transparent !important;
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
+    .SearchMain
+    .SearchResult-Card
     :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
+      .RichContent-inner,
+      .RichContent-inner .RichText,
+      .SearchItem-meta.Highlight
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
   }
 
   html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .VoteButton:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    main
-    .PinDetail
-    .PinItem
-    .Comments-container
-    > div
-    > div:has(.InputLike.Editable) {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    margin: 0 !important;
-    margin-right: 0 !important;
-    margin-left: 0 !important;
-    padding: 10px 0 !important;
-    padding-inline: 0 !important;
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .Comments-container
-    .InputLike.Editable {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .PinDetail .FollowButton.Button--grey {
+    .SearchMain
+    .SearchResult-Card
+    .FollowButton.Button--grey {
     background-color: var(--zb-surface-raised) !important;
     border-color: var(--zb-border-strong) !important;
     color: var(--zb-text-muted) !important;
     -webkit-text-fill-color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
   }
 
   html[data-zb-theme]
-    .PinDetail
+    .SearchMain
+    .SearchResult-Card
+    .FollowButton.Button--grey:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(
+      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
+    )
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
     border-color: var(--zb-danger) !important;
     color: var(--zb-danger) !important;
     -webkit-text-fill-color: var(--zb-danger) !important;
     outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .FollowButton.Button--grey:is(:hover, :focus-visible)
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .FollowButton.Button--grey:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
   }
 
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"] {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
+  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
+    margin-bottom: 12px !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs {
+    box-sizing: border-box !important;
+    display: flex !important;
+    height: auto !important;
+    min-height: 58px !important;
+    padding: 12px 16px !important;
+    align-items: center !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    line-height: normal !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs {
+    display: flex !important;
+    height: auto !important;
+    width: 100% !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    border-bottom: 0 !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-item {
+    display: flex !important;
+    height: auto !important;
+    padding: 0 !important;
+    align-items: center !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    min-height: 32px !important;
+    padding: 5px 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
     transition:
       background-color 0.16s ease,
       border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
+      color 0.16s ease !important;
   }
 
   html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link:hover {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 36%,
+      transparent
+    ) !important;
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]:is(:hover, :focus-visible) {
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link.is-active {
     background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
     color: var(--ctp-crust) !important;
+    font-weight: 600 !important;
   }
 
   html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]:focus-visible {
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link.is-active:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
+    border-color: var(--zb-primary) !important;
     outline: 0 !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme] .ProfileSideCreator-analytics,
-  html[data-zb-theme] .KfeCollection-CreateSaltCard-content {
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    ) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div {
     background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + *,
-  html[data-zb-theme] [data-zb-home-sidebar] {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] [data-zb-home-sidebar] :where(div, span),
   html[data-zb-theme]
-    [data-za-detail-view-path-module="RightSideBar"]
-    .Card
-    :where(div, span) {
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div
+    > div:first-child {
     color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
   }
 
   html[data-zb-theme]
-    [aria-label="创作中心卡片"]
-    :where(div, span) {
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div
+    > svg {
     color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    [aria-label="创作中心卡片"]
-    .CreatorEntrance-creatorIcon {
-    color: var(--zb-text) !important;
     fill: currentColor !important;
   }
 
-  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card > div {
-    background-color: var(--zb-surface) !important;
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:first-child
+    > div:is(:hover, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
-    [data-za-detail-view-path-module="RightSideBar"]
-    .Card,
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 0 0 12px 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
   html[data-zb-theme]
-    [data-za-detail-view-path-module="RightSideBar"]
-    .Card
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
     > div {
     background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
     )
-    :is(.Card, .HotSearchCard) {
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child
+    .Button:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      + .SearchNoContent-wrap
+    )
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child
+    .Button:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div
+    > div:first-child {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div
+    > svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:first-child
+    > div:is(:hover, :focus-within) {
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 0 0 12px 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    > div {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    > div:last-child {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> div > div > .Zi--TriangleUp)
+    > div:has(> div > .Button.Button--secondary)
+    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> a[href*="/kvip/sku/paper/"]) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]:has(
+      a[href*="/kvip/sku/paper/"]
+    )
+    > div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]
+    a[href*="/kvip/sku/paper/"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    [data-za-detail-view-path-module="SearchResultList"]
+    a[href*="/kvip/sku/paper/"]:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:first-child {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+    font-weight: 600 !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)
+    > div:first-child {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(4),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(5) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3),
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3)
+    span {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    > div:nth-child(3)
+    span:has(.ZDI--ArrowRight24) {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    a[href*="/kvip/sku/paper/"]
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    > .List-item
+    > div
+    > div:has(+ div .HotLanding-title) {
+    background: var(--zb-surface-raised) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-title,
+  html[data-zb-theme] .HotLanding-ListTitle,
+  html[data-zb-theme] .HotLanding-contentItemTitle {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-title + div,
+  html[data-zb-theme] .HotLanding-contentItemCount,
+  html[data-zb-theme] .SearchItem-time {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-content {
+    border-left-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .HotLanding-contentItem {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .HotLanding .Highlight em {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: border-box !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    .RichContent-actions.is-fixed
+    > .ContentItem-actions.ContentItem-action {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .VoteButton {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
+    .Zi--Star,
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button[aria-label="已收藏"]
+    .Zi--Star {
+    color: var(--zb-warning) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    )
+    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
+    svg {
+    color: var(--zb-danger) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard-title,
+  html[data-zb-theme] .Search-container .HotSearchCard-itemText,
+  html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Search-container .HotSearchCard {
     box-sizing: border-box !important;
     border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:is(
-      :focus-visible,
-      :has(> :is(a, button):focus-visible)
-    ) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card,
-  html[data-zb-theme] [data-zb-home-sidebar] .Card,
-  html[data-zb-theme] [aria-label="创作中心卡片"] {
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border-color: var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      .CreatorEntrance-hint,
-      .ProfileSideCreator-readCountNumber,
-      .HotSearchCard-title,
-      .HotSearchCard-itemText,
-      .KfeCollection-CreateSaltCard-content-title
-    ) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      .HotSearchCard-heat,
-      .KfeCollection-CreateSaltCard-content-sub-title
-  ) {
+  html[data-zb-theme] .Search-container .HotSearchCard-heat {
     color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
+    .Search-container
     :is(.HotSearchCard-item, .HotSearchCard-itemLink) {
     border-radius: 10px !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-item {
+  html[data-zb-theme] .Search-container .HotSearchCard-item {
     box-sizing: border-box !important;
     margin: 4px -8px !important;
-    overflow: hidden !important;
     padding: 6px 8px !important;
+    overflow: hidden !important;
     transition:
       background-color 0.16s ease,
       box-shadow 0.16s ease !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-item:hover {
+  html[data-zb-theme] .Search-container .HotSearchCard-item:hover {
     background-color: var(--zb-surface-raised) !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-item:focus-within {
+  html[data-zb-theme] .Search-container .HotSearchCard-item:focus-within {
     background-color: var(--zb-surface-raised) !important;
     box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-itemLink:focus-visible {
+  html[data-zb-theme] .Search-container .HotSearchCard-itemLink:focus-visible {
+    color: var(--zb-primary) !important;
     outline: 0 !important;
   }
 
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-tag {
+  html[data-zb-theme] .Search-container .HotSearchCard-tag {
     box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -15890,564 +18541,30 @@ ${createPaletteVariables("mocha")}
     white-space: nowrap !important;
   }
 
+  html[data-zb-theme] .Search-container footer[role="contentinfo"],
   html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    > div:has(> div > div > .FollowButton) {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    > div:has(> div > div > .FollowButton)
-    > div:has(.FollowButton) {
-    box-sizing: border-box !important;
-    flex: 0 0 100% !important;
-    width: 100% !important;
-    min-width: 100% !important;
-    padding-right: 8px !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
-    ) {
-    box-sizing: border-box !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 36px !important;
-    padding-inline: 12px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
-    ):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
-    )
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    div:has(> .AuthorInfo + .FollowButton) {
-    box-sizing: border-box !important;
-    display: flex !important;
-    align-items: center !important;
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    div:has(> .AuthorInfo + .FollowButton)
-    > .AuthorInfo {
-    flex: 1 1 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .AuthorInfo-content {
-    width: auto !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    :is(.AuthorInfo-head, .AuthorInfo-detail) {
-    max-width: 100% !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    min-width: 64px !important;
-    min-height: 34px !important;
-    margin-left: 8px !important;
-    padding-inline: 12px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-    white-space: nowrap !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    .Card:has(.FollowButton)
-    .FollowButton
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .HotSearchCard-tagHot {
-    background-color: var(--zb-danger-soft) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme] .HotSearchCard-tagActivity {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .HotSearchCard-dot {
-    background-color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:is(
-      :has(.OrgCreateButton),
-      :has(a[href^="/term/"]),
-      :has(a[href*="/certificates"]),
-      :has(a[href="/question/19581624"])
-    ) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme]
-    div:has(> [role="dialog"][id^="react-aria-"]) {
-    background-color: var(--zb-surface) !important;
-    border: 0 !important;
-    border-radius: 10px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    div:has(> [role="dialog"][id^="react-aria-"])
-    > svg {
-    color: var(--zb-surface) !important;
-    fill: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div)
-    > svg {
-    color: var(--zb-surface-raised) !important;
-    fill: var(--zb-surface-raised) !important;
-    filter: drop-shadow(0 1px 0 var(--zb-border-strong)) !important;
-    left: 50% !important;
-    margin-top: 4px !important;
-    stroke: none !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div)
-    > div {
-    background-color: transparent !important;
-    padding-block: 4px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div)
-    > svg
-    + div {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-    opacity: 1 !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div)
-    > div
-    > div {
-    background-color: transparent !important;
-    border-radius: 4px !important;
-    box-sizing: border-box !important;
-    color: var(--zb-text-muted) !important;
-    cursor: pointer !important;
-    margin-inline: 4px !important;
-    min-height: 36px !important;
-    padding-inline: 10px !important;
-    width: calc(100% - 8px) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[width="26"][height="10"] + div)
-    > div
-    > div:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:is(
-      :has(.OrgCreateButton),
-      :has(a[href^="/term/"]),
-      :has(a[href*="/certificates"]),
-      :has(a[href="/question/19581624"])
-    )
-    > :where(a, div) {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:is(
-      :has(.OrgCreateButton),
-      :has(a[href^="/term/"]),
-      :has(a[href*="/certificates"]),
-      :has(a[href="/question/19581624"])
-    )
-    > :where(a, div):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:has(.OrgCreateButton)
-    .OrgCreateButton {
-    width: 100% !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:has(.OrgCreateButton)
-    .OrgCreateButton:hover {
-    background-color: transparent !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    [role="dialog"]:has(a[href*="/certificates"])
-    > div:last-child {
+    .Search-container
+    footer[role="contentinfo"]
+    :is(a, button, div, span, svg) {
     color: var(--zb-text-subtle) !important;
   }
 
-  html[data-zb-theme] blockquote {
-    border-color: var(--ctp-lavender) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] pre,
-  html[data-zb-theme] code,
-  html[data-zb-theme] .highlight {
-    background-color: var(--ctp-crust) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] hr {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .LoadingBar {
-    background-color: var(--zb-primary) !important;
+  html[data-zb-theme]
+    .Search-container
+    footer[role="contentinfo"]
+    :is(a, button):is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
-    div:has(
-      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
-    ) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    div:has(
-      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
-    )
-    .BounceLoading-child {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Skeleton,
-  html[data-zb-theme] [class*="Skeleton"],
-  html[data-zb-theme] .PlaceHolder,
-  html[data-zb-theme] .PlaceHolder-inner {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder,
-  html[data-zb-theme] .QuestionPage .PlaceHolder-inner {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder {
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder-mask,
-  html[data-zb-theme] .QuestionPage .PlaceHolder-mask path {
-    color: var(--zb-surface) !important;
+    .Search-container
+    footer[role="contentinfo"]
+    svg {
     fill: currentColor !important;
   }
+`;
 
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
-    background-color: var(--zb-surface-raised) !important;
-    border-radius: 4px !important;
-  }
-
-  html[data-zb-theme] .skeleton {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .skeleton__line {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 25%,
-      var(--zb-surface-hover) 75%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme] .skeleton__line::after {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-surface-hover) 80%,
-      transparent
-    ) !important;
-    box-shadow: 0 0 20px 20px
-      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
-  }
-
-  html[data-zb-theme] .Topstory-mainColumnCard:empty {
-    background-color: var(--zb-page) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
+  const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"]
     :is(
       .Card:has(.TopicMetaCard),
       .Card:has(> .NumberBoard),
@@ -17045,1218 +19162,60 @@ ${createPaletteVariables("mocha")}
     fill: currentColor !important;
   }
 
-  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .CreatorIndex-BottomBox-Item {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    box-shadow: none !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorIndex-BottomBox-Item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorIndex-BottomBox-Item
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    .LevelInfoV2-creatorInfo {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a {
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> .ReactCollapse--collapse)
-    > div:first-child {
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> .ReactCollapse--collapse)
-    > div:first-child
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a[href="/creator"],
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(
-      a[href="/creator/account/rights"],
-      a[href="/creator/account/growth-level"]
-    ) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a[href="/creator"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"]) {
-    z-index: 20 !important;
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    opacity: 1 !important;
-    box-shadow: var(--zb-shadow) !important;
-    isolation: isolate !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a {
-    background-color: transparent !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Sticky:has(> .Tabs),
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"]),
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"])
-    .Sticky {
-    background-color: var(--zb-page) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-item {
-    min-width: max-content !important;
-    flex: 0 0 auto !important;
-    padding-right: 4px !important;
-    padding-left: 4px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs {
-    min-width: 0 !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link {
-    box-sizing: border-box !important;
-    width: auto !important;
-    min-width: max-content !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 8px 0 !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    white-space: nowrap !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    :where(div, span, p) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:first-child
-    .Sticky {
-    background-color: var(--zb-surface-raised) !important;
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:first-child
-    .Sticky
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child) {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    transition: background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child):hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    > div:nth-child(-n + 3) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    > div:nth-child(-n + 3)
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    label:has(> input[type="checkbox"]) {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    label:has(> input[type="checkbox"]:checked) {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Popover:has(> .Select-button[role="combobox"]) {
-    box-sizing: border-box !important;
-    height: 34px !important;
-    padding: 0 10px 0 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Popover:has(
-      > .Select-button[role="combobox"]:is(
-          :hover,
-          :focus-visible,
-          [aria-expanded="true"]
-        )
-    ) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"] {
-    height: 32px !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 8px !important;
-    color: inherit !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content:has(> .Select-list) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list {
-    padding: 6px 0 !important;
-    background-color: var(--zb-surface) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list
-    > .Select-option {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin: 0 6px !important;
-    padding: 0 12px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list
-    > .Select-option:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreatorRangePicker-Button {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreatorRangePicker-Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"])
-    > div:has(+ [role="list"])
-    .Sticky
-    > div:first-child {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard {
-    box-sizing: border-box !important;
-    margin: 0 16px 10px !important;
-    padding: 20px 16px !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      0 0 0 2px var(--zb-primary-soft),
-      var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    .CreationCardTitle-wrapper
-    > div
-    > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    .CreationCardTitle-wrapper
-    > div
-    > span:last-child {
-    color: var(--zb-primary) !important;
-    font-size: 18px !important;
-    font-weight: 500 !important;
-    line-height: 1.5 !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type:is(:hover, :focus-visible)
-    .CreationCardTitle-wrapper
-    > div
-    > span:last-child {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:nth-of-type(2) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:nth-of-type(2)
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > div:last-child
-    :is(a, button):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton {
-    background-color: var(--zb-surface-raised) !important;
-    background-image: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 25%,
-      var(--zb-surface-hover) 75%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton::after {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-surface-hover) 80%,
-      transparent
-    ) !important;
-    box-shadow: 0 0 70px 70px
-      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div > div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card):not(:has(> div:only-child)),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section) {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    > div::after {
-    border-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div {
-    background-color: transparent !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:has(> .ZDI--Broadcast16)
-    > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    + div
-    > div:first-child
-    a[href^="/creator/analytics/work/"]
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    [role="complementary"]
-    > div:not(.Card):not(:has(> div:only-child))
-    > div:last-child {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    [role="complementary"]
-    > div:not(.Card):not(:has(> div:only-child))
-    > div:not(:has(a, button, img))
-    div[class]:empty {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    :where(div, span, p, strong) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    a {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    :is(a, button):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
 `;
 
-  const EARLY_COLORS = {
-    latte: {
-      page: "#e6e9ef",
-      surface: "#eff1f5",
-      text: "#4c4f69",
+  const PAGE_STYLE_ENTRIES = [
+    {
+      pageKeys: "column",
+      styleId: "zb-column-page-theme-style",
+      styleText: COLUMN_PAGE_STYLE,
     },
-    frappe: {
-      page: "#292c3c",
-      surface: "#303446",
-      text: "#c6d0f5",
+    {
+      pageKeys: "creator",
+      styleId: "zb-creator-page-theme-style",
+      styleText: CREATOR_PAGE_STYLE,
     },
-    macchiato: {
-      page: "#1e2030",
-      surface: "#24273a",
-      text: "#cad3f5",
+    {
+      pageKeys: "home",
+      styleId: "zb-home-page-theme-style",
+      styleText: HOME_PAGE_STYLE,
     },
-    mocha: {
-      page: "#181825",
-      surface: "#1e1e2e",
-      text: "#cdd6f4",
+    {
+      pageKeys: "search",
+      styleId: "zb-search-page-theme-style",
+      styleText: SEARCH_PAGE_STYLE,
     },
-  };
-
-  const createEarlyFlavorRule = (name) => {
-    const colors = EARLY_COLORS[name];
-    return `
-  html[data-zb-theme="${name}"] {
-    --zb-early-page: ${colors.page};
-    --zb-early-surface: ${colors.surface};
-    --zb-early-text: ${colors.text};
-    color-scheme: ${name === "latte" ? "light" : "dark"};
-  }`;
-  };
-
-  const flavorRules = Object.keys(EARLY_COLORS).map(createEarlyFlavorRule).join("\n");
-
-  const CRITICAL_THEME_STYLE = `
-${flavorRules}
-
-  html[data-zb-theme="system"] {
-    --zb-early-page: ${EARLY_COLORS.latte.page};
-    --zb-early-surface: ${EARLY_COLORS.latte.surface};
-    --zb-early-text: ${EARLY_COLORS.latte.text};
-    color-scheme: light;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    html[data-zb-theme="system"] {
-      --zb-early-page: ${EARLY_COLORS.mocha.page};
-      --zb-early-surface: ${EARLY_COLORS.mocha.surface};
-      --zb-early-text: ${EARLY_COLORS.mocha.text};
-      color-scheme: dark;
-    }
-  }
-
-  html[data-zb-theme],
-  html[data-zb-theme] body,
-  html[data-zb-theme] #root,
-  html[data-zb-theme] .App-main,
-  html[data-zb-theme] .Search-container,
-  html[data-zb-theme] .SearchMain {
-    background-color: var(--zb-early-page) !important;
-    color: var(--zb-early-text) !important;
-  }
-
-  html[data-zb-theme] .SearchMain > div,
-  html[data-zb-theme] .SearchMain > div > div {
-    background-color: var(--zb-early-surface) !important;
-    color: var(--zb-early-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card,
-  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div,
-  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div,
-  html[data-zb-theme][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div
-    > div:first-child
-    .Sticky {
-    background-color: var(--zb-early-surface) !important;
-    border-color: var(--zb-early-page) !important;
-    color: var(--zb-early-text) !important;
-  }
-`;
-
-  const THEME_STORAGE_KEY = "zhihu-beautification:theme";
-  const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
-
-  const THEME_ATTRIBUTE = "data-zb-theme";
-  const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
-  const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
-  const RELATED_QUESTION_TOOLTIP_ATTRIBUTE = "data-zb-related-question-tooltip";
-  const RELATED_QUESTION_LINK_SELECTOR = [
-    ".RelatedQuestions-item > a[href^='/question/']",
-    ".RelatedQuestions-listItem > a[href^='/question/']",
-    ".SimilarQuestions-item > a[href^='/question/']",
-  ].join(",");
-  const STYLE_ID = "zb-catppuccin-theme-style";
-  const CRITICAL_STYLE_ID = "zb-critical-theme-style";
-  const THEME_LABELS = {
-    system: "跟随系统（Latte / Mocha）",
-    latte: "Latte",
-    frappe: "Frappé",
-    macchiato: "Macchiato",
-    mocha: "Mocha",
-  };
-
-  const isThemeMode = (value) => THEME_MODES.includes(value);
-
-  const createThemeFeature = (browserWindow, settings) => {
-    const browserDocument = browserWindow.document;
-    const markedArrowPanels = new Set();
-    const markedArrowPanelWrappers = new Set();
-    const markedRelatedQuestionLinks = new Set();
-    const observedPortalRoots = new WeakSet();
-    const menuCommandIds = [];
-    let observer;
-    let mode;
-    let started = false;
-
-    const markArrowPanelFromIcon = (icon) => {
-      const button = icon.closest("button");
-      const thirdRow = button?.parentElement;
-      const panel = thirdRow?.parentElement;
-      const firstRow = panel?.firstElementChild;
-      const secondRow = panel?.children[1];
-      if (
-        !panel ||
-        panel.children[2] !== thirdRow ||
-        button?.parentElement !== thirdRow ||
-        firstRow?.childElementCount !== 1 ||
-        firstRow.firstElementChild?.tagName !== "SPAN" ||
-        secondRow?.hasChildNodes()
-      ) {
-        return;
-      }
-
-      panel.setAttribute(ARROW_PANEL_ATTRIBUTE, "");
-      markedArrowPanels.add(panel);
-
-      const wrapper = panel.parentElement;
-      if (wrapper) {
-        wrapper.setAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE, "");
-        markedArrowPanelWrappers.add(wrapper);
-      }
-    };
-
-    const markArrowPanels = (root = browserDocument) => {
-      if (root.nodeType === 1 && root.matches(".ZDI--ArrowRight24")) {
-        markArrowPanelFromIcon(root);
-      }
-      root.querySelectorAll?.(".ZDI--ArrowRight24").forEach(markArrowPanelFromIcon);
-    };
-
-    const observePortalRoot = (root) => {
-      if (root.nodeType !== 1 || root.id === "root" || observedPortalRoots.has(root)) return;
-
-      observedPortalRoots.add(root);
-      observer.observe(root, { childList: true, subtree: true });
-      markArrowPanels(root);
-    };
-
-    const handleMutations = (records) => {
-      records.forEach(({ addedNodes, target }) => {
-        addedNodes.forEach((node) => {
-          if (node.nodeType !== 1) return;
-
-          if (target === browserDocument.body) {
-            observePortalRoot(node);
-          } else {
-            markArrowPanels(node);
-          }
-        });
-      });
-    };
-
-    const setupPortalObserver = () => {
-      const body = browserDocument.body;
-      if (!body) return;
-
-      observer ??= new browserWindow.MutationObserver(handleMutations);
-      observer.observe(body, { childList: true });
-      Array.from(body.children).forEach(observePortalRoot);
-    };
-
-    const addRelatedQuestionTooltip = ({ target }) => {
-      const link = target?.closest?.(RELATED_QUESTION_LINK_SELECTOR);
-      if (!link) return;
-
-      const title = link.textContent.trim();
-      if (!title) return;
-
-      if (!link.hasAttribute("title") || link.hasAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE)) {
-        link.title = title;
-        link.setAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE, "");
-        markedRelatedQuestionLinks.add(link);
-      }
-    };
-
-    const updateMenuCommands = () => {
-      if (!settings?.menu?.register) return;
-
-      clearMenuCommands(settings.menu, menuCommandIds);
-      THEME_MODES.forEach((themeMode) => {
-        const marker = themeMode === mode ? "✓" : "○";
-        const commandId = settings.menu.register(`${marker} 主题：${THEME_LABELS[themeMode]}`, () =>
-          setMode(themeMode),
-        );
-        menuCommandIds.push(commandId);
-      });
-    };
-
-    function setMode(nextMode) {
-      mode = isThemeMode(nextMode) ? nextMode : "system";
-      browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-      persistMode(settings, mode);
-      updateMenuCommands();
-    }
-
-    const start = () => {
-      if (started) return;
-      started = true;
-      mode = readStoredMode(settings, isThemeMode, "system");
-      ensureStyle(browserDocument, CRITICAL_STYLE_ID, CRITICAL_THEME_STYLE);
-      browserDocument.documentElement?.setAttribute(THEME_ATTRIBUTE, mode);
-      ensureStyle(browserDocument, STYLE_ID, CATPPUCCIN_THEME_STYLE);
-      markArrowPanels();
-      setupPortalObserver();
-      browserDocument.addEventListener("DOMContentLoaded", setupPortalObserver, { once: true });
-      browserDocument.addEventListener("focusin", addRelatedQuestionTooltip);
-      browserDocument.addEventListener("mouseover", addRelatedQuestionTooltip);
-      updateMenuCommands();
-    };
-
-    const destroy = () => {
-      observer?.disconnect();
-      observer = undefined;
-      browserDocument.removeEventListener("DOMContentLoaded", setupPortalObserver);
-      browserDocument.removeEventListener("focusin", addRelatedQuestionTooltip);
-      browserDocument.removeEventListener("mouseover", addRelatedQuestionTooltip);
-      clearMenuCommands(settings?.menu, menuCommandIds);
-      browserDocument.getElementById(STYLE_ID)?.remove();
-      browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
-      browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
-      markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
-      markedArrowPanelWrappers.forEach((wrapper) =>
-        wrapper.removeAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE),
-      );
-      markedArrowPanels.clear();
-      markedArrowPanelWrappers.clear();
-      markedRelatedQuestionLinks.forEach((link) => {
-        link.removeAttribute("title");
-        link.removeAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE);
-      });
-      markedRelatedQuestionLinks.clear();
-      started = false;
-    };
-
-    return { destroy, setMode, start };
-  };
+    {
+      pageKeys: "aiSearch",
+      styleId: "zb-ai-search-page-theme-style",
+      styleText: AI_SEARCH_PAGE_STYLE,
+    },
+    {
+      pageKeys: ["paper", "paperPreview"],
+      styleId: "zb-paper-page-theme-style",
+      styleText: PAPER_PAGE_STYLE,
+    },
+    {
+      pageKeys: "profile",
+      styleId: "zb-profile-page-theme-style",
+      styleText: PROFILE_PAGE_STYLE,
+    },
+    {
+      pageKeys: "question",
+      styleId: "zb-question-page-theme-style",
+      styleText: QUESTION_PAGE_STYLE,
+    },
+    {
+      pageKeys: ["ringIndex", "ringFeeds", "ringHost"],
+      styleId: "zb-ring-page-theme-style",
+      styleText: RING_PAGE_STYLE,
+    },
+    {
+      pageKeys: "topic",
+      styleId: "zb-topic-page-theme-style",
+      styleText: TOPIC_PAGE_STYLE,
+    },
+  ];
 
   const startWhenDocumentElementReady = (browserWindow, start) => {
     const browserDocument = browserWindow.document;
@@ -18304,8 +19263,20 @@ ${flavorRules}
     setPreference: (value) => GM_setValue(HOME_COMPOSER_STORAGE_KEY, value),
   };
 
+  const telemetryBlockerSettings = {
+    getPreference: (defaultValue) => GM_getValue(TELEMETRY_BLOCKER_STORAGE_KEY, defaultValue),
+    menu: createMenuAdapter(),
+    setPreference: (value) => GM_setValue(TELEMETRY_BLOCKER_STORAGE_KEY, value),
+  };
+
+  const pageWindow = globalThis.unsafeWindow ?? window;
+  createIdleTimerBlockerFeature(pageWindow).start();
+  createTelemetryBlockerFeature(pageWindow, telemetryBlockerSettings).start();
+
   startWhenDocumentElementReady(window, () => {
+    createPageContextFeature(window).start();
     createThemeFeature(window, themeSettings).start();
+    createPageStylesFeature(window, PAGE_STYLE_ENTRIES).start();
     createAnswerActionsStickyFeature(window).start();
     createCommentComposerFeature(window).start();
     createHomeSidebarFeature(window, userscriptSettings).start();

@@ -8,6 +8,13 @@ export const THEME_MODES = ["system", "latte", "frappe", "macchiato", "mocha"];
 const THEME_ATTRIBUTE = "data-zb-theme";
 const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
 const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
+const ACTION_MENU_POPOVER_ATTRIBUTE = "data-zb-action-menu-popover";
+const COMMENT_MODAL_ATTRIBUTE = "data-zb-comment-modal";
+const POLL_MODAL_OPEN_ATTRIBUTE = "data-zb-poll-modal-open";
+const POLL_OPTION_POPOVER_ATTRIBUTE = "data-zb-poll-option-popover";
+const HOVER_CARD_ATTRIBUTE = "data-zb-hover-card";
+const HOVER_CARD_AVATAR_ROW_ATTRIBUTE = "data-zb-hover-card-avatar-row";
+const HOVER_CARD_SINGLE_ACTION_ATTRIBUTE = "data-zb-hover-card-single-action";
 const RELATED_QUESTION_TOOLTIP_ATTRIBUTE = "data-zb-related-question-tooltip";
 const RELATED_QUESTION_LINK_SELECTOR = [
   ".RelatedQuestions-item > a[href^='/question/']",
@@ -30,6 +37,12 @@ export const createThemeFeature = (browserWindow, settings) => {
   const browserDocument = browserWindow.document;
   const markedArrowPanels = new Set();
   const markedArrowPanelWrappers = new Set();
+  const markedActionMenuPopovers = new Set();
+  const markedCommentModals = new Set();
+  const markedPollOptionPopovers = new Set();
+  const markedHoverCardAvatarRows = new Set();
+  const markedHoverCards = new Set();
+  const markedHoverCardSingleActions = new Set();
   const markedRelatedQuestionLinks = new Set();
   const observedPortalRoots = new WeakSet();
   const menuCommandIds = [];
@@ -71,26 +84,139 @@ export const createThemeFeature = (browserWindow, settings) => {
     root.querySelectorAll?.(".ZDI--ArrowRight24").forEach(markArrowPanelFromIcon);
   };
 
+  const markActionMenuPopoverFromMenu = (menu) => {
+    const popover = menu.parentElement;
+    if (!popover?.matches(".Popover-content")) return;
+
+    popover.setAttribute(ACTION_MENU_POPOVER_ATTRIBUTE, "");
+    markedActionMenuPopovers.add(popover);
+  };
+
+  const markActionMenuPopovers = (root) => {
+    if (root.nodeType !== 1) return;
+
+    if (root.matches(".ActionMenu")) markActionMenuPopoverFromMenu(root);
+    root.querySelectorAll?.(".ActionMenu").forEach(markActionMenuPopoverFromMenu);
+  };
+
+  const markHoverCardFromItem = (item) => {
+    const hoverCard = item.parentElement;
+    if (!hoverCard) return;
+
+    hoverCard.setAttribute(HOVER_CARD_ATTRIBUTE, "");
+    markedHoverCards.add(hoverCard);
+
+    item.querySelectorAll(".Avatar").forEach((avatar) => {
+      const avatarRow = avatar.parentElement;
+      if (!avatarRow) return;
+      avatarRow.setAttribute(HOVER_CARD_AVATAR_ROW_ATTRIBUTE, "");
+      markedHoverCardAvatarRows.add(avatarRow);
+    });
+
+    const actionRow = item.querySelector(".HoverCard-buttons");
+    if (!actionRow) return;
+
+    const hasSingleButton =
+      actionRow.childElementCount === 1 && actionRow.firstElementChild?.matches(".Button");
+    if (hasSingleButton) {
+      actionRow.setAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE, "");
+      markedHoverCardSingleActions.add(actionRow);
+    } else if (actionRow.hasAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE)) {
+      actionRow.removeAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE);
+      markedHoverCardSingleActions.delete(actionRow);
+    }
+  };
+
+  const markHoverCards = (root) => {
+    if (root.nodeType !== 1) return;
+
+    const closestItem = root.matches(".HoverCard-item") ? root : root.closest?.(".HoverCard-item");
+    if (closestItem) markHoverCardFromItem(closestItem);
+    root.querySelectorAll?.(".HoverCard-item").forEach(markHoverCardFromItem);
+  };
+
+  const markCommentModal = (modalContent) => {
+    const isCommentModal =
+      modalContent.querySelector(".CommentContent") ||
+      (modalContent.querySelector(".InputLike.Editable") &&
+        modalContent.querySelector("img.Avatar"));
+    if (!isCommentModal) return;
+
+    modalContent.setAttribute(COMMENT_MODAL_ATTRIBUTE, "");
+    markedCommentModals.add(modalContent);
+  };
+
+  const markCommentModals = (root) => {
+    if (root.nodeType !== 1) return;
+
+    const closestModalContent = root.matches(".Modal-content")
+      ? root
+      : root.closest?.(".Modal-content");
+    if (closestModalContent) markCommentModal(closestModalContent);
+    root.querySelectorAll?.(".Modal-content").forEach(markCommentModal);
+  };
+
+  const markPollOptionPopover = (popover) => {
+    const arrow = popover.firstElementChild;
+    const content = arrow?.nextElementSibling;
+    if (!arrow?.matches("svg") || content?.tagName !== "DIV" || content.childElementCount !== 8) {
+      return;
+    }
+
+    popover.setAttribute(POLL_OPTION_POPOVER_ATTRIBUTE, "");
+    markedPollOptionPopovers.add(popover);
+  };
+
+  const markPollOptionPopovers = (root) => {
+    if (root.nodeType !== 1) return;
+
+    if (root.tagName === "DIV") markPollOptionPopover(root);
+    root.querySelectorAll?.("div").forEach(markPollOptionPopover);
+  };
+
+  const updatePollModalState = () => {
+    const isOpen = Boolean(
+      browserDocument.querySelector(
+        '.Modal input[placeholder*="PK 标题"], .Modal input[placeholder*="投票 标题"]',
+      ),
+    );
+    browserDocument.documentElement?.setAttribute(POLL_MODAL_OPEN_ATTRIBUTE, String(isOpen));
+  };
+
+  const markPortalComponents = (root) => {
+    markActionMenuPopovers(root);
+    markArrowPanels(root);
+    markCommentModals(root);
+    markHoverCards(root);
+    markPollOptionPopovers(root);
+  };
+
   const observePortalRoot = (root) => {
     if (root.nodeType !== 1 || root.id === "root" || observedPortalRoots.has(root)) return;
 
     observedPortalRoots.add(root);
     observer.observe(root, { childList: true, subtree: true });
-    markArrowPanels(root);
+    markPortalComponents(root);
   };
 
   const handleMutations = (records) => {
     records.forEach(({ addedNodes, target }) => {
+      const closestModalContent = target.closest?.(".Modal-content");
+      if (closestModalContent) markCommentModal(closestModalContent);
+      const closestHoverCardItem = target.closest?.(".HoverCard-item");
+      if (closestHoverCardItem) markHoverCardFromItem(closestHoverCardItem);
+
       addedNodes.forEach((node) => {
         if (node.nodeType !== 1) return;
 
         if (target === browserDocument.body) {
           observePortalRoot(node);
         } else {
-          markArrowPanels(node);
+          markPortalComponents(node);
         }
       });
     });
+    updatePollModalState();
   };
 
   const setupPortalObserver = () => {
@@ -100,6 +226,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     observer ??= new browserWindow.MutationObserver(handleMutations);
     observer.observe(body, { childList: true });
     Array.from(body.children).forEach(observePortalRoot);
+    updatePollModalState();
   };
 
   const addRelatedQuestionTooltip = ({ target }) => {
@@ -161,12 +288,35 @@ export const createThemeFeature = (browserWindow, settings) => {
     browserDocument.getElementById(STYLE_ID)?.remove();
     browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(POLL_MODAL_OPEN_ATTRIBUTE);
     markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
     markedArrowPanelWrappers.forEach((wrapper) =>
       wrapper.removeAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE),
     );
     markedArrowPanels.clear();
     markedArrowPanelWrappers.clear();
+    markedActionMenuPopovers.forEach((popover) =>
+      popover.removeAttribute(ACTION_MENU_POPOVER_ATTRIBUTE),
+    );
+    markedActionMenuPopovers.clear();
+    markedCommentModals.forEach((modalContent) =>
+      modalContent.removeAttribute(COMMENT_MODAL_ATTRIBUTE),
+    );
+    markedCommentModals.clear();
+    markedPollOptionPopovers.forEach((popover) =>
+      popover.removeAttribute(POLL_OPTION_POPOVER_ATTRIBUTE),
+    );
+    markedPollOptionPopovers.clear();
+    markedHoverCards.forEach((hoverCard) => hoverCard.removeAttribute(HOVER_CARD_ATTRIBUTE));
+    markedHoverCardAvatarRows.forEach((avatarRow) =>
+      avatarRow.removeAttribute(HOVER_CARD_AVATAR_ROW_ATTRIBUTE),
+    );
+    markedHoverCardSingleActions.forEach((actionRow) =>
+      actionRow.removeAttribute(HOVER_CARD_SINGLE_ACTION_ATTRIBUTE),
+    );
+    markedHoverCards.clear();
+    markedHoverCardAvatarRows.clear();
+    markedHoverCardSingleActions.clear();
     markedRelatedQuestionLinks.forEach((link) => {
       link.removeAttribute("title");
       link.removeAttribute(RELATED_QUESTION_TOOLTIP_ATTRIBUTE);

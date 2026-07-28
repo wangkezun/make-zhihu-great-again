@@ -1,13 +1,4 @@
-const PALETTE_HEX = {
-  latte:
-    "rosewater:#dc8a78,flamingo:#dd7878,pink:#ea76cb,mauve:#8839ef,red:#d20f39,maroon:#e64553,peach:#fe640b,yellow:#df8e1d,green:#40a02b,teal:#179299,sky:#04a5e5,sapphire:#209fb5,blue:#1e66f5,lavender:#7287fd,text:#4c4f69,subtext1:#5c5f77,subtext0:#6c6f85,overlay2:#7c7f93,overlay1:#8c8fa1,overlay0:#9ca0b0,surface2:#acb0be,surface1:#bcc0cc,surface0:#ccd0da,base:#eff1f5,mantle:#e6e9ef,crust:#dce0e8",
-  frappe:
-    "rosewater:#f2d5cf,flamingo:#eebebe,pink:#f4b8e4,mauve:#ca9ee6,red:#e78284,maroon:#ea999c,peach:#ef9f76,yellow:#e5c890,green:#a6d189,teal:#81c8be,sky:#99d1db,sapphire:#85c1dc,blue:#8caaee,lavender:#babbf1,text:#c6d0f5,subtext1:#b5bfe2,subtext0:#a5adce,overlay2:#949cbb,overlay1:#838ba7,overlay0:#737994,surface2:#626880,surface1:#51576d,surface0:#414559,base:#303446,mantle:#292c3c,crust:#232634",
-  macchiato:
-    "rosewater:#f4dbd6,flamingo:#f0c6c6,pink:#f5bde6,mauve:#c6a0f6,red:#ed8796,maroon:#ee99a0,peach:#f5a97f,yellow:#eed49f,green:#a6da95,teal:#8bd5ca,sky:#91d7e3,sapphire:#7dc4e4,blue:#8aadf4,lavender:#b7bdf8,text:#cad3f5,subtext1:#b8c0e0,subtext0:#a5adcb,overlay2:#939ab7,overlay1:#8087a2,overlay0:#6e738d,surface2:#5b6078,surface1:#494d64,surface0:#363a4f,base:#24273a,mantle:#1e2030,crust:#181926",
-  mocha:
-    "rosewater:#f5e0dc,flamingo:#f2cdcd,pink:#f5c2e7,mauve:#cba6f7,red:#f38ba8,maroon:#eba0ac,peach:#fab387,yellow:#f9e2af,green:#a6e3a1,teal:#94e2d5,sky:#89dceb,sapphire:#74c7ec,blue:#89b4fa,lavender:#b4befe,text:#cdd6f4,subtext1:#bac2de,subtext0:#a6adc8,overlay2:#9399b2,overlay1:#7f849c,overlay0:#6c7086,surface2:#585b70,surface1:#45475a,surface0:#313244,base:#1e1e2e,mantle:#181825,crust:#11111b",
-};
+import { FLAVOR_NAMES, PALETTE_HEX } from "./catppuccin-palette.js";
 
 const paletteVariables = Object.fromEntries(
   Object.entries(PALETTE_HEX).map(([flavor, colors]) => [
@@ -28,7 +19,7 @@ ${createPaletteVariables(name)}
     color-scheme: ${name === "latte" ? "light" : "dark"};
   }`;
 
-const flavorRules = ["latte", "frappe", "macchiato", "mocha"].map(createFlavorRule).join("\n");
+const flavorRules = FLAVOR_NAMES.map(createFlavorRule).join("\n");
 
 export const CATPPUCCIN_THEME_STYLE = `
 ${flavorRules}
@@ -166,8 +157,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text-subtle) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
     box-sizing: border-box !important;
     width: 100% !important;
     background-color: var(--zb-surface-raised) !important;
@@ -178,39 +169,43 @@ ${createPaletteVariables("mocha")}
       box-shadow 0.16s ease !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input {
     min-height: 46px !important;
     padding: 9px 12px !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input {
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
     min-height: 104px !important;
     padding: 11px 12px !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input:focus-within,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input:focus-within {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input:focus-within,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input:focus-within {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content,
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .DraftEditor-root,
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .DraftEditor-root,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .DraftEditor-editorContainer,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditor-content,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditorPlaceholder-root,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .AskDetail-input
     .public-DraftEditorPlaceholder-inner {
     background-color: transparent !important;
@@ -219,50 +214,53 @@ ${createPaletteVariables("mocha")}
     box-shadow: none !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskTitle-input textarea {
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea {
     width: 100% !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .AskDetail-input .Editable-content {
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content {
     min-height: 80px !important;
   }
 
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .public-DraftEditorPlaceholder-inner {
     color: var(--zb-text-subtle) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-controls {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-controls {
     background-color: transparent !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control {
     background-color: transparent !important;
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar .Editable-control:hover,
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control:hover,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .Editable-toolbar
     .Editable-control.is-active,
   html[data-zb-theme]
-    .Modal:has(.Ask-form)
+    .Modal
+    .Ask-form
     .Editable-toolbar
     .Editable-control[aria-pressed="true"] {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme] .Modal:has(.Ask-form) .Editable-toolbar-separator {
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-separator {
     background-color: var(--zb-border-strong) !important;
   }
 
@@ -468,3102 +466,6 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .SearchTabs {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link:hover,
-  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
-  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Search-container,
-  html[data-zb-theme] .SearchMain,
-  html[data-zb-theme] .HotLanding {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .SearchMain > .ListShortcut,
-  html[data-zb-theme] .SearchMain > .ListShortcut > .List {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card,
-  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card {
-    padding-top: 0 !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      0 0 0 2px var(--zb-primary-soft),
-      var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(.ContentItem-title, .ContentItem-title a) {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(
-      .ContentItem-title:hover,
-      .ContentItem-title:focus-within,
-      .ContentItem-title a:hover,
-      .ContentItem-title a:focus-visible
-    ) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    :is(
-      .RichContent-inner,
-      .RichContent-inner .RichText,
-      .SearchItem-meta.Highlight
-    ) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card
-    .FollowButton.Button--grey:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(
-      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
-    )
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
-    margin-bottom: 12px !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs {
-    box-sizing: border-box !important;
-    display: flex !important;
-    height: auto !important;
-    min-height: 58px !important;
-    padding: 12px 16px !important;
-    align-items: center !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    line-height: normal !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs {
-    display: flex !important;
-    height: auto !important;
-    width: 100% !important;
-    align-items: center !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    border-bottom: 0 !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-item {
-    display: flex !important;
-    height: auto !important;
-    padding: 0 !important;
-    align-items: center !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    min-height: 32px !important;
-    padding: 5px 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    font-weight: 400 !important;
-    line-height: 20px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(
-      in srgb,
-      var(--zb-primary) 36%,
-      transparent
-    ) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchSubTabs
-    .Tabs-link.is-active:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div
-    > div:first-child {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:first-child
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 0 0 12px 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child
-    .Button:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      + .SearchNoContent-wrap
-    )
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child
-    .Button:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child {
-    background-color: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div
-    > div:first-child {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:first-child
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 0 0 12px 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    > div:last-child {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> div > div > .Zi--TriangleUp)
-    > div:has(> div > .Button.Button--secondary)
-    .Button--secondary:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> a[href*="/kvip/sku/paper/"]) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]:has(
-      a[href*="/kvip/sku/paper/"]
-    )
-    > div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]
-    a[href*="/kvip/sku/paper/"] {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-za-detail-view-path-module="SearchResultList"]
-    a[href*="/kvip/sku/paper/"]:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    font-weight: 600 !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)
-    > div:first-child {
-    color: var(--zb-primary-hover) !important;
-    -webkit-text-fill-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(2),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(4),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(5) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3),
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3)
-    span {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    > div:nth-child(3)
-    span:has(.ZDI--ArrowRight24) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    a[href*="/kvip/sku/paper/"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"],
-  html[data-zb-theme][data-zb-paper-page="true"] body,
-  html[data-zb-theme][data-zb-paper-page="true"] body > div:first-child {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-inline: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child {
-    background-color: var(--zb-surface-raised) !important;
-    background-image: none !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div:first-child {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:nth-child(2) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:first-child
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div:last-child {
-    color: var(--zb-text-subtle) !important;
-    -webkit-text-fill-color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section
-    h2 {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section
-    :is(p, li, div) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(1)
-    p,
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(3) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(4) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(2)
-    button {
-    box-sizing: border-box !important;
-    padding: 2px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > section:nth-of-type(2)
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 14%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button {
-    box-sizing: border-box !important;
-    border-radius: 999px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:has(.ZDI--BookOpen24) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:nth-child(2) {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:last-child {
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
-    > button:is(:hover, :focus-visible) {
-    border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-page="true"]
-    body
-    div:has(> section + section)
-    > div:has(> svg[viewBox="0 0 150 50"])
-    :where(svg, path) {
-    color: var(--zb-text-subtle) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"] body,
-  html[data-zb-theme][data-zb-paper-preview-page="true"] #app {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-root_"] {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-logo_"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    [class^="ShelfTopNav-module-avatar_"] {
-    border: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"]) {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    div {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    input {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(input[size="1"])
-    input:focus-visible {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16) {
-    background-color: var(--zb-primary-soft) !important;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--zb-primary) 42%, var(--zb-border)) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16)
-    > button {
-    color: inherit !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(> button .ZDI--ArrowRightSmall16)
-    > button:is(:hover, :focus-visible) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary-soft) 72%,
-      var(--zb-surface-hover)
-    ) !important;
-    color: var(--zb-primary-hover) !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    > div:has(.pdfViewer) {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="放大"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="缩小"],
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="下载"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="放大"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="缩小"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label="下载"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {
-    background-color: #fff !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"]
-      )
-    )
-    > div,
-  html[data-zb-theme]
-    .SearchMain:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"]
-      )
-    )
-    > div
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Block:thinking_blcok"],
-      [data-testid="Block:zhida_answer_result_block"]
-    )
-    :is(.Render-markdown, div[dir="auto"]) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"],
-      [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex]) {
-    background-color: transparent !important;
-    border: 0 !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    :where(div, span) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .Popover-content:has(
-      [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(3) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(4) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:last-child
-    :where(svg, path) {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    h1 {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item:is(:hover, :focus-visible)
-    h1 {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    h1
-    + div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 999px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    div:has(> h1)
-    + div,
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item
-    > div
-    > div:last-child {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item
-    > div
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid
-      color-mix(in srgb, var(--zb-primary) 36%, transparent) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(
-      .KfeCollection-PcCollegeCard-wrapper,
-      .KfeCollection-PcCollegeCard-root,
-      .KfeCollection-PcCollegeCard
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    .KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-    -webkit-text-fill-color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    > div
-    > div
-    > div:has(
-      :is(
-        [data-testid="Block:thinking_blcok"],
-        [data-testid="Block:zhida_answer_result_block"],
-        [data-testid="Block:zhida_input_box"]
-      )
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Block:zhida_answer_result_block"],
-      [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
-    ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="discovery-answer-fade-mask"] {
-    background: linear-gradient(transparent, var(--zb-surface)) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]
-    > div {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:expand_btn"]:is(:hover, :focus-visible, :focus-within)
-    > div {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-content-discovery-heading] {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"] {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    .zhida-rn-skeleton-motion::after {
-    background-image: linear-gradient(
-      110deg,
-      transparent 0%,
-      transparent 35%,
-      color-mix(in srgb, var(--zb-text-subtle) 22%, transparent) 50%,
-      transparent 65%,
-      transparent 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="answer-thinking-text"] {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"],
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"]
-    :where(div, span, svg, path),
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > [tabindex="0"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox] {
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-subtle) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox][data-zb-ai-share-checkbox-checked="true"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-user-question] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-user-question]
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Block:thinking_blcok"]) {
-    justify-content: center !important;
-    height: auto !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:thinking_blcok"] {
-    flex: 0 1 auto !important;
-    width: auto !important;
-    height: auto !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:thinking_blcok"]
-    > div {
-    box-sizing: border-box !important;
-    align-items: center !important;
-    gap: 8px !important;
-    width: auto !important;
-    min-height: 44px !important;
-    padding: 4px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    ) {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    height: 34px !important;
-    padding: 7px 8px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:reference_card_block_more_btn"] {
-    flex: 0 0 auto !important;
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    )
-    > div {
-    box-sizing: border-box !important;
-    width: auto !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    )
-    :where(div, span) {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="Button:thinking_node"],
-      [data-testid="Button:reference_card_block_more_btn"]
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"] [data-zb-ai-source-panel] {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child
-    > div {
-    background-color: transparent !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:first-child
-    > div:last-child
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    > div:last-child
-    > div
-    > div {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"] {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div {
-    box-sizing: border-box !important;
-    padding: 8px !important;
-    border-radius: 8px !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:first-child
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:first-child
-    span:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    div[style*="border-bottom-width"]
-    > div
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]
-    div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]:is(:hover, :focus-visible)
-    div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [data-testid="Card:reference_card"]
-    div[style*="cursor: pointer"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    [data-zb-ai-source-panel]
-    [style*="color: rgb(23, 114, 246)"] {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      + div
-        > div
-        > div
-        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    )
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > div
-        > div
-        > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div
-    > div {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]:is(
-      :hover,
-      :focus-visible
-    )
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
-    > div:not([style*="background-color: rgb(248, 248, 250)"]) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-surface) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:hover {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"]):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {
-    background-color: var(--zb-primary-soft) !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible
-    ):not(
-      :has(
-        > [data-testid="Card:OpenUrl:ai_search_content_card"]
-          + [data-testid="Card:OpenUrl:ai_search_content_card"]
-      )
-    ) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(> [data-testid="Card:OpenUrl:ai_search_content_card"])
-    > div:first-child:not([data-testid]) {
-    background: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    ) {
-    padding: 0 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]:last-child {
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:last-child[style*="background-color"] {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]
-    :where(div, span, p, h1, h2, h3, strong) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:first-child
-    > :is(div:nth-child(2), div:nth-child(4)) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    div:has(
-      > [data-testid="Card:OpenUrl:ai_search_content_card"]
-        + [data-testid="Card:OpenUrl:ai_search_content_card"]
-    )
-    > [data-testid="Card:OpenUrl:ai_search_content_card"]
-    > div:first-child
-    > div:nth-child(3) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Card:OpenUrl:ai_search_content_card"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="SearchExpansionWord:Button:related_question_word"],
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div {
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Button:ai_search_input_field_button"]
-    > div[style*="background-color: rgba(23, 114, 246, 0.12)"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    .InputLike.Editable {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="SearchExpansionWord:Button:related_question_word"],
-      [data-testid="Block:zhida_input_box"]
-    )
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    :is(
-      [data-testid="SearchExpansionWord:Button:related_question_word"],
-      [data-testid="Block:zhida_input_box"]
-    ):is(:hover, :focus-visible, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    div[style*="background-color: rgb(173, 176, 183)"] {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-testid="Block:zhida_input_box"]
-    div[style*="background-color: rgb(173, 176, 183)"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    > .List-item
-    > div
-    > div:has(+ div .HotLanding-title) {
-    background: var(--zb-surface-raised) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-title,
-  html[data-zb-theme] .HotLanding-ListTitle,
-  html[data-zb-theme] .HotLanding-contentItemTitle {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-title + div,
-  html[data-zb-theme] .HotLanding-contentItemCount,
-  html[data-zb-theme] .SearchItem-time {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-content {
-    border-left-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .HotLanding-contentItem {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .HotLanding .Highlight em {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: border-box !important;
-    border: 0 !important;
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    .RichContent-actions.is-fixed
-    > .ContentItem-actions.ContentItem-action {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .VoteButton {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-title,
-  html[data-zb-theme] .Search-container .HotSearchCard-itemText,
-  html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-heat {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    :is(.HotSearchCard-item, .HotSearchCard-itemLink) {
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item {
-    box-sizing: border-box !important;
-    margin: 4px -8px !important;
-    padding: 6px 8px !important;
-    overflow: hidden !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-item:focus-within {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-itemLink:focus-visible {
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-tag {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 24px !important;
-    padding: 0 5px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme] .Search-container footer[role="contentinfo"],
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    :is(a, button, div, span, svg) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    :is(a, button):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Search-container
-    footer[role="contentinfo"]
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child {
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px 12px 0 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
-    .App-main
-    > div
-    > .Card
-    + div {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"][data-zb-column-tabs-stuck="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child {
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:first-child {
-    background-color: var(--zb-page) !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div {
-    box-sizing: border-box !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-    margin-top: -2px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div:has(.ContentItem) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    margin-bottom: 10px !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child {
-    height: auto !important;
-    padding-bottom: 20px !important;
-    border-top: 0 !important;
-    border-radius: 0 0 12px 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section {
-    box-sizing: border-box !important;
-    margin-top: 16px !important;
-    padding: 16px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > h4 {
-    margin: 0 !important;
-    color: var(--zb-text) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:first-of-type {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 16px !important;
-    margin: 12px 0 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:first-of-type
-    > div:first-child {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type {
-    display: flex !important;
-    align-items: baseline !important;
-    gap: 12px !important;
-    height: auto !important;
-    margin-top: 14px !important;
-    padding-top: 12px !important;
-    border-top: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type
-    > div:first-child {
-    flex: 0 0 auto !important;
-    color: var(--zb-text-subtle) !important;
-    -webkit-text-fill-color: var(--zb-text-subtle) !important;
-    font-size: 13px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    > section
-    > div:last-of-type
-    > div:last-child {
-    min-width: 0 !important;
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div:has(.ContentItem):hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > section
-    > div
-    > div {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    :where(a, div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    > div:last-child
-    > div:first-child
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .UserLink-link {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 64px !important;
-    min-height: 34px !important;
-    padding-inline: 12px !important;
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-    font-weight: 500 !important;
-    flex: 0 0 auto !important;
-    margin-left: auto !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue
-    :where(span, svg, path) {
-    color: var(--ctp-crust) !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:hover
-    :where(span, svg, path) {
-    color: var(--ctp-crust) !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    > div
-    > div:nth-child(2),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    > div
-    > div:nth-child(2)
-    :where(div, span),
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .AuthorInfo
-    + div,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .AuthorInfo
-    + div
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue {
-    box-sizing: border-box !important;
-    min-width: 96px !important;
-    min-height: 34px !important;
-    padding-inline: 14px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--blue,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--blue:hover,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:hover {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton:focus-visible,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-    padding: 5px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots)
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    height: 32px !important;
-    padding-inline: 12px !important;
-    border-radius: 3px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
-    box-sizing: border-box !important;
-    margin-top: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard p {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .Column-EmptyCard
-    svg
-    path:first-of-type {
-    fill: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .Column-EmptyCard
-    svg
-    path:last-of-type {
-    fill: var(--zb-surface-raised) !important;
-  }
 
   html[data-zb-theme] div:has(> .Modal-content) {
     background-color: var(--zb-surface) !important;
@@ -4653,18 +1555,16 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-surface-raised) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu {
     background-color: var(--zb-surface) !important;
     border-radius: 8px !important;
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item {
     box-sizing: border-box !important;
@@ -4678,18 +1578,16 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:is(:hover, :focus-visible) {
     background-color: var(--zb-surface-hover) !important;
     outline: 0 !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child {
     background-color: color-mix(
@@ -4700,9 +1598,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-danger) !important;
   }
 
-  html[data-zb-theme]
-    body:has(.App-main .Chat)
-    .Popover-content:has(> .ActionMenu)
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
     background-color: color-mix(
@@ -6441,14 +3338,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    ) {
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
@@ -6456,27 +3347,15 @@ ${createPaletteVariables("mocha")}
     scrollbar-color: var(--ctp-overlay0) transparent;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg {
     color: var(--zb-surface) !important;
     fill: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg
     + div
     > div {
@@ -6484,14 +3363,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme]:has(
-      .Modal input[placeholder*="PK 标题"],
-      .Modal input[placeholder*="投票 标题"]
-    )
-    body
-    div:has(> svg + div > div:nth-child(8)):not(
-      :has(> svg + div > div:nth-child(9))
-    )
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
     > svg
     + div
     > div:hover {
@@ -6508,1332 +3381,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .Button--blue:hover {
     background-color: var(--zb-primary-hover) !important;
     border-color: var(--zb-primary-hover) !important;
-  }
-
-  /* Profile page */
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card {
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-userCover
-    :is(.UserCover, .UserCoverGuide) {
-    border-radius: 12px 12px 0 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper {
-    border-radius: 0 0 12px 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader .UserAvatar {
-    background-color: var(--zb-surface) !important;
-    box-shadow: 0 0 0 4px var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-name, .ProfileHeader-detailValue) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    :is(.ProfileHeader-detailLabel, .ProfileHeader-expandButton) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-expandButton:hover {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-expandButton:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-iconWrapper {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader
-    .ProfileHeader-iconWrapper
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-divider {
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .UserCoverGuide-dialog
-    :is(.UserCoverGuide-dialogHead, h4) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .UserCoverGuide-dialog
-    :is(.UserCoverGuide-dialogContent, .UserCoverGuide-dialogDescription) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .UserCoverGuide-dialog a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button {
-    box-sizing: border-box !important;
-    min-height: 34px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button {
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain-header {
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link {
-    color: var(--zb-text-secondary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link:hover {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link.is-active {
-    color: var(--zb-primary) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-link:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-tabs
-    .Tabs-meta {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    div:has(> button :is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background: linear-gradient(
-      to left,
-      var(--zb-surface) 0,
-      var(--zb-surface) 56px,
-      transparent 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):hover {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-header {
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    :is(.List-header, .List-item)::after {
-    background-color: var(--zb-border) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-item {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > a:first-child
-    > div {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > a
-    > div {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child,
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    > div
-    > div
-    > div
-    > div:last-child
-    > div:last-child
-    > div:last-child
-    > div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-lineComments
-    .List-item
-    a:hover
-    > div {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button--iconOnly:not(.VoteButton) {
-    min-width: 28px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    height: 34px !important;
-    padding-inline: 10px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .VoteButton:disabled {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: transparent !important;
-    color: var(--zb-text-subtle) !important;
-    cursor: not-allowed !important;
-    opacity: 0.72 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Card,
-  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Profile-lightList {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]) {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 40px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"])
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Profile-sideColumnTitle,
-      .Profile-sideColumnItemValue,
-      .Profile-lightItemValue,
-      .NumberBoard-itemValue,
-      .ProfileSideCreator-readCountNumber
-    ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Profile-sideColumnItemTitle,
-      .Profile-lightItemName,
-      .NumberBoard-itemName,
-      .ProfileSideCreator-readCountTitle
-    ) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .NumberBoard-itemInner,
-      .Profile-sideColumnItem,
-      .Profile-lightItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(
-      .Card-header,
-      .Profile-footerOperations,
-      .ProfileSideCreator-readCountItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    .Profile-lightItem {
-    border-top: 1px solid var(--zb-border) !important;
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    .Profile-lightItem:first-child {
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.Footer, footer) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(.Footer, footer)
-    :where(a, button, div, span, p, svg) {
-    color: inherit !important;
-  }
-
-  /* Question page */
-  html[data-zb-theme] .QuestionHeader,
-  html[data-zb-theme] .QuestionHeader-content,
-  html[data-zb-theme] .QuestionHeader-main,
-  html[data-zb-theme] .QuestionHeader-side,
-  html[data-zb-theme] .QuestionHeader-footer,
-  html[data-zb-theme] .QuestionHeader-footer-inner,
-  html[data-zb-theme] .QuestionHeader-footer-main {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader {
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-title,
-  html[data-zb-theme] .QuestionHeader-title a,
-  html[data-zb-theme] .QuestionHeader-detail,
-  html[data-zb-theme] .QuestionHeader-detail .RichText,
-  html[data-zb-theme] .QuestionHeader .NumberBoard-itemValue {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-itemName,
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts,
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts div,
-  html[data-zb-theme] .QuestionHeader .QuestionHeaderActions-label {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-item {
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-counts {
-    column-gap: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionFollowStatus-counts
-    .NumberBoard-itemInner {
-    border-left-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .NumberBoard-item.Button:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .NumberBoard-item.Button:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
-    padding-right: 8px !important;
-    padding-left: 8px !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionFollowStatus-people:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  /* Topic entity cards use generated class names. Target the semantic label
-     and direct-child position so the selector survives Zhihu CSS rebuilds
-     without also matching the compact topic chips above the question. */
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-text) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type,
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    .topicMetaTitle {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    > div:last-child,
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    > div:first-child
-    > div:not(.topicMetaTitle) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:first-of-type
-    span {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-main
-    > a[aria-label^="话题 "][href*="/topic/"]
-    > div:last-of-type
-    > button[aria-pressed="true"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  /* Latest-progress cards use generated class names and receive analytics
-     attributes during hydration. Anchor to the server-rendered semantic icon
-     so the title color applies on the first paint instead of after hydration. */
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child,
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a
-    > div:last-child
-    svg {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible)
-    > div:last-child,
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:is(:hover, :focus-visible)
-    > div:last-child
-    :where(div, span, svg) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Card:has(> div:first-child .Zi--LabelSpecial)
-    > div:last-child
-    > div
-    > a:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  /* Question and answer page links follow semantic roles instead of Zhihu's
-     native blue palette. Keep identity links calm, metadata subdued, and
-     reserve the accent color for topics, content links, and interaction. */
-  html[data-zb-theme] .QuestionHeader-topics :is(a, .TopicLink, .Tag-content),
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content)
-    :where(span, div) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content):hover,
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    :is(a, .TopicLink, .Tag-content):hover
-    :where(span, div) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-topics .QuestionTopic {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-topics
-    .QuestionTopic:is(:hover, :focus-within) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 24%,
-      transparent
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"]) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    > svg {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > div:first-of-type {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > div:last-of-type {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > svg:first-child {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a
-    > svg:last-child {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .BrandQuestionSymbol-name,
-      .AuthorInfo-name a,
-      .UserLink-link
-    ) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .BrandQuestionSymbol-name,
-      .AuthorInfo-name a,
-      .UserLink-link
-    ):hover {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-time, .ContentItem-time a) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-time
-    a:hover {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag),
-  html[data-zb-theme] .QuestionHeader-detail .RichText a,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord {
-    color: var(--zb-primary) !important;
-    text-decoration-color: transparent !important;
-    text-decoration-thickness: 1px !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):hover,
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.RichText, .RichContent-inner)
-    a:not(.UserLink-link):not(.TopicLink):not(.LinkCard):not(.tag):focus-visible,
-  html[data-zb-theme] .QuestionHeader-detail .RichText a:hover,
-  html[data-zb-theme] .QuestionHeader-detail .RichText a:focus-visible,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:hover,
-  html[data-zb-theme] .QuestionPage a.RichContent-EntityWord:focus-visible {
-    color: var(--zb-primary-hover) !important;
-    text-decoration: underline !important;
-    text-decoration-color: currentColor !important;
-    text-decoration-thickness: 1px !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .RichText
-    a.LinkCard:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-desc {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText .LinkCard .tag {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText table {
-    border: 1px solid var(--zb-border) !important;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText :is(th, td) {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-right: 1px solid var(--zb-border) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText th {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
-    border-right: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .RichText
-    tbody
-    tr:last-child
-    > td {
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    div:has(
-      > div
-        > a[href*="zhida_source=below_banner_question"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"] {
-    border-radius: 6px !important;
-    color: var(--zb-text-secondary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]
-    > p {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    a[href*="zhida_source=below_banner_question"]
-    :is(svg, path) {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-    stroke: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(
-      .BrandQuestionSymbol-brandLink,
-      .AuthorInfo-name a,
-      .UserLink-link,
-      .ContentItem-time a,
-      .QuestionHeader-topics a,
-      .RelatedQuestions-item a,
-      .SimilarQuestions-item a,
-      .NumberBoard-item
-    ):focus-visible {
-    color: var(--zb-primary) !important;
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .BrandQuestionSymbol-brandLink:is(:hover, :focus-visible)
-    .BrandQuestionSymbol-name {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage img.Avatar {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem .AuthorInfo, .AnswerAuthor)
-    img.Avatar {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AuthorInfo
-    .UserLink:focus-visible {
-    border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    )
-    :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    div[style*="cursor: pointer"]:has(
-      > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
-    ):hover {
-    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid color-mix(in srgb, var(--zb-primary) 28%, transparent) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    )
-    :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ):is(:hover, :focus-visible) {
-    background-color: color-mix(in srgb, var(--zb-primary) 24%, transparent) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 48%, transparent) !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .ContentItem-meta
-    :is(
-      a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight),
-      a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
-    ):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    > svg {
-    color: var(--zb-surface-raised) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"],
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"]
-    * {
-    color: var(--zb-text) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    > :first-child
-    > :first-child {
-    color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
@@ -7857,248 +3404,6 @@ ${createPaletteVariables("mocha")}
     * {
     color: var(--zb-text-secondary) !important;
     font-weight: 400 !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    body
-    div:has(
-      > div
-        > div
-        > div
-        > .QuestionStatus-notification-inner
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-inner,
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-content {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-content
-    .UserLink-link {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .Button {
-    min-height: 24px !important;
-    padding: 2px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .QuestionStatus-notification-primary {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-actions
-    .Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-divider {
-    margin: 0 2px !important;
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-closeButton {
-    width: 24px !important;
-    min-width: 24px !important;
-    padding: 2px !important;
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionStatus-notification-closeButton
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
-    background-color: var(--zb-surface) !important;
-    border-radius: inherit !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal:has(.QuestionInvitation) {
-    background-color: transparent !important;
-    border-radius: 12px !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal-inner:has(.QuestionInvitation) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .Modal-content:has(> .QuestionInvitation) {
-    border-radius: inherit !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    > .Topbar {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input
-    :is(.Input, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    .AutoInviteItem-wrapper--desktop {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item {
-    box-sizing: border-box !important;
-    width: calc(100% - 24px) !important;
-    margin: 0 12px !important;
-    padding: 12px !important;
-    background-color: transparent !important;
-    border-radius: 8px !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item::after {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-content
-    > .List
-    > .List-item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    :is(.ContentItem-statusItem, .ContentItem-meta) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .ContentItem-extra
-    .Button:not(.Button--blue) {
-    background-color: transparent !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .ContentItem-extra
-    .Button:not(.Button--blue):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link {
-    min-width: 80px !important;
-    min-height: 32px !important;
-    padding: 0 8px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    outline: 0 !important;
-    white-space: nowrap !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
@@ -8588,7 +3893,7 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) {
+  html[data-zb-theme] [data-zb-hover-card] {
     background-color: var(--zb-surface) !important;
     background-clip: padding-box !important;
     padding-right: 16px !important;
@@ -8599,56 +3904,61 @@ ${createPaletteVariables("mocha")}
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .Avatar {
+  html[data-zb-theme] [data-zb-hover-card] .Avatar {
     top: -8px !important;
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) div:has(> .Avatar) {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-avatar-row] {
     padding-bottom: 21px !important;
     border-bottom-color: var(--zb-border) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-description {
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-description {
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .UserLink-link {
+  html[data-zb-theme] [data-zb-hover-card] .UserLink-link {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .UserLink-link:is(:hover, :focus-visible) {
     color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-itemName {
     color: var(--zb-text-muted) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-itemValue {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-item:hover {
     background-color: var(--zb-surface-raised) !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons {
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-buttons {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .HoverCard-buttons .Button {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .HoverCard-buttons
+    .Button {
     box-sizing: border-box !important;
     min-width: 0 !important;
     width: auto !important;
@@ -8658,16 +3968,18 @@ ${createPaletteVariables("mocha")}
     font-weight: 500 !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item {
+  html[data-zb-theme] [data-zb-hover-card] .NumberBoard-item {
     border-radius: 8px !important;
   }
 
-  html[data-zb-theme] div:has(> .HoverCard-item) .NumberBoard-item:hover {
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-item:hover {
     background-color: var(--zb-surface-raised) !important;
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .NumberBoard-item:focus-visible {
     background-color: var(--zb-surface-raised) !important;
     box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
@@ -8675,7 +3987,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--blue {
     background-color: var(--zb-primary) !important;
@@ -8684,7 +3996,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--grey {
     background-color: var(--zb-surface-raised) !important;
@@ -8693,7 +4005,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
@@ -8702,7 +4014,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .Button:not(.FollowButton) {
     background-color: transparent !important;
@@ -8711,7 +4023,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
+    [data-zb-hover-card]
     .HoverCard-buttons
     .Button:not(.FollowButton):is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
@@ -8720,8 +4032,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--blue {
     background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
@@ -8729,8 +4041,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey {
     position: relative !important;
     height: 34px !important;
@@ -8741,8 +4053,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
     border-color: var(--zb-danger) !important;
@@ -8750,8 +4062,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    div:has(> .HoverCard-item)
-    .HoverCard-buttons:has(> .Button:only-child)
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
     > .Button.Button--grey:is(:hover, :focus-visible)::after {
     content: "取消关注" !important;
     position: absolute !important;
@@ -9430,7 +4742,7 @@ ${createPaletteVariables("mocha")}
     .QuestionPage
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)),
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)) {
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -9443,7 +4755,7 @@ ${createPaletteVariables("mocha")}
       :focus-visible
     ),
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:is([href*="/people/"], [href*="/org/"]):not(:has(img.Avatar)):is(
       :hover,
       :focus-visible
@@ -9924,18 +5236,15 @@ ${createPaletteVariables("mocha")}
     display: none !important;
   }
 
-  html[data-zb-theme] .Modal-content:has(.CommentContent) {
+  html[data-zb-theme] [data-zb-comment-modal] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Modal-content:has(.CommentContent) {
     box-shadow: var(--zb-shadow) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child {
@@ -9945,7 +5254,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -9956,7 +5265,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -9967,7 +5276,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child {
@@ -9975,7 +5284,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child
@@ -9984,7 +5293,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div:has(> div:nth-child(2) > div:nth-child(3) [data-id])
     > div:first-child
     > div:only-child {
@@ -9993,7 +5302,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2):has(> div:nth-child(3) [data-id])
     > div:nth-child(2)
@@ -10003,7 +5312,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -10013,13 +5322,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .CommentContent {
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     a:not(:has(img.Avatar)) {
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -10027,7 +5336,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:not(.Button--blue) {
     background-color: transparent !important;
     color: var(--zb-text-muted) !important;
@@ -10035,7 +5344,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary) {
     box-sizing: border-box !important;
     border-radius: 6px !important;
@@ -10045,7 +5354,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary):is(
       :hover,
       :focus-visible
@@ -10056,7 +5365,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(.Button--withLabel, .Button--secondary):is(
       :hover,
       :focus-visible
@@ -10067,7 +5376,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button:is(
       .Button--red,
       .is-active,
@@ -10081,13 +5390,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id] {
     border-bottom: 1px solid var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     > div:first-child {
     animation: none !important;
@@ -10095,7 +5404,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     [data-id] {
     border-bottom-color: transparent !important;
@@ -10103,7 +5412,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     [data-id]
     [data-id]::before {
     border-top: 1px solid var(--zb-border-strong) !important;
@@ -10115,14 +5424,14 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     img.Avatar {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable) {
     background-color: var(--zb-surface-raised) !important;
     border: 1px solid var(--zb-border-strong) !important;
@@ -10130,7 +5439,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable)
     > div:first-child {
     border-radius: 6px !important;
@@ -10138,7 +5447,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .InputLike.Editable {
     background-color: var(--zb-surface) !important;
     border-color: transparent !important;
@@ -10149,41 +5458,41 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .Button.Button--primary {
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
     background-color: transparent !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     .InputLike.Editable:focus-within {
     border-color: transparent !important;
     box-shadow: none !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable:focus-within) {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     div[data-zb-comment-composer-collapsed]
     > div:nth-child(2) {
     display: none !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.CommentContent)
+    [data-zb-comment-modal]
     :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
     background-color: transparent !important;
     color: var(--zb-text-subtle) !important;
@@ -10191,14 +5500,14 @@ ${createPaletteVariables("mocha")}
 
   /* Keep the comment theme active while sorting temporarily unmounts CommentContent. */
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar) {
+    [data-zb-comment-modal] {
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child {
@@ -10206,7 +5515,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:first-child
@@ -10215,7 +5524,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child {
@@ -10225,7 +5534,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -10236,7 +5545,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:first-child
     > div:last-child
@@ -10247,7 +5556,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     :is(
@@ -10265,7 +5574,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     .PlaceHolder-bg {
@@ -10279,7 +5588,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
@@ -10288,7 +5597,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"]) {
@@ -10297,7 +5606,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
@@ -10312,13 +5621,13 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
     > svg,
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     > div
     > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
@@ -10329,14 +5638,14 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     img.Avatar {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
   }
 
   html[data-zb-theme]
-    .Modal-content:has(.InputLike.Editable):has(img.Avatar)
+    [data-zb-comment-modal]
     .comment_img {
     background-color: var(--zb-surface-raised) !important;
     border-radius: 6px !important;
@@ -11471,2078 +6780,199 @@ ${createPaletteVariables("mocha")}
     color: var(--ctp-crust) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumnCard,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumnCard
-    > .Topstory-content {
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main,
-  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main > div {
-    min-height: calc(100vh - 52px) !important;
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div {
-    box-sizing: border-box !important;
-    width: min(982px, calc(100vw - 32px)) !important;
-    min-width: 0 !important;
-    padding: 28px 0 40px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div
-    > div:first-of-type {
-    color: var(--zb-text) !important;
-    font-size: 18px !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div
-    > div:first-of-type
-    > * {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div
-    > div:first-of-type
-    svg {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    div:has(> div > .css-f1fy25) {
-    box-sizing: border-box !important;
-    min-height: 50px !important;
-    padding: 12px 16px !important;
-    gap: 16px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    div:has(> div > .css-f1fy25)
-    > div:first-of-type {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    div:has(> div > .css-f1fy25)
-    > div:nth-of-type(2)
-    > * {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    div:has(> div > .css-f1fy25)
-    > div:nth-of-type(2)
-    > :is(.css-f1fy25, :hover) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div
-    > div:has(> div > div > div > a[href*="/ring/host/"][href*="tab_id"])
-    > div:first-of-type {
-    color: var(--zb-text-secondary) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    > div
-    > div
-    > div:has(> div > div > div > a[href*="/ring/host/"][href*="tab_id"])
-    > div:nth-of-type(2)
-    > div:first-of-type {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 16px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"] {
-    box-sizing: border-box !important;
-    min-height: 64px !important;
-    padding: 10px 12px !important;
-    overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    transition:
-      border-color 0.16s ease,
-      background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]::before {
-    content: none !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]:hover {
-    background-color: var(--zb-surface) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 36%, var(--zb-border)) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]:focus-visible {
-    border-color: var(--zb-primary) !important;
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]
-    > div {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    padding: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]
-    img {
-    flex: 0 0 auto !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]
-    img
-    + div
-    > div:first-of-type,
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]
-    img
-    + div
-    > div:first-of-type
-    * {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href*="/ring/host/"][href*="tab_id"]
-    img
-    + div
-    > div:nth-of-type(2) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"] {
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    transition:
-      border-color 0.16s ease,
-      background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]::before {
-    content: none !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]:hover {
-    background-color: var(--zb-surface) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 36%, var(--zb-border)) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]:focus-visible {
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    > :nth-child(2) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    img {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :first-child {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :nth-child(2)
-    > :first-child {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]:hover
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :nth-child(2)
-    > :first-child {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :nth-child(2)
-    > :nth-child(2),
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    > :nth-child(2)
-    > :nth-child(2) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button {
-    box-sizing: border-box !important;
-    position: relative !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 66px !important;
-    min-height: 28px !important;
-    padding: 0 12px !important;
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 999px !important;
-    color: var(--ctp-crust) !important;
-    transition:
-      border-color 0.16s ease,
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:focus-visible {
-    outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]) {
-    min-width: 80px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: transparent !important;
-    -webkit-text-fill-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])
-    > * {
-    visibility: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])::after {
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-    content: "已加入" !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: transparent !important;
-    -webkit-text-fill-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):is(
-      :hover,
-      :focus-visible
-    )::after {
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    content: "取消加入" !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):focus-visible {
-    outline-color: var(--zb-danger) !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
-    button:disabled {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text-subtle) !important;
-    cursor: not-allowed !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"] .App-main > div:first-child {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child {
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(-n + 5) {
-    background-color: var(--zb-surface) !important;
-    border-inline: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :first-child {
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 12px 12px 0 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(4) {
-    border-bottom: 1px solid var(--zb-border) !important;
-    border-radius: 0 0 12px 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :is(:nth-child(2), :nth-child(4))
-    :where(div, span, a) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :first-child {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    min-height: 36px !important;
-    padding: 6px 16px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    cursor: pointer !important;
-    transition: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :first-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    min-height: 36px !important;
-    padding: 6px 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 999px !important;
-    color: var(--ctp-crust) !important;
-    white-space: nowrap !important;
-    transition: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button
-    :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-    white-space: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :is(:first-child, button):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"] {
-    position: relative !important;
-    min-width: 80px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: transparent !important;
-    -webkit-text-fill-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"]
-    > * {
-    visibility: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"]::after {
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-    content: "已加入" !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: transparent !important;
-    -webkit-text-fill-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible)::after {
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    content: "取消加入" !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button[data-zb-ring-host-action="joined"]:focus-visible {
-    outline: 2px solid var(--zb-danger) !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > button:disabled {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-subtle) !important;
-    cursor: not-allowed !important;
-    opacity: 0.72 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :is(:first-child, button) {
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(4)
-    > * {
-    transition: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(4)
-    > * {
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(4)
-    :is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(4)
-    :focus-visible {
-    border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    .List {
-    background-color: transparent !important;
-    padding-top: 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    .List
-    > .List-item {
-    box-sizing: border-box !important;
-    margin-bottom: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    .List
-    > .List-item:is(:hover, :focus-within) {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    .List
-    > .List-item::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    .PinToolbar-actions {
-    background-color: transparent !important;
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child,
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div {
-    padding: 16px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2) {
-    gap: 16px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child {
-    min-height: 214px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div {
-    padding-top: 20px !important;
-    gap: 16px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)::before {
-    display: none !important;
-    content: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child {
-    padding: 16px 12px !important;
-    gap: 12px !important;
-    margin-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > :first-child {
-    flex: 0 0 auto !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2) {
-    box-sizing: border-box !important;
-    display: flex !important;
-    width: auto !important;
-    min-width: 0 !important;
-    min-height: 36px !important;
-    flex: 1 1 auto !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    border-radius: 999px !important;
-    color: var(--ctp-crust) !important;
-    cursor: pointer !important;
-    transition: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2)
-    :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2) {
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    > :first-child {
-    margin-bottom: 12px !important;
-    color: var(--zb-text) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    > :first-child
-    > :last-child:not(:only-child) {
-    color: var(--zb-primary) !important;
-    font-weight: 400 !important;
-    transition:
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    > :first-child
-    > :last-child:not(:only-child):is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2) {
-    margin-top: 0 !important;
-    padding: 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :nth-child(odd) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :first-child
-    > :first-child
-    > :nth-child(even) {
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :first-child
-    > :nth-child(2) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2) {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    color: var(--zb-primary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2)
-    :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(2)
-    > :nth-child(2) {
-    color: var(--zb-text-secondary) !important;
-    line-height: 1.65 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :is(:nth-child(2), :nth-child(3))
-    > :first-child {
-    color: var(--zb-text-muted) !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    a {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    button {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(3)
-    img {
-    border: 1px solid var(--zb-border) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(3)
-    a:is(:hover, :focus-visible)
-    img {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    a:is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div
-    a:focus-visible {
-    border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-wrapper {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-excerpt, .LinkCard-desc) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:is(:hover, :focus-visible) {
-    background: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    > .PinToolbar-actions {
-    box-sizing: border-box !important;
-    width: calc(100% + 40px) !important;
-    margin: -10px -20px !important;
-    padding: 10px 20px !important;
-    background-color: transparent !important;
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    div:has(> .Modal-content input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :first-child
-    > div
-    > :first-child {
-    color: var(--zb-text) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    .Input-wrapper {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    .Input-wrapper:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    input[placeholder="搜索你想邀请的人"] {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    input[placeholder="搜索你想邀请的人"]::placeholder {
-    color: var(--zb-text-subtle) !important;
-    opacity: 1 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :nth-child(2):has(button)
-    > div
-    > div
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :first-child
-    > :is(:first-child, :last-child) {
-    color: var(--zb-text-secondary) !important;
-    transition:
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :first-child
-    > :is(:first-child, :last-child)
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :first-child
-    > :is(:first-child, :last-child):is(:hover, :focus-within) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :nth-child(3) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :nth-child(3)
-    :where(a, div, span) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :nth-child(3)
-    > div
-    > div
-    > div {
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    > div
-    > :nth-child(2)
-    > :nth-child(3)
-    img {
-    border: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:disabled {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: transparent !important;
-    color: var(--zb-text-subtle) !important;
-    cursor: not-allowed !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
-    > button[aria-label="关闭"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 999px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
-    > button[aria-label="关闭"]:is(:hover, :focus-visible) {
-    background-color: color-mix(in srgb, var(--zb-danger) 14%, var(--zb-surface-raised)) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
-    > button[aria-label="关闭"]:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px
-      color-mix(in srgb, var(--zb-danger) 22%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    :is(a[href="/ring"], a[href*="/ring/host/"]) {
-    color: var(--zb-text) !important;
-    transition:
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    :is(a[href="/ring"], a[href*="/ring/host/"]):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    :is(a[href="/ring"], a[href*="/ring/host/"]):focus-visible {
-    border-radius: 8px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    a[href^="https://www.zhihu.com/pin/"]
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-inner {
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .WritePinV2-Form {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    :is(.TitleArea, .EditorArea .InputLike.Editable) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 0 !important;
-    color: var(--zb-text) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .TitleArea {
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    :is(.TitleArea, .EditorArea .InputLike.Editable):focus-within {
-    background-color: var(--zb-surface-hover) !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    :is(
-      .TitleArea textarea,
-      .Editable-content,
-      .DraftEditor-root,
-      .DraftEditor-editorContainer,
-      .public-DraftEditor-content
-    ) {
-    background-color: transparent !important;
-    border: 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    :is(
-      .TitleArea textarea::placeholder,
-      .public-DraftEditorPlaceholder-root,
-      .public-DraftEditorPlaceholder-inner
-    ) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    > div,
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    + div
-    > div {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    > div
-    :where(div, span, svg),
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    + div
-    > div
-    :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    > div:is(:hover, :focus-within),
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .RingSetting
-    + div
-    > div:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar {
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar
-    .Button--plain {
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar
-    .Button--plain:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar
-    .Button--plain:focus-visible,
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-closeButton:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-closeButton {
-    border-radius: 999px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-closeButton:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"] #TopstoryContent .List {
-    padding: 0 10px 10px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    :has(> .List)
-    > :first-child
-    > div
-    > div
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    :has(> .List)
-    > :first-child
-    > div
-    > div
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    margin-bottom: 10px !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item:is(:hover, :focus-within) {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .PinToolbar-actions {
-    background-color: transparent !important;
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .PinItem
-    button:not(.Button) {
-    background-color: var(--zb-primary) !important;
-    border: 1px solid var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .PinItem
-    button:not(.Button):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .PinItem
-    button:not(.Button):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    border-radius: 6px !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .ContentItem-actions
-    .Button:not(.VoteButton):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(.ContentItem-more, .RichContent-inner a) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(.ContentItem-more, .RichContent-inner a):is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="已收藏"],
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible) {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(.Button--red, .Button[aria-label="取消喜欢"]),
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(
-      .Button[aria-label="已收藏"],
-      .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-      .Button--red,
-      .Button[aria-label="取消喜欢"],
-      .Button[aria-label="喜欢"]:is(:hover, :focus-visible)
-    )
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-mainColumn
-    > .WriteArea
-    > div
-    > div:has(> img[src*="/heifetz/assets/"])::after {
-    border-top-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
     box-sizing: border-box !important;
     margin-bottom: 10px !important;
@@ -13555,16 +6985,10 @@ ${createPaletteVariables("mocha")}
     transition: border-color 0.16s ease !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:hover,
   html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
     border-color: var(--zb-border-strong) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:focus-visible,
   html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible {
     border-color: var(--zb-primary) !important;
     box-shadow:
@@ -13573,13 +6997,6 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title
-    a,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-title,
@@ -13591,13 +7008,6 @@ ${createPaletteVariables("mocha")}
     transition: color 0.16s ease !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title:is(:hover, :focus-within),
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-title
-    a:is(:hover, :focus-visible),
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-title:is(:hover, :focus-within),
@@ -13608,9 +7018,6 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary-hover) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .FollowButton.Button--blue {
@@ -13624,28 +7031,18 @@ ${createPaletteVariables("mocha")}
       box-shadow 0.16s ease !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue:hover,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .FollowButton.Button--blue:hover {
     border-color: var(--zb-primary-hover) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-container
-    .FollowButton.Button--blue:focus-visible,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .FollowButton.Button--blue:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton),
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-actions
@@ -13656,9 +7053,6 @@ ${createPaletteVariables("mocha")}
     border-radius: 6px !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-more {
@@ -13671,9 +7065,6 @@ ${createPaletteVariables("mocha")}
     line-height: 22px !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:is(:hover, :focus-visible),
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-more:is(:hover, :focus-visible) {
@@ -13681,9 +7072,6 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:focus-visible,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-more:focus-visible {
@@ -13691,10 +7079,6 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):hover,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-actions
@@ -13703,10 +7087,6 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):focus-visible,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-actions
@@ -13717,16 +7097,6 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-actions
@@ -13741,18 +7111,6 @@ ${createPaletteVariables("mocha")}
     fill: currentColor !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(
-      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
-    )
-    svg,
   html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-actions
@@ -14129,10 +7487,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:is(
-      :focus-visible,
-      :has(> :is(a, button):focus-visible)
-    ) {
+    .Card:is(:focus-visible, :focus-within) {
     border-color: var(--zb-primary) !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
@@ -14251,8 +7606,8 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
-    > div:has(> div > div > .FollowButton) {
+    [data-zb-follow-card]
+    > [data-zb-follow-card-track] {
     box-sizing: border-box !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -14266,9 +7621,9 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
-    > div:has(> div > div > .FollowButton)
-    > div:has(.FollowButton) {
+    [data-zb-follow-card]
+    > [data-zb-follow-card-track]
+    > [data-zb-follow-card-slide] {
     box-sizing: border-box !important;
     flex: 0 0 100% !important;
     width: 100% !important;
@@ -14361,8 +7716,8 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
-    div:has(> .AuthorInfo + .FollowButton) {
+    [data-zb-follow-card]
+    [data-zb-author-follow-row] {
     box-sizing: border-box !important;
     display: flex !important;
     align-items: center !important;
@@ -14375,8 +7730,8 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
-    div:has(> .AuthorInfo + .FollowButton)
+    [data-zb-follow-card]
+    [data-zb-author-follow-row]
     > .AuthorInfo {
     flex: 1 1 auto !important;
     width: auto !important;
@@ -14389,7 +7744,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .AuthorInfo-content {
     width: auto !important;
     min-width: 0 !important;
@@ -14401,7 +7756,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     :is(.AuthorInfo-head, .AuthorInfo-detail) {
     max-width: 100% !important;
     overflow: hidden !important;
@@ -14414,7 +7769,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton {
     box-sizing: border-box !important;
     display: inline-flex !important;
@@ -14440,7 +7795,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--blue {
     background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
@@ -14452,7 +7807,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--blue:hover {
     background-color: var(--zb-primary-hover) !important;
     border-color: var(--zb-primary-hover) !important;
@@ -14463,7 +7818,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--grey {
     background-color: var(--zb-surface-raised) !important;
     border-color: var(--zb-border-strong) !important;
@@ -14475,7 +7830,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
     border-color: var(--zb-danger) !important;
@@ -14487,7 +7842,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--blue:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
     outline: 0 !important;
@@ -14498,7 +7853,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton.Button--grey:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
     outline: 0 !important;
@@ -14509,7 +7864,7 @@ ${createPaletteVariables("mocha")}
       [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
-    .Card:has(.FollowButton)
+    [data-zb-follow-card]
     .FollowButton
     svg {
     color: inherit !important;
@@ -14803,1541 +8158,4 @@ ${createPaletteVariables("mocha")}
     box-shadow: none !important;
   }
 
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(
-      .Card:has(.TopicMetaCard),
-      .Card:has(> .NumberBoard),
-      .Card:has(.TopicRelativeBoard-item),
-      .TopicFeedList
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicMetaCard-title, .ContentItem-title),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicMetaCard-title, .ContentItem-title)
-    a {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicMetaCard-title, .ContentItem-title)
-    a:is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicMetaCard-description, .TopicHotIntroItem-item, .ContentItem-meta) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicMetaCard-image {
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicMetaCard-linkIcon {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicMetaCard-linkIcon:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicActions .Button {
-    box-sizing: border-box !important;
-    min-height: 34px !important;
-    border-radius: 6px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--blue:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .Button--plain:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .ShareMenu-toggler[aria-expanded="true"]
-    .Button {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.Topic-pageHeader, .Topic-pageHeaderMain, .Topic-bar) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .Topic-bar {
-    box-sizing: border-box !important;
-    height: 50px !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-tabs
-    .Tabs-item {
-    padding-right: 15px !important;
-    padding-left: 15px !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .Topic-tabs .Tabs-link {
-    padding: 14px 0 !important;
-    background-color: transparent !important;
-    border-radius: 0 !important;
-    color: var(--zb-text-muted) !important;
-    font-size: 16px !important;
-    font-weight: 400 !important;
-    line-height: 22px !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-tabs
-    .Tabs-link:hover {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-tabs
-    .Tabs-link:focus-visible {
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-tabs
-    .Tabs-link.is-active {
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .Topic-headerLink {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    height: 50px !important;
-    padding: 0 20px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    font-size: 14px !important;
-    line-height: 20px !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-headerLink:hover {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-headerLink:focus-visible {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Topic-headerLink
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicHotIntroItem-item, .TopicHot-introItem) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicHotIntroItem-item, .TopicHot-introItem)
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.TopicHotIntroItem-item, .TopicHot-introItem)
-    a:is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-    text-decoration: underline !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem:last-child {
-    border-bottom: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.RichContent-inner, .RichText) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.AuthorInfo-name, .AuthorInfo-name a) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.AuthorInfo-name, .AuthorInfo-name a):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.AuthorInfo-badgeText, .ContentItem-time) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    > .ContentItem
-    > :is(.ContentItem-actions, .RichContent-actions) {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    background-color: var(--zb-primary-soft) !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .VoteButton:is(:hover, :focus-visible) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 24%,
-      transparent
-    ) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem .ContentItem-more {
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container
-    :is(.InputLike, .Editable) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container
-    :is(.InputLike, .Editable):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container
-    button {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .NumberBoard-item {
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard-item
-    strong {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard-item:is(:hover, :focus-visible)
-    strong {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard--divider
-    .NumberBoard-item + .NumberBoard-item::before {
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicRelativeBoard-title {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag {
-    display: inline-block !important;
-    height: 30px !important;
-    line-height: 30px !important;
-    vertical-align: top !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag
-    > div {
-    display: inline-block !important;
-    height: 30px !important;
-    line-height: 30px !important;
-    vertical-align: top !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag
-    .Tag {
-    box-sizing: border-box !important;
-    height: 30px !important;
-    padding: 0 12px !important;
-    background-color: var(--zb-primary-soft) !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    line-height: 30px !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag
-    .Tag-content {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag:hover
-    .Tag {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 24%,
-      transparent
-    ) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-topics
-    .TopicTag:focus-visible
-    .Tag {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 24%,
-      transparent
-    ) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicRelativeBoard-link {
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Popover-content:has(.ShareMenu-content),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .Popover-content:has(.Menu-item[aria-label="举报"]) {
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.ShareMenu-content, .ShareMenu-menuItems) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    :is(.PlaceHolder, .PlaceHolder-inner) {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .CreatorIndex-BottomBox-Item {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    box-shadow: none !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorIndex-BottomBox-Item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorIndex-BottomBox-Item
-    > svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    .LevelInfoV2-creatorInfo {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a {
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> .ReactCollapse--collapse)
-    > div:first-child {
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> .ReactCollapse--collapse)
-    > div:first-child
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a[href="/creator"],
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(
-      a[href="/creator/account/rights"],
-      a[href="/creator/account/growth-level"]
-    ) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    a[href="/creator"] {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"]) {
-    z-index: 20 !important;
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    opacity: 1 !important;
-    box-shadow: var(--zb-shadow) !important;
-    isolation: isolate !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a {
-    background-color: transparent !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator
-    > div:first-child
-    div:has(> a[href="/zvideo/upload-video"])
-    > a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Sticky:has(> .Tabs),
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"]),
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"])
-    .Sticky {
-    background-color: var(--zb-page) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-item {
-    min-width: max-content !important;
-    flex: 0 0 auto !important;
-    padding-right: 4px !important;
-    padding-left: 4px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs {
-    min-width: 0 !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link {
-    box-sizing: border-box !important;
-    width: auto !important;
-    min-width: max-content !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 8px 0 !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    white-space: nowrap !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    :where(div, span, p) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:first-child
-    .Sticky {
-    background-color: var(--zb-surface-raised) !important;
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:first-child
-    .Sticky
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child) {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-    transition: background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child):hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    > div:nth-child(-n + 3) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    > div:nth-child(-n + 3)
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    label:has(> input[type="checkbox"]) {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > .Tabs
-    + div
-    + div
-    > div:not(:first-child)
-    label:has(> input[type="checkbox"]:checked) {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Popover:has(> .Select-button[role="combobox"]) {
-    box-sizing: border-box !important;
-    height: 34px !important;
-    padding: 0 10px 0 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Popover:has(
-      > .Select-button[role="combobox"]:is(
-          :hover,
-          :focus-visible,
-          [aria-expanded="true"]
-        )
-    ) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"] {
-    height: 32px !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 8px !important;
-    color: inherit !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content:has(> .Select-list) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list {
-    padding: 6px 0 !important;
-    background-color: var(--zb-surface) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list
-    > .Select-option {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin: 0 6px !important;
-    padding: 0 12px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Popover-content
-    > .Select-list
-    > .Select-option:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreatorRangePicker-Button {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreatorRangePicker-Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    > div
-    > div:has(> [role="list"])
-    > div:has(+ [role="list"])
-    .Sticky
-    > div:first-child {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard {
-    box-sizing: border-box !important;
-    margin: 0 16px 10px !important;
-    padding: 20px 16px !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      0 0 0 2px var(--zb-primary-soft),
-      var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type {
-    color: var(--zb-primary) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    .CreationCardTitle-wrapper
-    > div
-    > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    .CreationCardTitle-wrapper
-    > div
-    > span:last-child {
-    color: var(--zb-primary) !important;
-    font-size: 18px !important;
-    font-weight: 500 !important;
-    line-height: 1.5 !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type:is(:hover, :focus-visible)
-    .CreationCardTitle-wrapper
-    > div
-    > span:last-child {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:first-of-type:focus-visible {
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:nth-of-type(2) {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > a:nth-of-type(2)
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > div:last-child
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .CreationManage-CreationCard
-    > div:last-child
-    :is(a, button):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton {
-    background-color: var(--zb-surface-raised) !important;
-    background-image: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 25%,
-      var(--zb-surface-hover) 75%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton::after {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-surface-hover) 80%,
-      transparent
-    ) !important;
-    box-shadow: 0 0 70px 70px
-      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div > div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card):not(:has(> div:only-child)),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section) {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    > div::after {
-    border-color: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div {
-    background-color: transparent !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div
-    svg {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    > div
-    > div:has(> section)
-    + div
-    + div
-    > div
-    > div:has(> .ZDI--Broadcast16)
-    > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    .WriteArea
-    + div
-    > div:first-child
-    a[href^="/creator/analytics/work/"]
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    [role="complementary"]
-    > div:not(.Card):not(:has(> div:only-child))
-    > div:last-child {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    [role="complementary"]
-    > div:not(.Card):not(:has(> div:only-child))
-    > div:not(:has(a, button, img))
-    div[class]:empty {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    :where(div, span, p, strong) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    a {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
-    .CreatorHome
-    :is(
-      .WriteArea + div,
-      .WriteArea + div + div > div > div,
-      .WriteArea + div + div + div > div,
-      [role="complementary"] > div:not(.Card),
-      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    )
-    :is(a, button):is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
 `;

@@ -5,7 +5,7 @@ import {
   createHomeComposerFeature,
   HOME_COMPOSER_STORAGE_KEY,
 } from "../src/features/home-composer.js";
-import { createHomeSidebarFeature } from "../src/features/home-sidebar.js";
+import { createPageContextFeature } from "../src/features/page-context.js";
 import { HOME_COMPOSER_STYLE } from "../src/styles/home-composer.js";
 
 const activePages = [];
@@ -58,7 +58,7 @@ describe("home composer feature", () => {
     );
     activePages.push(page);
     page.window.localStorage.setItem(HOME_COMPOSER_STORAGE_KEY, "false");
-    const routeFeature = createHomeSidebarFeature(page.window);
+    const routeFeature = createPageContextFeature(page.window);
     const composerFeature = createHomeComposerFeature(page.window);
 
     routeFeature.start();

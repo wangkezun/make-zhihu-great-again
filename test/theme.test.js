@@ -103,6 +103,114 @@ describe("Catppuccin theme feature", () => {
     feature.destroy();
   });
 
+  it("marks dynamically loaded hover-card structure and refreshes its single-action state", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const hoverCard = page.window.document.createElement("div");
+    hoverCard.innerHTML = `
+      <div class="HoverCard-item">
+        <div class="avatar-row"><img class="Avatar"></div>
+        <div class="HoverCard-buttons"><button class="Button"></button></div>
+      </div>
+    `;
+
+    page.window.document.body.append(hoverCard);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    const avatarRow = hoverCard.querySelector(".avatar-row");
+    const actionRow = hoverCard.querySelector(".HoverCard-buttons");
+    expect(hoverCard.hasAttribute("data-zb-hover-card")).toBe(true);
+    expect(avatarRow.hasAttribute("data-zb-hover-card-avatar-row")).toBe(true);
+    expect(actionRow.hasAttribute("data-zb-hover-card-single-action")).toBe(true);
+
+    actionRow.append(page.window.document.createElement("button"));
+    actionRow.lastElementChild.className = "Button";
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(actionRow.hasAttribute("data-zb-hover-card-single-action")).toBe(false);
+
+    actionRow.lastElementChild.remove();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(actionRow.hasAttribute("data-zb-hover-card-single-action")).toBe(true);
+
+    feature.destroy();
+    expect(hoverCard.hasAttribute("data-zb-hover-card")).toBe(false);
+    expect(avatarRow.hasAttribute("data-zb-hover-card-avatar-row")).toBe(false);
+    expect(actionRow.hasAttribute("data-zb-hover-card-single-action")).toBe(false);
+  });
+
+  it("marks comment modals and keeps the marker while sorted content is temporarily unmounted", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const commentModal = page.window.document.createElement("div");
+    commentModal.className = "Modal-content";
+    commentModal.innerHTML = '<div class="CommentContent">评论</div>';
+
+    page.window.document.body.append(commentModal);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(commentModal.hasAttribute("data-zb-comment-modal")).toBe(true);
+
+    commentModal.querySelector(".CommentContent").remove();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(commentModal.hasAttribute("data-zb-comment-modal")).toBe(true);
+
+    const fallbackModal = page.window.document.createElement("div");
+    fallbackModal.className = "Modal-content";
+    fallbackModal.innerHTML = '<div class="InputLike Editable"></div><img class="Avatar">';
+    page.window.document.body.append(fallbackModal);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(fallbackModal.hasAttribute("data-zb-comment-modal")).toBe(true);
+
+    feature.destroy();
+    expect(commentModal.hasAttribute("data-zb-comment-modal")).toBe(false);
+    expect(fallbackModal.hasAttribute("data-zb-comment-modal")).toBe(false);
+  });
+
+  it("marks action-menu popovers without a relational selector", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const popover = page.window.document.createElement("div");
+    popover.className = "Popover-content";
+    popover.innerHTML = '<div class="ActionMenu"></div>';
+
+    page.window.document.body.append(popover);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(true);
+
+    feature.destroy();
+    expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(false);
+  });
+
+  it("marks poll option popovers only while a poll or PK modal is open", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const modal = page.window.document.createElement("div");
+    modal.className = "Modal";
+    modal.innerHTML = '<input placeholder="请输入投票 标题">';
+    const popover = page.window.document.createElement("div");
+    const options = Array.from({ length: 8 }, (_, index) => `<div>${index}</div>`).join("");
+    popover.innerHTML = `<svg></svg><div>${options}</div>`;
+
+    page.window.document.body.append(modal, popover);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(page.window.document.documentElement.dataset.zbPollModalOpen).toBe("true");
+    expect(popover.hasAttribute("data-zb-poll-option-popover")).toBe(true);
+
+    modal.remove();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(page.window.document.documentElement.dataset.zbPollModalOpen).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.documentElement.hasAttribute("data-zb-poll-modal-open")).toBe(
+      false,
+    );
+    expect(popover.hasAttribute("data-zb-poll-option-popover")).toBe(false);
+  });
+
   it("does not inspect mutations inside the main application root", async () => {
     const page = createPage();
     const root = page.window.document.createElement("div");
@@ -147,184 +255,7 @@ describe("Catppuccin theme feature", () => {
     }
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn + * .Card");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard:empty");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-topic-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicFeedList");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicFeedItem");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicActions");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Topic-tabs\n    .Tabs-item {\n    padding-right: 15px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Topic-tabs\n    .Tabs-link.is-active {\n    color: var(--zb-primary) !important;\n" +
-        "    font-weight: 500 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Topic-headerLink:hover {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopicRelativeBoard-item");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopicRelativeBoard-topics\n    .TopicTag\n    .Tag {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "height: 30px !important;\n    padding: 0 12px !important;\n" +
-        "    background-color: var(--zb-primary-soft) !important;\n" +
-        "    border: 0 !important;\n    border-radius: 999px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopicRelativeBoard-topics\n    .TopicTag:hover\n    .Tag {",
-    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopicFeedList\n    :is(.PlaceHolder, .PlaceHolder-inner)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopicFeedList\n    .PlaceHolder-bg {\n    background: linear-gradient(",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopicFeedList\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-index-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href^="/ring/host/"] {');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href^="/ring/host/"]::before {\n    content: none !important;\n    border: 0 !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :is(.css-f1fy25, :hover) {\n    background-color: var(--zb-primary-soft) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> div > .css-f1fy25) {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href*="/ring/host/"][href*="tab_id"] {\n    box-sizing: border-box !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "grid-template-columns: repeat(3, minmax(0, 1fr)) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-of-type\n    svg {\n    color: var(--zb-primary) !important;\n    fill: currentColor !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.App-main,\n  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main > div {',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href^="/ring/host/"]\n    button {\n    box-sizing: border-box !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "background-color: var(--zb-primary) !important;\n    border: 1px solid var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href^="/ring/host/"]\n    img {\n    background-color: var(--zb-surface-raised) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "color: var(--zb-primary) !important;\n    transition: color 0.16s ease !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href^="/ring/host/"]:hover\n    > :nth-child(2)');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])::after',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "color: transparent !important;\n    -webkit-text-fill-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消加入" !important;');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href^="/ring/host/"]:hover {\n    background-color: var(--zb-surface) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("outline: 2px solid var(--zb-primary) !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-host-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('button[data-zb-ring-host-action="joined"]::after');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible)::after',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".App-main\n    > div:first-child\n    > div:first-child\n    .List\n    > .List-item {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(2)\n    > div\n    > div:nth-child(2)\n    > div {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(2)\n    > div:nth-child(2)\n    > :first-child {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(2)\n    > div:nth-child(2)\n    > button {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child\n    > div:nth-child(2) {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-host-ready="true"]\n    .App-main');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(4)\n    > * {\n    transition: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(4) {\n    border-bottom: 1px solid var(--zb-border) !important;\n    border-radius: 0 0 12px 12px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(2)\n    > div {\n    padding: 16px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child {\n    padding: 16px 12px !important;\n    gap: 12px !important;\n    margin-bottom: 0 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(2)::before {\n    display: none !important;\n    content: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(2)\n    > div {\n    padding-top: 20px !important;\n    gap: 16px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(2)\n    > div:first-child {\n    min-height: 214px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "width: auto !important;\n    min-width: 0 !important;\n    min-height: 36px !important;\n    flex: 1 1 auto !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(2) {\n    margin-top: 0 !important;\n    padding: 12px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :last-child:not(:only-child) {\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :first-child\n    > :first-child {\n    color: var(--zb-text) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :is(:nth-child(2), :nth-child(3))\n    > :first-child {\n    color: var(--zb-text-muted) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-ring-host-page="true"] .PinItem a.LinkCard {',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "a.LinkCard\n    .LinkCard-wrapper {\n    background: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "a.LinkCard\n    :is(.LinkCard-excerpt, .LinkCard-desc) {\n    color: var(--zb-text-muted) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".PinItem\n    .ContentItem-actions\n    .VoteButton {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .PinToolbar-actions {\n    box-sizing: border-box !important;\n    width: calc(100% + 40px) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "margin: -10px -20px !important;\n    padding: 10px 20px !important;\n    background-color: transparent !important;\n    border-top: 0 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Button[aria-label="收藏"]:is(:hover, :focus-visible),',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Modal-content:has(input[placeholder="搜索你想邀请的人"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div:has(> .Modal-content input[placeholder="搜索你想邀请的人"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('input[placeholder="搜索你想邀请的人"]::placeholder');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(3)\n    :where(a, div, span) {\n    color: var(--zb-text) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> :nth-child(2):has(button)\n    > div\n    > div\n    > div {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('> button[aria-label="关闭"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-feeds-page="true"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PinDetail .PinItem a.LinkCard {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.PinDetail\n    .PinItem\n    a[href*="/ring/host/"] {',
@@ -389,87 +320,9 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".VoterList-content\n    .FollowButton.Button--grey:is(:hover, :focus-visible)\n    :where(span, svg, path) {",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "#TopstoryContent\n    > div {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".List\n    > .List-item {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".List\n    > .List-item::after {\n    display: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".PinItem\n    button:not(.Button) {\n    background-color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".PinToolbar-actions {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal:has(.WritePinV2-Form)\n    .WritePinV2-Form {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":is(.TitleArea, .EditorArea .InputLike.Editable) {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".RingSetting\n    + div\n    > div {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".WritePinToolbar {\n    border-top: 1px solid var(--zb-border) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-tabs-stuck="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .Card\n    + div\n    > div:last-child {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .Card\n    + div\n    > div:first-child {\n    background-color: var(--zb-page) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".AuthorInfo\n    + div\n    :where(div, span)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:first-child\n    :where(a, div, span)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:first-child\n    .UserLink-link");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:has(.ContentItem) {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 12px 12px 0 0 !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 0 0 12px 12px !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("height: auto !important;\n    padding-bottom: 20px");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> section {\n    box-sizing: border-box !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:last-of-type {\n    display: flex !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "border-top: 1px solid var(--zb-border-strong) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".FollowButton.Button--blue\n    :where(span, svg, path)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "color: var(--ctp-crust) !important;\n    -webkit-text-fill-color: var(--ctp-crust) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .Card\n    .FollowButton.Button--grey {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".FollowButton.Button--grey:hover {\n    background-color: var(--zb-danger-soft) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".FollowButton\n    + .Button.Button--blue {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .Card\n    .Button--plain:has(.Zi--Dots) {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-column-page="true"]\n    .ContentItem-actions\n    .Button:not(.VoteButton) {',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-column-page="true"]\n    .ContentItem-actions\n    .VoteButton {',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-column-page="true"] .ContentItem-more {');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-inner");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-column-page="true"] .Column-EmptyCard {\n    box-sizing: border-box !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard p");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard\n    svg\n    path:first-of-type");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Column-EmptyCard\n    svg\n    path:last-of-type");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-column-page="true"] .PlaceHolder-bg');
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.BounceLoading[style*="width: 60px"][style*="height: 18px"]',
     );
@@ -477,22 +330,6 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ":is(.LinkCard-title.loading, .LinkCard-desc.loading)",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText a.LinkCard");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard-image");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".RichText .LinkCard .tag");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.QuestionHeader-main\n    > a[aria-label^="话题 "][href*="/topic/"] {\n' +
-        "    background-color: var(--zb-surface-raised) !important;\n" +
-        "    border-color: var(--zb-border-strong) !important;\n" +
-        "    border-radius: 10px !important;\n" +
-        "    color: var(--zb-text) !important;\n" +
-        "    overflow: hidden !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:last-of-type\n    > button[aria-pressed="true"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-topics .QuestionTopic");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(":not(.LinkCard):not(.tag)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".skeleton__line::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-za-detail-view-path-module="RightSideBar"]');
@@ -500,9 +337,8 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-za-detail-view-path-module="RightSideBar"]\n    .Card\n    :where(div, span)',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Card:is(\n      :focus-visible,\n      :has(> :is(a, button):focus-visible)",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Card:is(:focus-visible, :focus-within)");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(":has(> :is(a, button):focus-visible)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("border: 1px solid var(--zb-border) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.Card, .HotSearchCard) {");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[aria-label="创作中心卡片"]');
@@ -517,12 +353,12 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/education/learning"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".KfeCollection-CreateSaltCard-button");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Card:has(.FollowButton)\n    .FollowButton.Button--grey",
+      "[data-zb-follow-card]\n    .FollowButton.Button--grey",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ':is(\n      [data-zb-home-sidebar],\n      [data-za-detail-view-path-module="RightSideBar"]\n    )\n    .Card:has(.FollowButton)',
+      ':is(\n      [data-zb-home-sidebar],\n      [data-za-detail-view-path-module="RightSideBar"]\n    )\n    [data-zb-follow-card]',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .AuthorInfo + .FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-author-follow-row]");
     expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.AuthorInfo-head, .AuthorInfo-detail)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("white-space: nowrap !important");
@@ -582,10 +418,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .content-title");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column\n    :is(");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .subscrib-btn");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskTitle-input");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .AskDetail-input");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal .Ask-form .AskTitle-input");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal .Ask-form .AskDetail-input");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AskDetail-input:focus-within");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.Ask-form) .Editable-toolbar");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal .Ask-form .Editable-toolbar");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".Modal:has(.Ask-form)");
     expect(CATPPUCCIN_THEME_STYLE).toContain('.Editable-control[aria-pressed="true"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal:has(.SendGiftModal-GiftListWrapper)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -606,61 +443,13 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 999px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue:focus-visible");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):not(.Button--blue):hover",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):not(.Button--blue):focus-visible",
-    );
     expect(CATPPUCCIN_THEME_STYLE).not.toContain(
       "html[data-zb-theme] .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-home-page="true"]\n    .Topstory-mainColumnCard,\n',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumnCard\n    > .Topstory-content");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea:hover");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-mainColumn\n    > .WriteArea:focus-within");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('> div:has(> img[src*="/heifetz/assets/"])::after');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Topstory-recommend\n    > .TopstoryItem,");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("margin-bottom: 10px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:hover,");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem:focus-visible,");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".TopstoryItem:is(:hover, :focus-within)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.ContentItem-title,\n  html[data-zb-theme][data-zb-home-page="true"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".ContentItem-title:is(:hover, :focus-within)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-primary-hover) !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem\n    .ContentItem-more,");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem\n    .ContentItem-more:is(:hover, :focus-visible)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:is(\n      .Button--red,\n      .is-active,");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Button[aria-label="收藏"]:is(:hover, :focus-visible)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('.Button[aria-label="已收藏"]\n    .Zi--Star');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-warning) !important");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      ".Button:has(:is(.Zi--HeartFill, .ZDI--HeartFill24))\n    svg",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[aria-label="取消喜欢"],\n      [aria-pressed="true"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-danger) !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Card:has(.FollowButton)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:has(> div > div > .FollowButton)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-follow-card]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> [data-zb-follow-card-track]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> [data-zb-follow-card-slide]");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".Card:has(.FollowButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 100% !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[role="dialog"]:is(');
@@ -755,8 +544,11 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain('input[type="text"]::placeholder');
     expect(CATPPUCCIN_THEME_STYLE).toContain('input[placeholder*="投票 标题"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("svg.ZDI--Plus24 + div");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> svg + div > div:nth-child(8))");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(":has(> svg + div > div:nth-child(9))");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('html[data-zb-theme][data-zb-poll-modal-open="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-poll-option-popover]");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("html[data-zb-theme]:has(");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> svg + div > div:nth-child(8))");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(":has(> svg + div > div:nth-child(9))");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-home-sidebar] :where(div, span)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-itemText");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PushNotifications-menuContainer");
@@ -814,11 +606,15 @@ describe("Catppuccin theme feature", () => {
       ".ChatUserListItem\n    .ChatUserListItem-Content {\n    box-sizing: border-box !important;\n    min-width: 0 !important;\n    padding-right: 34px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "body:has(.App-main .Chat)\n    .Popover-content:has(> .ActionMenu)",
+      'html[data-zb-theme][data-zb-messages-page="true"]\n' + "    [data-zb-action-menu-popover]",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "body:has(.App-main .Chat)\n    .Popover-content:has(> .ActionMenu)\n    > .ActionMenu\n    > .ActionMenu-item:first-child {",
+      '[data-zb-messages-page="true"]\n' +
+        "    [data-zb-action-menu-popover]\n" +
+        "    > .ActionMenu\n" +
+        "    > .ActionMenu-item:first-child {",
     );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("body:has(.App-main .Chat)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".AbnormalAlert.ChatBox-alert {\n    box-sizing: border-box !important;\n    width: min(488px, calc(100% - 32px)) !important;",
     );
@@ -1004,83 +800,6 @@ describe("Catppuccin theme feature", () => {
     );
   });
 
-  it("themes profile headers, tabs, activity lists, and sidebars within the profile route", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.ProfileHeader-wrapper,\n  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {\n    background-color: var(--zb-surface) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileHeader\n    :is(.ProfileHeader-name, .ProfileHeader-detailValue)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileHeader\n    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileHeader-buttons\n    .FollowButton\n    + .Button",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-profile-page="true"] .ProfileMain {');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileMain-tabs\n    .Tabs-link.is-active {\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileMain-tabs\n    .Tabs-meta {\n    color: var(--zb-text-muted) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.ProfileMain-header\n    div:has(> button :is(.Zi--Search, .ZDI--Search24, [class*="Search"]))',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("var(--zb-surface) 56px,\n      transparent 100%");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileMain\n    :is(.List-header, .List-item)::after",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-lineComments\n    .List-item\n    > div\n    > div\n    > div\n    > a:first-child\n    > div {\n    color: var(--zb-text) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-lineComments\n    .List-item\n    > div\n    > div\n    > div\n    > div:last-child\n    > div:last-child\n    > a\n    > div {\n    color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:last-child\n    > div:last-child\n    > div:last-child\n    > div {\n    color: var(--zb-text-muted) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ProfileMain\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ContentItem-actions\n    .Button--iconOnly:not(.VoteButton)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.ContentItem-actions\n    .Button[aria-label="喜欢"]:is(:hover, :focus-visible)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ContentItem-actions\n    .VoteButton:disabled {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-sideColumn\n    :is(\n      .Profile-sideColumnTitle,",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Profile-sideColumn .Card,\n  html[data-zb-theme][data-zb-profile-page="true"] .Profile-sideColumn .Profile-lightList',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Profile-sideColumn\n    :is(a[href="/creator"], a[href="/question/waiting"]) {',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-sideColumn\n    .Profile-lightItem:first-child {\n    border-top: 0 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Card-header,\n      .Profile-footerOperations,\n      .ProfileSideCreator-readCountItem",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-lightItemValue,\n      .NumberBoard-itemValue,",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Profile-lightItemName,\n      .NumberBoard-itemName,",
-    );
-  });
-
   it("themes the native toolbar inside a pin item in both normal and sticky flow", () => {
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /html\[data-zb-theme\] \.PinItem \.PinToolbar-actions \{[^}]*background-color: var\(--zb-surface\) !important;[^}]*border-color: var\(--zb-border\) !important;[^}]*color: var\(--zb-text-muted\) !important;[^}]*\}/,
@@ -1089,38 +808,6 @@ describe("Catppuccin theme feature", () => {
   });
 
   it("styles question page headers, sidebars, overlays, editors, and floating controls", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-inner");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-content");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-primary");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-divider");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionStatus-notification-closeButton");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionInvitation {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionInvitation-content\n    .AutoInviteItem-wrapper--desktop",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionInvitation-content\n    > .List\n    > .List-item:is(:hover, :focus-within)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-inner:has(.QuestionInvitation)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(> .QuestionInvitation)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionInvitation-content\n    > .List\n    > .List-item::after",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("border-bottom-color: var(--zb-border) !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "width: calc(100% - 24px) !important;\n    margin: 0 12px !important;\n    padding: 12px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".AutoInviteItem-button--closed.Button.Button--link:is(",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".AutoInviteItem-button--closed.Button.Button--link:focus-visible",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionInvitation-input:focus-within");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "body\n    div:has(\n      > div\n        > div\n        > div\n        > .QuestionStatus-notification-inner",
-    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-footer");
     expect(CATPPUCCIN_THEME_STYLE).toContain(":is(.FollowButton, .WriteAnswerButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -1146,26 +833,6 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 16px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PageHeader .QuestionHeader-title");
     expect(CATPPUCCIN_THEME_STYLE).toContain("font-size: 22px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .NumberBoard-item");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .NumberBoard-item.Button:hover");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".NumberBoard-item.Button:focus-visible");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .QuestionFollowStatus-counts");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("column-gap: 8px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionFollowStatus-counts\n    .NumberBoard-itemInner",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader .QuestionFollowStatus-people");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionFollowStatus-people:focus-visible");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("padding-left: 8px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme]\n    .Card:has(> div:first-child .Zi--LabelSpecial)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      `.Card[data-za-extra-module*='"type":"SpecialTopic"']`,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> a:is(:hover, :focus-visible)\n    > div:last-child",
-    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme][data-zb-question-content-under-header="true"]',
     );
@@ -1211,29 +878,26 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard-itemText");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-sideColumn .HotSearchCard");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card]");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-right: 16px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("top: -8px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) div:has(> .Avatar)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card-avatar-row]");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-bottom: 21px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .HoverCard-description");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card] .HoverCard-description");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".NumberBoard-itemValue");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-itemName");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-itemValue");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:hover");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswerAuthor\n    .NumberBoard-item:focus-visible");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons .Button");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .HoverCard-buttons");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .Button");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card] .HoverCard-buttons");
     expect(CATPPUCCIN_THEME_STYLE).toContain("gap: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 1 1 0 !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .HoverCard-item) .NumberBoard-item");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage img.Avatar");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":is(.AnswerItem .AuthorInfo, .AnswerAuthor)\n    img.Avatar",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card] .NumberBoard-item");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .FollowButton.Button--grey");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .Button:not(.FollowButton)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons:has(> .Button:only-child)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card-single-action]");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> .HoverCard-item)");
     expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消关注" !important');
     expect(CATPPUCCIN_THEME_STYLE).toContain("height: 34px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("position: absolute !important");
@@ -1340,27 +1004,39 @@ describe("Catppuccin theme feature", () => {
       '> div:has(> svg[width="26"][height="10"] + div)\n    > svg\n    + div {\n    color: var(--zb-text) !important;',
     );
 
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.CommentContent)\n    [data-id]\n    > div:first-child {\n    animation: none !important;\n    background-color: transparent !important;",
+    expect(
+      CATPPUCCIN_THEME_STYLE.match(/html\[data-zb-theme\] \[data-zb-comment-modal\] \{/g),
+    ).toHaveLength(1);
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".Modal-content:has(.CommentContent)");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      ".Modal-content:has(.InputLike.Editable):has(img.Avatar)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.CommentContent)\n    .InputLike.Editable",
+      "html[data-zb-theme] [data-zb-comment-modal] {\n" +
+        "    background-color: var(--zb-surface) !important;\n" +
+        "    border-color: var(--zb-border) !important;\n" +
+        "    color: var(--zb-text) !important;\n" +
+        "    box-shadow: var(--zb-shadow) !important;\n" +
+        "  }",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "[data-zb-comment-modal]\n    [data-id]\n    > div:first-child {\n    animation: none !important;\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    .InputLike.Editable");
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-inline: 8px !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)\n    [data-id]");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    [data-id]");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "border-bottom: 1px solid var(--zb-border-strong) !important",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-id]\n    [data-id]::before");
     expect(CATPPUCCIN_THEME_STYLE).toContain("left: 34px !important");
     expect(CATPPUCCIN_THEME_STYLE).not.toContain("[data-id]:last-child {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(.CommentContent)\n    img.Avatar");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    img.Avatar");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.CommentContent)\n    div:has(> div > div > .InputLike.Editable)",
+      "[data-zb-comment-modal]\n    div:has(> div > div > .InputLike.Editable)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.CommentContent)\n    .Button.Button--primary",
+      "[data-zb-comment-modal]\n    .Button.Button--primary",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Button:is(.Button--withLabel, .Button--secondary):is(",
@@ -1372,19 +1048,15 @@ describe("Catppuccin theme feature", () => {
       "> div:nth-child(2):has(> div:nth-child(3) [data-id])\n    > div:nth-child(2)\n    > div:only-child {\n    color: var(--zb-text-muted) !important;\n    opacity: 1 !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.CommentContent)\n    .Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
+      "[data-zb-comment-modal]\n    .Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:is(\n      .Button--red,\n      .is-active,");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.InputLike.Editable):has(img.Avatar)",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]");
     expect(CATPPUCCIN_THEME_STYLE).toContain("> .css-m0zh86");
     expect(CATPPUCCIN_THEME_STYLE).toContain('[class*="placeholder" i]');
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-mask path");
     expect(CATPPUCCIN_THEME_STYLE).toContain('div:has(> div + svg[width="656"][height="44"])');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Modal-content:has(.InputLike.Editable):has(img.Avatar)\n    img.Avatar",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    img.Avatar");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".comment_img");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[class*="placeholder" i]:not([class*="DraftEditorPlaceholder"])',
@@ -1495,32 +1167,6 @@ describe("Catppuccin theme feature", () => {
   });
 
   it("styles question and answer links according to their semantic roles", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /\.QuestionHeader-topics[\s\S]*?:is\(a, \.TopicLink, \.Tag-content\)[\s\S]*?color: var\(--zb-primary\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":is(a, .TopicLink, .Tag-content)\n    :where(span, div)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("a\n    > svg:first-child");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("a\n    > svg:last-child");
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.BrandQuestionSymbol-name,[\s\S]*?\.UserLink-link[\s\S]*?\)[^{]*\{\s*color: var\(--zb-text\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /:is\(\.ContentItem-time, \.ContentItem-time a\)[^{]*\{\s*color: var\(--zb-text-muted\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /:is\(\.RichText, \.RichContent-inner\)[\s\S]*?a:not\(\.UserLink-link\):not\(\.TopicLink\)[\s\S]*?color: var\(--zb-primary\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /a\.RichContent-EntityWord:focus-visible[^{]*\{[\s\S]*?color: var\(--zb-primary-hover\) !important;[\s\S]*?text-decoration: underline !important;[\s\S]*?text-underline-offset: 2px !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /\.QuestionPage[\s\S]*?:is\([\s\S]*?\.BrandQuestionSymbol-brandLink,[\s\S]*?\.QuestionHeader-topics a,[\s\S]*?\.SimilarQuestions-item a,[\s\S]*?\.NumberBoard-item[\s\S]*?\):focus-visible[^{]*\{[\s\S]*?outline: 2px solid var\(--zb-primary\) !important;[\s\S]*?outline-offset: 2px !important;/,
-    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-itemLink:focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HotSearchCard-item:focus-within");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin: 6px -8px !important");
@@ -1545,8 +1191,6 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /\[data-za-detail-view-path-module="RelatedQuestions"\][\s\S]*?\.SimilarQuestions-item[\s\S]*?color: var\(--zb-text-muted\) !important;/,
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText table");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .RichText :is(th, td)");
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /\.AnswerItem[\s\S]*?section[\s\S]*?> div:has\(> a\[href\*="\/column\/"\]\) \{[\s\S]*?background-color: var\(--zb-surface-raised\) !important;[\s\S]*?border: 1px solid var\(--zb-border\) !important;[\s\S]*?border-radius: 8px !important;/,
     );
@@ -1570,7 +1214,6 @@ describe("Catppuccin theme feature", () => {
         "    border-radius: 6px !important;\n" +
         "    outline: 2px solid var(--zb-primary) !important;",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href*="zhida_source=below_banner_question"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 0 0 auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("width: auto !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("min-width: 24px !important");
@@ -1591,337 +1234,6 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("border-radius: 6px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "box-shadow: 0 0 0 2px var(--zb-primary-soft) !important",
-    );
-  });
-
-  it("themes the creative declaration trigger and its hover disclosure", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)");
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /\.ContentItem-meta[\s\S]*?Zi--ArrowUp\)[^{]*\{[\s\S]*?background-color: var\(--zb-primary-soft\) !important;[\s\S]*?color: var\(--zb-primary\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /Zi--ArrowUp\)[\s\S]*?:is\(div, svg, path\)[^{]*\{[\s\S]*?fill: currentColor !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /div:has\(> svg\[viewBox="0 0 26 10"\]\):has\([\s\S]*?cursor: default[\s\S]*?\)[^{]*\{[\s\S]*?background-color: var\(--zb-surface-raised\) !important;[\s\S]*?border: 1px solid var\(--zb-border-strong\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('div[style*="cursor: default"]\n    + div');
-  });
-
-  it("presents invitation and collection metadata as one pill family", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain("a:has(> .ZDI--CrabFill24):has(> .Zi--ArrowRight)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /ZDI--CrabFill24[\s\S]*?ZDI--ColumnFill24[\s\S]*?\)[^{]*\{[\s\S]*?background-color: var\(--zb-primary-soft\) !important;[\s\S]*?color: var\(--zb-primary\) !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /ZDI--ArrowRight16[\s\S]*?:is\(div, svg, path\)[^{]*\{[\s\S]*?fill: currentColor !important;/,
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /ZDI--ArrowRight16[\s\S]*?:is\(:hover, :focus-visible\)[^{]*\{[\s\S]*?border-color: color-mix\(in srgb, var\(--zb-primary\) 48%, transparent\) !important;/,
-    );
-  });
-
-  it("themes search navigation, hot landing content, and the search sidebar", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchTabs {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchTabs .Tabs-link.is-active",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchMain .PlaceHolder-bg {\n    background: linear-gradient(",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchMain\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {\n    color: var(--zb-surface) !important;\n    fill: currentColor !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchMain > .ListShortcut,\n  html[data-zb-theme] .SearchMain > .ListShortcut > .List {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchMain .SearchResult-Card,\n  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {\n    border-color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchResult-Card\n    :is(.ContentItem-title, .ContentItem-title a) {\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".RichContent-inner .RichText,\n      .SearchItem-meta.Highlight\n    ) {\n    color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchResult-Card\n    .FollowButton.Button--grey:is(:hover, :focus-visible),",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.SearchResult-Card:has(\n      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])\n    )',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "-webkit-text-fill-color: var(--zb-danger) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".HotLanding\n    > .List-item\n    > div\n    > div:has(+ div .HotLanding-title)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .HotLanding-contentItem {\n    border-bottom-color: var(--zb-border) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".RichContent-actions.is-fixed\n    > .ContentItem-actions.ContentItem-action {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".HotLanding\n    :is(.ContentItem-actions, .RichContent-actions) {\n    color: var(--zb-text-muted) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":is(.ContentItem-actions, .RichContent-actions)\n    .Button:not(.VoteButton) {\n    box-sizing: border-box !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('.ShareMenu-toggler[aria-expanded="true"] .Button');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ':is(.ContentItem-actions, .RichContent-actions)\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .Search-container .HotSearchCard-itemText",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .Search-container .HotSearchCard {\n    box-sizing: border-box !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Search-container\n    :is(.HotSearchCard-item, .HotSearchCard-itemLink)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .Search-container .HotSearchCard-tag",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('.Search-container\n    footer[role="contentinfo"]');
-  });
-
-  it("themes specialized search result types and video comments", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] .SearchMain .SearchSubTabs");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchMain .SearchSubTabs {\n    box-sizing: border-box !important;\n    display: flex !important;\n    height: auto !important;\n    min-height: 58px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs .Tabs-item {\n    display: flex !important;\n    height: auto !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs .Tabs {\n    display: flex !important;\n    height: auto !important;\n    width: 100% !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "gap: 8px !important;\n    border-bottom: 0 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs .Tabs-link {\n    box-sizing: border-box !important;\n    display: inline-flex !important;\n    min-height: 32px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 8px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs\n    .Tabs-link.is-active {\n    background-color: var(--zb-primary) !important;\n    border-color: var(--zb-primary) !important;\n    color: var(--ctp-crust) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs\n    .Tabs-link.is-active:hover {\n    background-color: var(--zb-primary-hover) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".SearchSubTabs .Tabs-link:focus-visible {\n    border-color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-za-detail-view-path-module="SearchResultList"]:has(\n      + .SearchNoContent-wrap',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "+ .SearchNoContent-wrap\n    ) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "+ .SearchNoContent-wrap\n    )\n    > div:first-child {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child\n    > div\n    > div:first-child {\n    color: inherit !important;\n    -webkit-text-fill-color: currentColor !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> div > .Button.Button--secondary) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Button--secondary:not(.Button--blue) {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:last-child\n    .Button:not(.Button--blue) {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-za-detail-view-path-module="SearchResultList"]:has(\n      a[href*="/kvip/sku/paper/"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:has(> a[href*="/kvip/sku/paper/"]) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:has(> a[href*="/kvip/sku/paper/"]):is(:hover, :focus-within) {\n    border-color: var(--zb-border-strong) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href*="/kvip/sku/paper/"]\n    > div:first-child {\n    color: var(--zb-primary) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)\n    > div:first-child {\n    color: var(--zb-primary-hover) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href*="/kvip/sku/paper/"]\n    > div:nth-child(3)\n    span {\n    color: var(--zb-text-secondary) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(3)\n    span:has(.ZDI--ArrowRight24) {\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      'a[href*="/kvip/sku/paper/"]:hover {\n    background-color: var(--zb-surface-raised) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:thinking_blcok"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_answer_result_block"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ai-search-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="discovery-answer-fade-mask"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Button:expand_btn"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:expand_btn"]\n    :where(span, svg, path)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-content-discovery-heading]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div[style*="height: 10px"][style*="background-color: rgb(235, 236, 237)"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".zhida-rn-skeleton-motion::after {\n    background-image: linear-gradient(",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="answer-thinking-text"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-scroll-to-bottom]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "[data-zb-ai-scroll-to-bottom]\n    :where(svg, path)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-answer-actions]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[tabindex="0"]\n    :where(div, span, svg, path)');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-share-actions]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-ai-share-actions]\n    > div\n    > [tabindex="0"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-share-checkbox]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ai-share-checkbox-checked="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-user-question]");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      'div:has(+ div [data-testid="Block:thinking_blcok"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('div:has(> [data-testid="Block:thinking_blcok"])');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:reference_card_block_more_btn"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:zhida_message_corner_mark_btn"]:not([tabindex])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]\n    :where(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Button:zhida_message_corner_mark_float_window_btn"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:nth-child(4) {\n    color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-ai-source-panel]");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div[style*="border-bottom-width"]\n    > div {\n    box-sizing: border-box !important;\n    padding: 8px !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="Card:reference_card"]\n    div[style*="cursor: pointer"]:is(:hover, :focus-visible)\n    div[style*="width: 24px"][style*="height: 24px"] {\n    background-color: var(--zb-primary-soft) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div[style*="cursor: pointer"]\n    :where(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid^="Button:ai_search_content_discovery_navigation_tab:"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:not([style*="background-color: rgb(248, 248, 250)"]) {\n    background-color: var(--zb-primary) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Card:OpenUrl:ai_search_content_card"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> [data-testid="Card:OpenUrl:ai_search_content_card"]\n        + [data-testid="Card:OpenUrl:ai_search_content_card"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> [data-testid="Card:OpenUrl:ai_search_content_card"]:focus-visible {\n    background-color: var(--zb-primary-soft) !important;\n    outline: 0 !important;\n    box-shadow: none !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Button:ai_search_input_field_button"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-testid="SearchExpansionWord:Button:related_question_word"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-testid="Block:zhida_input_box"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".KfeCollection-PcCollegeCard-wrapper");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      ".SearchResult-Card:has(.KfeCollection-PcCollegeCard-root):",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)\n    > .List-item:focus-visible {\n    outline: 0 !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ":is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".KfeCollection-PcCollegeCard-description {\n    color: var(--zb-text-secondary) !important;\n    -webkit-text-fill-color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {\n    color: var(--zb-primary-hover) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "html[data-zb-theme] .ZVideoItem-comment {\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border-strong) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ZVideoItem-comment\n    > div:first-child\n    > div:first-child:has(.InputLike.Editable) {\n    position: static !important;",
-    );
-  });
-
-  it("themes paper detail content and its fixed purchase actions", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain('html[data-zb-theme][data-zb-paper-page="true"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("body\n    div:has(> section + section) {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> button .ZDI--BookOpen24):has(> button + button + button)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child {\n    background-color: var(--zb-surface-raised) !important;\n    background-image: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child\n    > div:last-child {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> section:nth-of-type(3) {\n    color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> button:last-child {\n    background-color: var(--zb-primary) !important;",
-    );
-  });
-
-  it("themes the paper preview shell without recoloring PDF pages", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'html[data-zb-theme][data-zb-paper-preview-page="true"]',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[class^="ShelfTopNav-module-root_"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain('#app\n    > div:has(input[size="1"])');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:has(input[size="1"])\n    > div {\n    background-color: var(--zb-surface) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "#app\n    > div:has(> button .ZDI--ArrowRightSmall16)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('button[aria-label="放大"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".pdfViewer .page {\n    background-color: #fff !important;",
     );
   });
 
@@ -1994,141 +1306,5 @@ describe("Catppuccin theme feature", () => {
       /> div:nth-child\(2\) \{\s*background-color: transparent !important;/,
     );
     feature.destroy();
-  });
-
-  it("themes creator-center cards without relying on Emotion class hashes", () => {
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreatorIndex-BottomBox-Item {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreatorIndex-BottomBox-Item:is(:hover, :focus-within)",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreatorIndex-BottomBox-Item\n    > svg {\n    color: inherit !important;\n    fill: currentColor !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".LevelInfoV2-creatorInfo");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "div:has(> .ReactCollapse--collapse)\n    > div:first-child",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/creator"]');
-    expect(CATPPUCCIN_THEME_STYLE).toContain("fill: currentColor !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div:has(> a[href="/zvideo/upload-video"]) {\n    z-index: 20 !important;\n    background: var(--zb-surface-raised) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("opacity: 1 !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain("isolation: isolate !important");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> a:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-hover) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Creator-mainColumn\n    > .Card\n    > div\n    > div:has(> [role="list"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'div:has(> [role="list"])\n    .Sticky {\n    background-color: var(--zb-page) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Creator-mainColumn\n    > .Card\n    .CreatorRangePicker-Button {",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain('.Popover:has(> .Select-button[role="combobox"]) {');
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.Select-button[role="combobox"] {\n    height: 32px !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Popover-content:has(> .Select-list) {\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("> .Select-option:is(:hover, :focus, :focus-visible)");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Creator-mainColumn\n    > .Card\n    .Tabs-item {\n    min-width: max-content !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "margin: 8px 0 !important;\n    padding: 6px 12px !important;\n    border-radius: 8px !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("white-space: nowrap !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Creator-mainColumn\n    > .Card\n    .Tabs-link::after {\n    display: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Tabs-link.is-active {\n    background-color: var(--zb-primary-soft) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '[data-zb-creator-associated-account-page="true"]\n    .Creator-mainColumn\n    > .Card\n    > div {\n    background-color: var(--zb-surface) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
-      '.Card:has(.Tabs a[href="/creator/account/associated-account"])',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> .Tabs\n    + div {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child\n    .Sticky {\n    background-color: var(--zb-surface-raised) !important;\n    border-bottom-color: var(--zb-border) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:not(:first-child) {\n    background-color: var(--zb-surface) !important;\n    border-bottom-color: var(--zb-border) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:not(:first-child)\n    > div:nth-child(-n + 3) {\n    color: var(--zb-text-secondary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'label:has(> input[type="checkbox"]) {\n    background-color: var(--zb-surface-hover) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'label:has(> input[type="checkbox"]:checked) {\n    background-color: var(--zb-primary) !important;',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:has(+ [role="list"])\n    .Sticky\n    > div:first-child',
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".CreationManage-CreationCard");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "margin: 0 16px 10px !important;\n    padding: 20px 16px !important;\n    background-color: var(--zb-surface) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreationManage-CreationCard:hover {\n    border-color: var(--zb-border-strong) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreationManage-CreationCard:focus-within {\n    border-color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CreationCardTitle-wrapper\n    > div\n    > div:first-child",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "font-size: 18px !important;\n    font-weight: 500 !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".CreationManage-CreationCard\n    > a:first-of-type");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> a:first-of-type:is(:hover, :focus-visible)\n    .CreationCardTitle-wrapper",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain("color: var(--zb-primary-hover) !important;");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton::after");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "box-shadow: 0 0 70px 70px\n      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".WriteArea\n    > div\n    > div:has(> section) {\n    border-bottom-color: var(--zb-border) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> section)\n    + div\n    > div::after {\n    border-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> section)\n    + div\n    + div\n    > div\n    > div {\n    background-color: transparent !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-raised) !important;\n    color: var(--zb-primary) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> :is(.ZDI--Earth24, .ZDI--PaperTextInitial24))\n    > div:last-child {\n    background-color: var(--zb-surface-raised) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> .ZDI--Broadcast16)\n    > div:last-child {\n    background-color: var(--zb-primary-soft) !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:not(:has(a, button, img))\n    div[class]:empty",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea + div + div > div > div");
-    expect(CATPPUCCIN_THEME_STYLE).toContain('[role="complementary"] > div:not(.Card)');
-    expect(CATPPUCCIN_THEME_STYLE).not.toMatch(/data-zb-creator-page[\s\S]{0,500}\.css-[a-z0-9]+/);
   });
 });

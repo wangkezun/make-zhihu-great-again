@@ -1,25 +1,4 @@
-const EARLY_COLORS = {
-  latte: {
-    page: "#e6e9ef",
-    surface: "#eff1f5",
-    text: "#4c4f69",
-  },
-  frappe: {
-    page: "#292c3c",
-    surface: "#303446",
-    text: "#c6d0f5",
-  },
-  macchiato: {
-    page: "#1e2030",
-    surface: "#24273a",
-    text: "#cad3f5",
-  },
-  mocha: {
-    page: "#181825",
-    surface: "#1e1e2e",
-    text: "#cdd6f4",
-  },
-};
+import { EARLY_COLORS, FLAVOR_NAMES } from "./catppuccin-palette.js";
 
 const createEarlyFlavorRule = (name) => {
   const colors = EARLY_COLORS[name];
@@ -32,7 +11,7 @@ const createEarlyFlavorRule = (name) => {
   }`;
 };
 
-const flavorRules = Object.keys(EARLY_COLORS).map(createEarlyFlavorRule).join("\n");
+const flavorRules = FLAVOR_NAMES.map(createEarlyFlavorRule).join("\n");
 
 export const CRITICAL_THEME_STYLE = `
 ${flavorRules}

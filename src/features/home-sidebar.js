@@ -1,26 +1,18 @@
 import { HOME_SIDEBAR_STYLE } from "../styles/home-sidebar.js";
+import { getPageContext, PAGE_CONTEXT_CHANGE_EVENT } from "./page-context.js";
 import { ensureStyle, persistBooleanPreference, readBooleanPreference } from "./shared.js";
 
 export const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar";
 
 const ROOT_ENABLED_ATTRIBUTE = "data-zb-hide-home-sidebar";
-const ROOT_HOME_ATTRIBUTE = "data-zb-home-page";
-const ROOT_COLUMN_ATTRIBUTE = "data-zb-column-page";
 const ROOT_COLUMN_TABS_STUCK_ATTRIBUTE = "data-zb-column-tabs-stuck";
-const ROOT_PROFILE_ATTRIBUTE = "data-zb-profile-page";
-const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
-const ROOT_TOPIC_ATTRIBUTE = "data-zb-topic-page";
-const ROOT_RING_INDEX_ATTRIBUTE = "data-zb-ring-index-page";
-const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
-const ROOT_RING_HOST_ATTRIBUTE = "data-zb-ring-host-page";
 const ROOT_RING_HOST_READY_ATTRIBUTE = "data-zb-ring-host-ready";
-const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
-const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
-const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
-const ROOT_CREATOR_ATTRIBUTE = "data-zb-creator-page";
-const ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE = "data-zb-creator-associated-account-page";
 const SIDEBAR_ATTRIBUTE = "data-zb-home-sidebar";
+const FOLLOW_CARD_ATTRIBUTE = "data-zb-follow-card";
+const FOLLOW_CARD_TRACK_ATTRIBUTE = "data-zb-follow-card-track";
+const FOLLOW_CARD_SLIDE_ATTRIBUTE = "data-zb-follow-card-slide";
+const AUTHOR_FOLLOW_ROW_ATTRIBUTE = "data-zb-author-follow-row";
 const AI_SOURCE_PANEL_ATTRIBUTE = "data-zb-ai-source-panel";
 const AI_CONTENT_DISCOVERY_HEADING_ATTRIBUTE = "data-zb-ai-content-discovery-heading";
 const AI_USER_QUESTION_ATTRIBUTE = "data-zb-ai-user-question";
@@ -49,6 +41,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let menuCommandId;
   let markedSidebar;
   let markedAiSourcePanel;
+  const markedFollowCards = new Set();
+  const markedFollowCardTracks = new Set();
+  const markedFollowCardSlides = new Set();
+  const markedAuthorFollowRows = new Set();
   const markedAiContentDiscoveryHeadings = new Set();
   const markedAiUserQuestions = new Set();
   const markedAiScrollToBottomButtons = new Set();
@@ -60,75 +56,22 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let observedAiSearchMain;
   let observedPageHeader;
   let observedQuestionContent;
+  let pageContext = getPageContext(browserWindow);
   let pageKind;
-  let originalPushState;
-  let originalReplaceState;
-  let wrappedPushState;
-  let wrappedReplaceState;
   let columnScrollListening = false;
   let positionScheduled = false;
   let scheduled = false;
   let started = false;
   let ringHostReady = false;
 
-  const isHomeFeedPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/(?:follow\/?)?$/.test(browserWindow.location.pathname);
-
-  const isQuestionPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/question\/\d+(?:\/answer\/\d+)?\/?$/.test(browserWindow.location.pathname);
-
-  const isColumnPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/column\/[^/]+\/?$/.test(browserWindow.location.pathname);
-
-  const isRingFeedsPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/ring-feeds\/?$/.test(browserWindow.location.pathname);
-
-  const isRingIndexPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/ring\/?$/.test(browserWindow.location.pathname);
-
-  const isRingHostPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/ring\/host\/\d+\/?$/.test(browserWindow.location.pathname);
-
-  const isProfilePage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/people\/[^/]+(?:\/.*)?$/.test(browserWindow.location.pathname);
-
-  const isTopicPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/.test(
-      browserWindow.location.pathname,
-    );
-
-  const isPaperPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/kvip\/sku\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
-
-  const isPaperPreviewPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/kvip\/pdf\/paper\/\d+\/?$/.test(browserWindow.location.pathname);
-
-  const isAiSearchPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/search\/?$/.test(browserWindow.location.pathname) &&
-    new browserWindow.URLSearchParams(browserWindow.location.search).get("type") === "zhida";
-
-  const isCreatorPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/creator(?:\/.*)?$/.test(browserWindow.location.pathname);
-
-  const isCreatorAssociatedAccountPage = () =>
-    browserWindow.location.hostname === "www.zhihu.com" &&
-    /^\/creator\/account\/associated-account\/?$/.test(browserWindow.location.pathname);
+  const isColumnPage = () => pageContext.column;
+  const isRingIndexPage = () => pageContext.ringIndex;
+  const isRingHostPage = () => pageContext.ringHost;
+  const isAiSearchPage = () => pageContext.aiSearch;
 
   const getPageKind = () => {
-    if (isHomeFeedPage()) return "home";
-    if (isQuestionPage()) return "question";
+    if (pageContext.home) return "home";
+    if (pageContext.question) return "question";
     return "other";
   };
 
@@ -182,6 +125,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   };
 
   const updateRootState = () => {
+    pageContext = getPageContext(browserWindow);
     const nextPageKind = getPageKind();
     const isRingHost = isRingHostPage();
     if (nextPageKind !== pageKind) {
@@ -189,20 +133,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
       markedSidebar = undefined;
     }
     pageKind = nextPageKind;
-    setRootAttribute(ROOT_HOME_ATTRIBUTE, pageKind === "home");
-    setRootAttribute(ROOT_COLUMN_ATTRIBUTE, isColumnPage());
-    setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
-    setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
-    setRootAttribute(ROOT_TOPIC_ATTRIBUTE, isTopicPage());
-    setRootAttribute(ROOT_RING_INDEX_ATTRIBUTE, isRingIndexPage());
-    setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
-    setRootAttribute(ROOT_RING_HOST_ATTRIBUTE, isRingHost);
     updateRingHostReadyState(isRingHost);
-    setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
-    setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
-    setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
-    setRootAttribute(ROOT_CREATOR_ATTRIBUTE, isCreatorPage());
-    setRootAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE, isCreatorAssociatedAccountPage());
     setRootAttribute(ROOT_ENABLED_ATTRIBUTE, shouldHideSidebar);
   };
 
@@ -336,6 +267,62 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   };
 
   const findQuestionSidebar = () => browserDocument.querySelector(".Question-sideColumn");
+
+  const clearSidebarFollowMarkers = () => {
+    markedFollowCards.forEach((card) => card.removeAttribute(FOLLOW_CARD_ATTRIBUTE));
+    markedFollowCardTracks.forEach((track) => track.removeAttribute(FOLLOW_CARD_TRACK_ATTRIBUTE));
+    markedFollowCardSlides.forEach((slide) => slide.removeAttribute(FOLLOW_CARD_SLIDE_ATTRIBUTE));
+    markedAuthorFollowRows.forEach((row) => row.removeAttribute(AUTHOR_FOLLOW_ROW_ATTRIBUTE));
+    markedFollowCards.clear();
+    markedFollowCardTracks.clear();
+    markedFollowCardSlides.clear();
+    markedAuthorFollowRows.clear();
+  };
+
+  const markSidebarFollowCards = () => {
+    if (!markedSidebar) return;
+
+    markedSidebar.querySelectorAll(".FollowButton").forEach((button) => {
+      const card = button.closest(".Card");
+      if (!card || !markedSidebar.contains(card)) return;
+
+      card.setAttribute(FOLLOW_CARD_ATTRIBUTE, "");
+      markedFollowCards.add(card);
+
+      const authorRow = button.parentElement;
+      if (button.previousElementSibling?.matches(".AuthorInfo") && authorRow) {
+        authorRow.setAttribute(AUTHOR_FOLLOW_ROW_ATTRIBUTE, "");
+        markedAuthorFollowRows.add(authorRow);
+      }
+
+      let track = button.parentElement;
+      while (track && track.parentElement !== card) {
+        track = track.parentElement;
+      }
+      if (!track) return;
+
+      const buttonDepthFromTrack = (() => {
+        let depth = 0;
+        for (let current = button; current && current !== track; current = current.parentElement) {
+          depth += 1;
+        }
+        return depth;
+      })();
+      if (buttonDepthFromTrack < 3) return;
+
+      track.setAttribute(FOLLOW_CARD_TRACK_ATTRIBUTE, "");
+      markedFollowCardTracks.add(track);
+
+      let slide = button;
+      while (slide.parentElement && slide.parentElement !== track) {
+        slide = slide.parentElement;
+      }
+      if (slide.parentElement === track) {
+        slide.setAttribute(FOLLOW_CARD_SLIDE_ATTRIBUTE, "");
+        markedFollowCardSlides.add(slide);
+      }
+    });
+  };
 
   const findAiSourcePanel = () => {
     if (!isAiSearchPage()) return null;
@@ -523,11 +510,16 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
       nextSidebar = findQuestionSidebar();
     }
 
-    if (nextSidebar === markedSidebar) return;
+    if (nextSidebar === markedSidebar) {
+      markSidebarFollowCards();
+      return;
+    }
 
     markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
+    clearSidebarFollowMarkers();
     markedSidebar = nextSidebar;
     markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
+    markSidebarFollowCards();
   };
 
   const markRingIndexActions = (root = browserDocument) => {
@@ -769,44 +761,6 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     });
   }
 
-  const installRouteListeners = () => {
-    browserWindow.addEventListener("popstate", scheduleRefresh);
-    if (browserWindow.navigation?.addEventListener) {
-      browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
-      return;
-    }
-
-    const history = browserWindow.history;
-    if (!history?.pushState || !history?.replaceState) return;
-
-    originalPushState = history.pushState;
-    originalReplaceState = history.replaceState;
-    wrappedPushState = function (...args) {
-      const result = originalPushState.apply(this, args);
-      scheduleRefresh();
-      return result;
-    };
-    wrappedReplaceState = function (...args) {
-      const result = originalReplaceState.apply(this, args);
-      scheduleRefresh();
-      return result;
-    };
-    history.pushState = wrappedPushState;
-    history.replaceState = wrappedReplaceState;
-  };
-
-  const removeRouteListeners = () => {
-    browserWindow.removeEventListener("popstate", scheduleRefresh);
-    browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
-    const history = browserWindow.history;
-    if (history && wrappedPushState && history.pushState === wrappedPushState) {
-      history.pushState = originalPushState;
-    }
-    if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
-      history.replaceState = originalReplaceState;
-    }
-  };
-
   const start = () => {
     if (started) return;
     started = true;
@@ -814,7 +768,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     updateMenuCommand();
     browserDocument.addEventListener("DOMContentLoaded", scheduleRefresh, { once: true });
     browserDocument.addEventListener("click", handleAiSourcePanelInteraction, true);
-    installRouteListeners();
+    browserWindow.addEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
     browserWindow.addEventListener("resize", schedulePositionRefresh);
     if (!browserWindow.IntersectionObserver) {
       browserWindow.addEventListener("scroll", schedulePositionRefresh, { passive: true });
@@ -837,7 +791,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     }
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
     browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
-    removeRouteListeners();
+    browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, refresh);
     browserWindow.removeEventListener("resize", schedulePositionRefresh);
     browserWindow.removeEventListener("scroll", schedulePositionRefresh);
     columnScrollListening = false;
@@ -847,6 +801,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.getElementById(STYLE_ID)?.remove();
     markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
     markedSidebar = undefined;
+    clearSidebarFollowMarkers();
     markedAiSourcePanel?.removeAttribute(AI_SOURCE_PANEL_ATTRIBUTE);
     markedAiSourcePanel = undefined;
     markedAiContentDiscoveryHeadings.forEach((heading) =>
@@ -875,23 +830,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     observedAiSearchMain = undefined;
     observedPageHeader = undefined;
     observedQuestionContent = undefined;
-    browserDocument.documentElement?.removeAttribute(ROOT_HOME_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_COLUMN_TABS_STUCK_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_ENABLED_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_PROFILE_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_TOPIC_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_RING_INDEX_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_READY_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ATTRIBUTE);
-    browserDocument.documentElement?.removeAttribute(ROOT_CREATOR_ASSOCIATED_ACCOUNT_ATTRIBUTE);
     started = false;
   };
 

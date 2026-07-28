@@ -6,7 +6,7 @@ import {
   HOME_WIDTH_MODES,
   HOME_WIDTH_STORAGE_KEY,
 } from "../src/features/home-width.js";
-import { createHomeSidebarFeature } from "../src/features/home-sidebar.js";
+import { createPageContextFeature } from "../src/features/page-context.js";
 import { HOME_WIDTH_STYLE } from "../src/styles/home-width.js";
 
 const activePages = [];
@@ -74,7 +74,7 @@ describe("home width feature", () => {
       url: "https://www.zhihu.com/follow",
     });
     activePages.push(page);
-    const routeFeature = createHomeSidebarFeature(page.window);
+    const routeFeature = createPageContextFeature(page.window);
     const widthFeature = createHomeWidthFeature(page.window, { getMode: () => "wide" });
 
     routeFeature.start();

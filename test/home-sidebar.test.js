@@ -2,12 +2,33 @@ import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createHomeSidebarFeature,
+  createHomeSidebarFeature as createHomeSidebarFeatureImplementation,
   HOME_SIDEBAR_STORAGE_KEY,
 } from "../src/features/home-sidebar.js";
+import { createPageContextFeature } from "../src/features/page-context.js";
 import { HOME_SIDEBAR_STYLE } from "../src/styles/home-sidebar.js";
 
 const activePages = [];
+
+const createHomeSidebarFeature = (browserWindow, settings) => {
+  const pageContextFeature = createPageContextFeature(browserWindow);
+  const sidebarFeature = createHomeSidebarFeatureImplementation(browserWindow, settings);
+
+  return {
+    destroy: () => {
+      sidebarFeature.destroy();
+      pageContextFeature.destroy();
+    },
+    refresh: () => {
+      pageContextFeature.refresh();
+      sidebarFeature.refresh();
+    },
+    start: () => {
+      pageContextFeature.start();
+      sidebarFeature.start();
+    },
+  };
+};
 
 const createPage = (url = "https://www.zhihu.com/") => {
   const page = new JSDOM(
@@ -96,6 +117,59 @@ describe("home sidebar feature", () => {
     ).toBe(true);
 
     feature.destroy();
+  });
+
+  it("marks follow-card structure inside the discovered sidebar and cleans it on destroy", () => {
+    const page = createPage();
+    const sidebar = page.window.document.querySelector(".right-column");
+    sidebar.insertAdjacentHTML(
+      "beforeend",
+      `
+        <div class="Card follow-card">
+          <div class="follow-track">
+            <div class="follow-slide">
+              <div class="author-row">
+                <div class="AuthorInfo"></div>
+                <button class="FollowButton"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+    );
+    const feature = createHomeSidebarFeature(page.window);
+
+    feature.start();
+
+    const card = sidebar.querySelector(".follow-card");
+    const track = sidebar.querySelector(".follow-track");
+    const slide = sidebar.querySelector(".follow-slide");
+    const authorRow = sidebar.querySelector(".author-row");
+    expect(card.hasAttribute("data-zb-follow-card")).toBe(true);
+    expect(track.hasAttribute("data-zb-follow-card-track")).toBe(true);
+    expect(slide.hasAttribute("data-zb-follow-card-slide")).toBe(true);
+    expect(authorRow.hasAttribute("data-zb-author-follow-row")).toBe(true);
+
+    feature.destroy();
+    expect(card.hasAttribute("data-zb-follow-card")).toBe(false);
+    expect(track.hasAttribute("data-zb-follow-card-track")).toBe(false);
+    expect(slide.hasAttribute("data-zb-follow-card-slide")).toBe(false);
+    expect(authorRow.hasAttribute("data-zb-author-follow-row")).toBe(false);
+  });
+
+  it("does not own page-context root markers", () => {
+    const page = createPage();
+    const pageContextFeature = createPageContextFeature(page.window);
+    const sidebarFeature = createHomeSidebarFeatureImplementation(page.window);
+
+    pageContextFeature.start();
+    sidebarFeature.start();
+    sidebarFeature.destroy();
+
+    expect(page.window.document.documentElement.dataset.zbHomePage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbHideHomeSidebar).toBeUndefined();
+
+    pageContextFeature.destroy();
   });
 
   it.each(["https://www.zhihu.com/follow", "https://www.zhihu.com/follow/"])(
