@@ -184,7 +184,211 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".TopicFeedList\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path)",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-index-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href^="/ring/host/"] {');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href^="/ring/host/"]::before {\n    content: none !important;\n    border: 0 !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :is(.css-f1fy25, :hover) {\n    background-color: var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> div > .css-f1fy25) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/ring/host/"][href*="tab_id"] {\n    box-sizing: border-box !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "grid-template-columns: repeat(3, minmax(0, 1fr)) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-of-type\n    svg {\n    color: var(--zb-primary) !important;\n    fill: currentColor !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.App-main,\n  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main > div {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href^="/ring/host/"]\n    button {\n    box-sizing: border-box !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-primary) !important;\n    border: 1px solid var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href^="/ring/host/"]\n    img {\n    background-color: var(--zb-surface-raised) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "color: var(--zb-primary) !important;\n    transition: color 0.16s ease !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href^="/ring/host/"]:hover\n    > :nth-child(2)');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])::after',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "color: transparent !important;\n    -webkit-text-fill-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消加入" !important;');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href^="/ring/host/"]:hover {\n    background-color: var(--zb-surface) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("outline: 2px solid var(--zb-primary) !important;");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-host-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain('button[data-zb-ring-host-action="joined"]::after');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible)::after',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main\n    > div:first-child\n    > div:first-child\n    .List\n    > .List-item {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2)\n    > div\n    > div:nth-child(2)\n    > div {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(2)\n    > div:nth-child(2)\n    > :first-child {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(2)\n    > div:nth-child(2)\n    > button {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child\n    > div:nth-child(2) {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-host-ready="true"]\n    .App-main');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(4)\n    > * {\n    transition: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(4) {\n    border-bottom: 1px solid var(--zb-border) !important;\n    border-radius: 0 0 12px 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2)\n    > div {\n    padding: 16px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child {\n    padding: 16px 12px !important;\n    gap: 12px !important;\n    margin-bottom: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2)::before {\n    display: none !important;\n    content: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2)\n    > div {\n    padding-top: 20px !important;\n    gap: 16px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:nth-child(2)\n    > div:first-child {\n    min-height: 214px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "width: auto !important;\n    min-width: 0 !important;\n    min-height: 36px !important;\n    flex: 1 1 auto !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(2) {\n    margin-top: 0 !important;\n    padding: 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :last-child:not(:only-child) {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :first-child\n    > :first-child {\n    color: var(--zb-text) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :is(:nth-child(2), :nth-child(3))\n    > :first-child {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-ring-host-page="true"] .PinItem a.LinkCard {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "a.LinkCard\n    .LinkCard-wrapper {\n    background: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "a.LinkCard\n    :is(.LinkCard-excerpt, .LinkCard-desc) {\n    color: var(--zb-text-muted) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinItem\n    .ContentItem-actions\n    .VoteButton {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .PinToolbar-actions {\n    box-sizing: border-box !important;\n    width: calc(100% + 40px) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin: -10px -20px !important;\n    padding: 10px 20px !important;\n    background-color: transparent !important;\n    border-top: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Button[aria-label="收藏"]:is(:hover, :focus-visible),',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.Modal-content:has(input[placeholder="搜索你想邀请的人"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div:has(> .Modal-content input[placeholder="搜索你想邀请的人"])',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('input[placeholder="搜索你想邀请的人"]::placeholder');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(3)\n    :where(a, div, span) {\n    color: var(--zb-text) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> :nth-child(2):has(button)\n    > div\n    > div\n    > div {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('> button[aria-label="关闭"]');
     expect(CATPPUCCIN_THEME_STYLE).toContain('[data-zb-ring-feeds-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PinDetail .PinItem a.LinkCard {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.PinDetail\n    .PinItem\n    a[href*="/ring/host/"] {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'a[href*="/ring/host/"]\n    :where(div, span, svg, path) {',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.LinkCard-title.loading, .LinkCard-desc.loading) {\n    background-color: var(--zb-surface-hover) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    > .PinToolbar-actions {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "width: 100% !important;\n    margin: -10px 0 !important;\n    padding: 10px 0 !important;\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    .VoteButton {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "body\n    main\n    .PinDetail\n    .PinItem\n    .Comments-container\n    > div\n    > div:has(.InputLike.Editable) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "margin: 0 !important;\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n    padding: 10px 0 !important;\n    padding-inline: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinDetail\n    .Comments-container\n    .InputLike.Editable {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".PinDetail .FollowButton.Button--grey {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".PinDetail\n    .FollowButton.Button--grey:is(:hover, :focus-visible) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-danger-soft) !important;\n    border-color: var(--zb-danger) !important;\n    color: var(--zb-danger) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("div:has(> .Modal-content > .VoterList) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Modal-content:has(> .VoterList) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList > .Topbar {\n    background-color: var(--zb-surface) !important;\n    border-bottom: 1px solid var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content .List-item::after {\n    border-bottom-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.VoterList-content\n    :is(\n      .Skeleton,\n      [class*="skeleton" i],\n      .PlaceHolder,',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content .PlaceHolder-bg {\n    background: linear-gradient(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content img.Avatar {\n    background-color: var(--zb-surface-raised) !important;\n    border-radius: 50% !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content\n    .FollowButton.Button--grey:is(:hover, :focus-visible) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".VoterList-content\n    .FollowButton.Button--grey:is(:hover, :focus-visible)\n    :where(span, svg, path) {",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "#TopstoryContent\n    > div {\n    background-color: var(--zb-surface) !important;",
     );
@@ -567,6 +771,171 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-itemContent");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Messages-footer");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Notifications-footer");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Messages-menuContainer .Messages-footer {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Messages-footer\n    > button.Button {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> button.Button:first-child {\n    background-color: var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> button.Button:last-child {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .ChatWrapper > .Chat {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .ChatSideBar {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .ChatUserListItem {\n    box-sizing: border-box !important;\n    width: calc(100% - 16px) !important;\n    margin: 4px 8px !important;\n    padding: 11px 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .ChatUserListItem::after {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatListGroup-SectionTitle--bottomBorder::after {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatListGroup-SectionTitle--topBorder::before {\n    display: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-primary-soft) !important;\n    border-color: var(--zb-primary) !important;\n    box-shadow: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatSideBar-Search-ResultListWrap {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatUserListItem\n    .Chat-ActionMenuPopover-Button {\n    display: inline-flex !important;\n    align-items: center !important;\n    justify-content: center !important;\n    flex: 0 0 30px !important;\n    width: 30px !important;\n    height: 30px !important;\n    right: 6px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatUserListItem\n    .ChatUserListItem-Content {\n    box-sizing: border-box !important;\n    min-width: 0 !important;\n    padding-right: 34px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "body:has(.App-main .Chat)\n    .Popover-content:has(> .ActionMenu)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "body:has(.App-main .Chat)\n    .Popover-content:has(> .ActionMenu)\n    > .ActionMenu\n    > .ActionMenu-item:first-child {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AbnormalAlert.ChatBox-alert {\n    box-sizing: border-box !important;\n    width: min(488px, calc(100% - 32px)) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AbnormalAlert\n    .AbnormalAlert-message {\n    min-width: 0 !important;\n    color: inherit !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".AbnormalAlert\n    .AbnormalAlert-icon {\n    box-sizing: border-box !important;\n    flex: 0 0 28px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".App-main .Chat .ChatBox-emptyImage path {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .CardMessage {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .CardMessage::before {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .CardMessage > :first-child {\n    background-color: var(--zb-surface) !important;\n    border-bottom: 1px solid var(--zb-border-strong) !important;\n    box-shadow: none !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .CardMessage > :last-child {\n    display: grid !important;\n    gap: 2px !important;\n    padding: 8px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CardMessage\n    > :last-child\n    > div {\n    background-color: transparent !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 8px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-raised) !important;\n    border-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .IconListMessage > div {\n    background-color: transparent !important;\n    border: 1px solid var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".IconListMessage\n    > div\n    :where(div, span) {\n    color: inherit !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".IconListMessage > div > img {\n    clip-path: inset(0 -32px 0 100%) !important;\n    filter: drop-shadow(32px 0 0 var(--zb-primary)) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".IconListMessage\n    > div:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-raised) !important;\n    border-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".IconListMessage\n    > div:focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".CardMessage\n    > :first-child\n    svg {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Chat-ChatBox\n    > div:has(.ZDI--ChatBubbleTwo24)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(.ZDI--ChatBubbleTwo24)\n    > div\n    > div {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .InputBox-input {\n    box-sizing: border-box !important;\n    width: 100% !important;\n    padding: 0 14px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.InputBox\n    :is(textarea, input, [contenteditable="true"]) {\n    box-sizing: border-box !important;\n    padding: 10px 12px !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .InputBox-footer {\n    box-sizing: border-box !important;\n    width: 100% !important;\n    min-height: 51px !important;\n    padding: 9px 16px 10px !important;\n    background-color: var(--zb-surface) !important;\n    border-top: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .InputBox > .ToolBar {\n    border-top-color: var(--zb-border) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .TextMessage {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".App-main .Chat .MessagesBox .css-1oxfz4p {\n    box-sizing: border-box !important;\n    max-width: calc(100% - 32px) !important;\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal > div:has(> .Modal-content)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatBoxModal\n    :is(.Modal-content, .Chat-ChatBox, .MessagesBox, .InputBox)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal .Chat-ChatBox > header");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatBoxModal .TextMessage {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".TextMessage.TextMessage-receiver");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatBoxModal\n    :is(time, .Message-status, .InputBox-footerDesc)",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatBoxModal .InputBox-input {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Emoticons.EmoticonTool-panel {\n    background-color: var(--zb-surface-raised) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Emoticons.EmoticonTool-panel .EmoticonsFooter {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Popover-content:has(> .ActionMenu)\n    > .ActionMenu {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .ActionMenu\n    > .ActionMenu-item {\n    box-sizing: border-box !important;\n    width: calc(100% - 12px) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .ActionMenu\n    > .ActionMenu-item:first-child {\n    background-color: color-mix(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("var(--zb-danger) 12%,\n      transparent");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> .ActionMenu-item:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-hover) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal .Chat-ChatBox:has(.Checkbox-input) {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "flex-direction: column !important;\n    min-height: 0 !important;\n    height: 100% !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Chat-ChatBox:has(.Checkbox-input)\n    > :last-child {\n    box-sizing: border-box !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> button:has(.ZDI--ExclamationTriangle24) {\n    width: 72px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:has(.MessagesBox) {\n    min-height: 0 !important;\n    height: auto !important;\n    flex: 1 1 auto !important;\n    overflow: clip !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".ChatBoxModal .InputBox {\n    border-top:");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".ChatBoxModal-closeButton:is(:hover, :focus-visible)",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Popover-content .Menu > .Menu-item");
     expect(CATPPUCCIN_THEME_STYLE).toContain("width: calc(100% - 12px) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin-right: 6px !important");
@@ -1255,6 +1624,39 @@ describe("Catppuccin theme feature", () => {
       "html[data-zb-theme] .SearchTabs .Tabs-link.is-active",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {\n    background-color: var(--zb-surface) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchMain .PlaceHolder-bg {\n    background: linear-gradient(",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchMain\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {\n    color: var(--zb-surface) !important;\n    fill: currentColor !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchMain > .ListShortcut,\n  html[data-zb-theme] .SearchMain > .ListShortcut > .List {\n    background-color: transparent !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchMain .SearchResult-Card,\n  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {\n    box-sizing: border-box !important;\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {\n    border-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchResult-Card\n    :is(.ContentItem-title, .ContentItem-title a) {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".RichContent-inner .RichText,\n      .SearchItem-meta.Highlight\n    ) {\n    color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchResult-Card\n    .FollowButton.Button--grey:is(:hover, :focus-visible),",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.SearchResult-Card:has(\n      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])\n    )',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "-webkit-text-fill-color: var(--zb-danger) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".HotLanding\n    > .List-item\n    > div\n    > div:has(+ div .HotLanding-title)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -1297,6 +1699,33 @@ describe("Catppuccin theme feature", () => {
   it("themes specialized search result types and video comments", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] .SearchMain .SearchSubTabs");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchMain .SearchSubTabs {\n    box-sizing: border-box !important;\n    display: flex !important;\n    height: auto !important;\n    min-height: 58px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs .Tabs-item {\n    display: flex !important;\n    height: auto !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs .Tabs {\n    display: flex !important;\n    height: auto !important;\n    width: 100% !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "gap: 8px !important;\n    border-bottom: 0 !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs .Tabs-link {\n    box-sizing: border-box !important;\n    display: inline-flex !important;\n    min-height: 32px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 8px !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs\n    .Tabs-link.is-active {\n    background-color: var(--zb-primary) !important;\n    border-color: var(--zb-primary) !important;\n    color: var(--ctp-crust) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs\n    .Tabs-link.is-active:hover {\n    background-color: var(--zb-primary-hover) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".SearchSubTabs .Tabs-link:focus-visible {\n    border-color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
       '[data-za-detail-view-path-module="SearchResultList"]:has(\n      + .SearchNoContent-wrap',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -1333,7 +1762,7 @@ describe("Catppuccin theme feature", () => {
       'a[href*="/kvip/sku/paper/"]:is(:hover, :focus-visible)\n    > div:first-child {\n    color: var(--zb-primary-hover) !important;',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'a[href*="/kvip/sku/paper/"]\n    > div:nth-child(3)\n    span {\n    color: var(--zb-text) !important;',
+      'a[href*="/kvip/sku/paper/"]\n    > div:nth-child(3)\n    span {\n    color: var(--zb-text-secondary) !important;',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> div:nth-child(3)\n    span:has(.ZDI--ArrowRight24) {\n    color: var(--zb-primary) !important;",
@@ -1427,6 +1856,21 @@ describe("Catppuccin theme feature", () => {
       '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".KfeCollection-PcCollegeCard-wrapper");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(
+      ".SearchResult-Card:has(.KfeCollection-PcCollegeCard-root):",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '.SearchResult-Card:has(> .List-item[tabindex="0"] h1)\n    > .List-item:focus-visible {\n    outline: 0 !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ":is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {\n    color: var(--zb-primary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".KfeCollection-PcCollegeCard-description {\n    color: var(--zb-text-secondary) !important;\n    -webkit-text-fill-color: var(--zb-text-secondary) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {\n    color: var(--zb-primary-hover) !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "html[data-zb-theme] .ZVideoItem-comment {\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border-strong) !important;",
     );
@@ -1486,12 +1930,15 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Favlists-actions");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FavlistsModal .Modal-closeButton");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Favlists-updateButton.Button--grey:is(:hover, :focus-visible)",
+      "body\n    .FavlistsModal\n    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain('content: "取消收藏" !important');
     expect(CATPPUCCIN_THEME_STYLE).toContain("-webkit-text-fill-color: transparent !important");
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
-      /\.FavlistsModal[\s\S]*?\.Favlists-updateButton\.Button--grey:is\(:hover, :focus-visible\)[^{]*\{[\s\S]*?background-color: var\(--zb-danger-soft\) !important;[\s\S]*?color: transparent !important;[\s\S]*?-webkit-text-fill-color: transparent !important;/,
+      /body[\s\S]*?\.FavlistsModal[\s\S]*?\.Favlists-updateButton\.Button--grey:is\(:hover, :focus-visible\)[^{]*\{[\s\S]*?background-color: var\(--zb-danger-soft\) !important;[\s\S]*?color: transparent !important;[\s\S]*?-webkit-text-fill-color: transparent !important;/,
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Favlists-updateButton.Button--grey:focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;",
     );
   });
 
@@ -1518,7 +1965,7 @@ describe("Catppuccin theme feature", () => {
       page.window.document.querySelector(".prompt").hasAttribute("data-zb-arrow-action-panel"),
     ).toBe(true);
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      'html[data-zb-theme]:is(\n      [data-zb-question-page="true"],\n      [data-zb-home-page="true"]',
+      "html[data-zb-theme] [data-zb-arrow-action-panel-wrapper]",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-arrow-action-panel-wrapper]");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-arrow-action-panel]");
@@ -1531,6 +1978,9 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding: 4px 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "box-shadow: inset 0 0 0 1px var(--zb-primary) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:first-child\n    span {\n    color: var(--zb-text) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /> div:nth-child\(2\) \{\s*background-color: transparent !important;/,

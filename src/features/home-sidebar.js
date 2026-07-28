@@ -11,7 +11,10 @@ const ROOT_PROFILE_ATTRIBUTE = "data-zb-profile-page";
 const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
 const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
 const ROOT_TOPIC_ATTRIBUTE = "data-zb-topic-page";
+const ROOT_RING_INDEX_ATTRIBUTE = "data-zb-ring-index-page";
 const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
+const ROOT_RING_HOST_ATTRIBUTE = "data-zb-ring-host-page";
+const ROOT_RING_HOST_READY_ATTRIBUTE = "data-zb-ring-host-ready";
 const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
 const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
 const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
@@ -24,6 +27,10 @@ const AI_ANSWER_ACTIONS_ATTRIBUTE = "data-zb-ai-answer-actions";
 const AI_SHARE_ACTIONS_ATTRIBUTE = "data-zb-ai-share-actions";
 const AI_SHARE_CHECKBOX_ATTRIBUTE = "data-zb-ai-share-checkbox";
 const AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE = "data-zb-ai-share-checkbox-checked";
+const RING_INDEX_ACTION_ATTRIBUTE = "data-zb-ring-index-action";
+const RING_INDEX_ACTION_SELECTOR = 'a[href^="/ring/host/"] button';
+const RING_HOST_ACTION_ATTRIBUTE = "data-zb-ring-host-action";
+const RING_HOST_ACTION_SELECTOR = "main.App-main button";
 const AI_SOURCE_BUTTON_SELECTOR = '[data-testid="Button:reference_card_block_more_btn"]';
 const AI_INPUT_SELECTOR = '[data-testid="Block:zhida_input_box"]';
 const AI_SOURCE_TITLE_PATTERN = /^参考来源\s*\d+$/;
@@ -35,6 +42,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let observer;
   let questionPositionObserver;
   let animationFrameId;
+  let ringHostReadyAnimationFrameId;
   let positionAnimationFrameId;
   let menuCommandId;
   let markedSidebar;
@@ -45,6 +53,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   const markedAiAnswerActionRows = new Set();
   const markedAiShareActionRows = new Set();
   const markedAiShareCheckboxes = new Set();
+  const markedRingIndexActions = new Set();
+  const markedRingHostActions = new Set();
   let observedAiSearchMain;
   let observedPageHeader;
   let observedQuestionContent;
@@ -57,6 +67,7 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   let positionScheduled = false;
   let scheduled = false;
   let started = false;
+  let ringHostReady = false;
 
   const isHomeFeedPage = () =>
     browserWindow.location.hostname === "www.zhihu.com" &&
@@ -73,6 +84,14 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
   const isRingFeedsPage = () =>
     browserWindow.location.hostname === "www.zhihu.com" &&
     /^\/ring-feeds\/?$/.test(browserWindow.location.pathname);
+
+  const isRingIndexPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/ring\/?$/.test(browserWindow.location.pathname);
+
+  const isRingHostPage = () =>
+    browserWindow.location.hostname === "www.zhihu.com" &&
+    /^\/ring\/host\/\d+\/?$/.test(browserWindow.location.pathname);
 
   const isProfilePage = () =>
     browserWindow.location.hostname === "www.zhihu.com" &&
@@ -111,8 +130,50 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     }
   };
 
+  const hasStableRingHostDom = () => {
+    const ringContent = browserDocument.querySelector(
+      ".App-main > div:first-child > div:first-child > div:has(.PinItem)",
+    );
+    const headerActions = ringContent?.children[1]?.children[1];
+    const tabs = ringContent?.children[3];
+    return Boolean(
+      headerActions?.querySelector("button") &&
+      tabs?.childElementCount >= 3 &&
+      ringContent.querySelector(".List > .List-item .PinItem"),
+    );
+  };
+
+  const updateRingHostReadyState = (isRingHost) => {
+    if (!isRingHost) {
+      if (ringHostReadyAnimationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
+        ringHostReadyAnimationFrameId = undefined;
+      }
+      ringHostReady = false;
+      setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, false);
+      return;
+    }
+
+    if (ringHostReady || ringHostReadyAnimationFrameId !== undefined) return;
+
+    setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, false);
+    ringHostReadyAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+      ringHostReadyAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+        ringHostReadyAnimationFrameId = undefined;
+        if (!isRingHostPage()) return;
+        if (!hasStableRingHostDom()) return;
+
+        ringHostReady = true;
+        setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, true);
+        markRingHostActions();
+        configureObserver();
+      });
+    });
+  };
+
   const updateRootState = () => {
     const nextPageKind = getPageKind();
+    const isRingHost = isRingHostPage();
     if (nextPageKind !== pageKind) {
       markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
       markedSidebar = undefined;
@@ -123,7 +184,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
     setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
     setRootAttribute(ROOT_TOPIC_ATTRIBUTE, isTopicPage());
+    setRootAttribute(ROOT_RING_INDEX_ATTRIBUTE, isRingIndexPage());
     setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
+    setRootAttribute(ROOT_RING_HOST_ATTRIBUTE, isRingHost);
+    updateRingHostReadyState(isRingHost);
     setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
     setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
     setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
@@ -454,7 +518,90 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
   };
 
+  const markRingIndexActions = (root = browserDocument) => {
+    const candidates = new Set();
+    const element = root?.nodeType === 1 ? root : root?.parentElement;
+    if (element?.matches?.(RING_INDEX_ACTION_SELECTOR)) candidates.add(element);
+    const ancestor = element?.closest?.(RING_INDEX_ACTION_SELECTOR);
+    if (ancestor) candidates.add(ancestor);
+    element
+      ?.querySelectorAll?.(RING_INDEX_ACTION_SELECTOR)
+      .forEach((button) => candidates.add(button));
+    if (root === browserDocument) {
+      browserDocument
+        .querySelectorAll(RING_INDEX_ACTION_SELECTOR)
+        .forEach((button) => candidates.add(button));
+    }
+
+    candidates.forEach((button) => {
+      const label = button.textContent?.trim().replace(/\s+/g, "") ?? "";
+      const state = /^(?:已加入|取消加入|退出圈子)$/.test(label) ? "joined" : "join";
+      button.setAttribute(RING_INDEX_ACTION_ATTRIBUTE, state);
+      markedRingIndexActions.add(button);
+    });
+  };
+
+  const clearRingIndexActions = () => {
+    markedRingIndexActions.forEach((button) => button.removeAttribute(RING_INDEX_ACTION_ATTRIBUTE));
+    markedRingIndexActions.clear();
+  };
+
+  const markRingHostActions = (root = browserDocument) => {
+    const candidates = new Set();
+    const element = root?.nodeType === 1 ? root : root?.parentElement;
+    if (element?.matches?.(RING_HOST_ACTION_SELECTOR)) candidates.add(element);
+    const ancestor = element?.closest?.(RING_HOST_ACTION_SELECTOR);
+    if (ancestor) candidates.add(ancestor);
+    element
+      ?.querySelectorAll?.(RING_HOST_ACTION_SELECTOR)
+      .forEach((button) => candidates.add(button));
+    if (root === browserDocument) {
+      browserDocument
+        .querySelectorAll(RING_HOST_ACTION_SELECTOR)
+        .forEach((button) => candidates.add(button));
+    }
+
+    candidates.forEach((button) => {
+      const label = button.textContent?.trim().replace(/\s+/g, "") ?? "";
+      if (!/^(?:加入|加入圈子|已加入|取消加入|退出圈子)$/.test(label)) return;
+
+      const state = /^(?:已加入|取消加入|退出圈子)$/.test(label) ? "joined" : "join";
+      button.setAttribute(RING_HOST_ACTION_ATTRIBUTE, state);
+      markedRingHostActions.add(button);
+    });
+  };
+
+  const clearRingHostActions = () => {
+    markedRingHostActions.forEach((button) => button.removeAttribute(RING_HOST_ACTION_ATTRIBUTE));
+    markedRingHostActions.clear();
+  };
+
   const handleMutations = (records) => {
+    if (!started) return;
+
+    if (isRingHostPage() && !ringHostReady) {
+      updateRingHostReadyState(true);
+      return;
+    }
+
+    if (isRingHostPage()) {
+      records.forEach(({ addedNodes, target }) => {
+        markRingHostActions(target);
+        addedNodes.forEach((node) => markRingHostActions(node));
+      });
+      if (![...markedRingHostActions].some((button) => button.isConnected)) scheduleRefresh();
+      return;
+    }
+
+    if (isRingIndexPage()) {
+      records.forEach(({ addedNodes, target }) => {
+        markRingIndexActions(target);
+        addedNodes.forEach((node) => markRingIndexActions(node));
+      });
+      if (!browserDocument.querySelector(".App-main")) scheduleRefresh();
+      return;
+    }
+
     if (isAiSearchPage()) {
       records.forEach(({ addedNodes }) => {
         addedNodes.forEach((node) => {
@@ -513,6 +660,30 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
       });
       return;
     }
+    if (isRingHostPage() && !ringHostReady) {
+      observer.observe(browserDocument.documentElement, { childList: true, subtree: true });
+      return;
+    }
+    if (isRingHostPage()) {
+      const action = [...markedRingHostActions].find((button) => button.isConnected);
+      observer.observe(action?.parentElement ?? browserDocument.documentElement, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+      return;
+    }
+    if (isRingIndexPage()) {
+      observer.observe(
+        browserDocument.querySelector(".App-main") ?? browserDocument.documentElement,
+        {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        },
+      );
+      return;
+    }
     if (pageKind === "other") return;
 
     const needsSidebarDiscovery = !markedSidebar?.isConnected;
@@ -540,6 +711,16 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     updateColumnTabsPosition();
     ensureStyle(browserDocument, STYLE_ID, HOME_SIDEBAR_STYLE);
     markSidebar();
+    if (isRingIndexPage()) {
+      markRingIndexActions();
+    } else {
+      clearRingIndexActions();
+    }
+    if (isRingHostPage()) {
+      markRingHostActions();
+    } else {
+      clearRingHostActions();
+    }
     markAiSourcePanel();
     markAiDynamicElements();
     setupQuestionPositionObserver();
@@ -639,6 +820,9 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     if (positionAnimationFrameId !== undefined) {
       browserWindow.cancelAnimationFrame(positionAnimationFrameId);
     }
+    if (ringHostReadyAnimationFrameId !== undefined) {
+      browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
+    }
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
     browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
     removeRouteListeners();
@@ -674,6 +858,8 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
       checkbox.removeAttribute(AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE);
     });
     markedAiShareCheckboxes.clear();
+    clearRingIndexActions();
+    clearRingHostActions();
     observedAiSearchMain = undefined;
     observedPageHeader = undefined;
     observedQuestionContent = undefined;
@@ -685,7 +871,10 @@ export const createHomeSidebarFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_TOPIC_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_RING_INDEX_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_ATTRIBUTE);
+    browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_READY_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);

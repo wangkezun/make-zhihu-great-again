@@ -309,25 +309,106 @@ describe("home sidebar feature", () => {
     expect(page.window.document.documentElement.hasAttribute("data-zb-topic-page")).toBe(false);
   });
 
-  it("marks only the ring feeds route and keeps the marker in sync across SPA navigation", async () => {
+  it("marks ring feed and host routes independently across SPA navigation", async () => {
     const page = createPage("https://www.zhihu.com/ring-feeds");
     const feature = createHomeSidebarFeature(page.window);
     feature.start();
 
     expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbRingHostPage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbRingHostReady).toBe("false");
 
     page.window.history.pushState({}, "", "/ring/host/123");
     await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
 
     expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbRingHostPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbRingHostReady).toBe("false");
+
+    page.window.document.querySelector("main").className = "App-main";
+    page.window.document.querySelector("main").innerHTML = `
+      <div>
+        <div>
+          <div>
+            <div></div>
+            <div><div></div><div><button>加入圈子</button></div></div>
+            <div></div>
+            <div><div>最新</div><div>最热</div><div>精华</div></div>
+            <div class="List">
+              <div class="List-item"><div class="PinItem">动态</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbRingHostReady).toBe("true");
+    const hostAction = page.window.document.querySelector("button");
+    expect(hostAction.dataset.zbRingHostAction).toBe("join");
+
+    hostAction.textContent = "已加入";
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(hostAction.dataset.zbRingHostAction).toBe("joined");
 
     page.window.history.replaceState({}, "", "/ring-feeds/");
     await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
 
     expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("true");
+    expect(page.window.document.documentElement.dataset.zbRingHostPage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbRingHostReady).toBe("false");
+    expect(hostAction.hasAttribute("data-zb-ring-host-action")).toBe(false);
+
+    page.window.history.pushState({}, "", "/ring/host/not-a-number");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+
+    expect(page.window.document.documentElement.dataset.zbRingFeedsPage).toBe("false");
+    expect(page.window.document.documentElement.dataset.zbRingHostPage).toBe("false");
 
     feature.destroy();
     expect(page.window.document.documentElement.hasAttribute("data-zb-ring-feeds-page")).toBe(
+      false,
+    );
+    expect(page.window.document.documentElement.hasAttribute("data-zb-ring-host-page")).toBe(false);
+    expect(page.window.document.documentElement.hasAttribute("data-zb-ring-host-ready")).toBe(
+      false,
+    );
+  });
+
+  it("marks the ring index route without matching ring subpages", async () => {
+    const page = createPage("https://www.zhihu.com/ring");
+    page.window.document.querySelector("main").className = "App-main";
+    page.window.document.querySelector("main").innerHTML = `
+      <a href="/ring/host/1"><button><span>加入</span></button></a>
+      <a href="/ring/host/2"><button><span>已加入</span></button></a>
+    `;
+    const feature = createHomeSidebarFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.documentElement.dataset.zbRingIndexPage).toBe("true");
+    const buttons = page.window.document.querySelectorAll("button");
+    expect(buttons[0].dataset.zbRingIndexAction).toBe("join");
+    expect(buttons[1].dataset.zbRingIndexAction).toBe("joined");
+
+    buttons[0].querySelector("span").textContent = "取消加入";
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(buttons[0].dataset.zbRingIndexAction).toBe("joined");
+
+    page.window.history.pushState({}, "", "/ring/host/123");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbRingIndexPage).toBe("false");
+    expect(buttons[0].hasAttribute("data-zb-ring-index-action")).toBe(false);
+    expect(buttons[1].hasAttribute("data-zb-ring-index-action")).toBe(false);
+
+    page.window.history.replaceState({}, "", "/ring/");
+    await new Promise((resolve) => page.window.requestAnimationFrame(resolve));
+    expect(page.window.document.documentElement.dataset.zbRingIndexPage).toBe("true");
+
+    feature.destroy();
+    expect(buttons[0].hasAttribute("data-zb-ring-index-action")).toBe(false);
+    expect(buttons[1].hasAttribute("data-zb-ring-index-action")).toBe(false);
+    expect(page.window.document.documentElement.hasAttribute("data-zb-ring-index-page")).toBe(
       false,
     );
   });

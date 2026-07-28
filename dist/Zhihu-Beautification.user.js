@@ -667,7 +667,10 @@
   const ROOT_QUESTION_ATTRIBUTE = "data-zb-question-page";
   const ROOT_QUESTION_CONTENT_ATTRIBUTE = "data-zb-question-content-under-header";
   const ROOT_TOPIC_ATTRIBUTE = "data-zb-topic-page";
+  const ROOT_RING_INDEX_ATTRIBUTE = "data-zb-ring-index-page";
   const ROOT_RING_FEEDS_ATTRIBUTE = "data-zb-ring-feeds-page";
+  const ROOT_RING_HOST_ATTRIBUTE = "data-zb-ring-host-page";
+  const ROOT_RING_HOST_READY_ATTRIBUTE = "data-zb-ring-host-ready";
   const ROOT_PAPER_ATTRIBUTE = "data-zb-paper-page";
   const ROOT_PAPER_PREVIEW_ATTRIBUTE = "data-zb-paper-preview-page";
   const ROOT_AI_SEARCH_ATTRIBUTE = "data-zb-ai-search-page";
@@ -680,6 +683,10 @@
   const AI_SHARE_ACTIONS_ATTRIBUTE = "data-zb-ai-share-actions";
   const AI_SHARE_CHECKBOX_ATTRIBUTE = "data-zb-ai-share-checkbox";
   const AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE = "data-zb-ai-share-checkbox-checked";
+  const RING_INDEX_ACTION_ATTRIBUTE = "data-zb-ring-index-action";
+  const RING_INDEX_ACTION_SELECTOR = 'a[href^="/ring/host/"] button';
+  const RING_HOST_ACTION_ATTRIBUTE = "data-zb-ring-host-action";
+  const RING_HOST_ACTION_SELECTOR = "main.App-main button";
   const AI_SOURCE_BUTTON_SELECTOR = '[data-testid="Button:reference_card_block_more_btn"]';
   const AI_INPUT_SELECTOR = '[data-testid="Block:zhida_input_box"]';
   const AI_SOURCE_TITLE_PATTERN = /^参考来源\s*\d+$/;
@@ -691,6 +698,7 @@
     let observer;
     let questionPositionObserver;
     let animationFrameId;
+    let ringHostReadyAnimationFrameId;
     let positionAnimationFrameId;
     let menuCommandId;
     let markedSidebar;
@@ -701,6 +709,8 @@
     const markedAiAnswerActionRows = new Set();
     const markedAiShareActionRows = new Set();
     const markedAiShareCheckboxes = new Set();
+    const markedRingIndexActions = new Set();
+    const markedRingHostActions = new Set();
     let observedAiSearchMain;
     let observedPageHeader;
     let observedQuestionContent;
@@ -713,6 +723,7 @@
     let positionScheduled = false;
     let scheduled = false;
     let started = false;
+    let ringHostReady = false;
 
     const isHomeFeedPage = () =>
       browserWindow.location.hostname === "www.zhihu.com" &&
@@ -729,6 +740,14 @@
     const isRingFeedsPage = () =>
       browserWindow.location.hostname === "www.zhihu.com" &&
       /^\/ring-feeds\/?$/.test(browserWindow.location.pathname);
+
+    const isRingIndexPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/ring\/?$/.test(browserWindow.location.pathname);
+
+    const isRingHostPage = () =>
+      browserWindow.location.hostname === "www.zhihu.com" &&
+      /^\/ring\/host\/\d+\/?$/.test(browserWindow.location.pathname);
 
     const isProfilePage = () =>
       browserWindow.location.hostname === "www.zhihu.com" &&
@@ -767,8 +786,50 @@
       }
     };
 
+    const hasStableRingHostDom = () => {
+      const ringContent = browserDocument.querySelector(
+        ".App-main > div:first-child > div:first-child > div:has(.PinItem)",
+      );
+      const headerActions = ringContent?.children[1]?.children[1];
+      const tabs = ringContent?.children[3];
+      return Boolean(
+        headerActions?.querySelector("button") &&
+        tabs?.childElementCount >= 3 &&
+        ringContent.querySelector(".List > .List-item .PinItem"),
+      );
+    };
+
+    const updateRingHostReadyState = (isRingHost) => {
+      if (!isRingHost) {
+        if (ringHostReadyAnimationFrameId !== undefined) {
+          browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
+          ringHostReadyAnimationFrameId = undefined;
+        }
+        ringHostReady = false;
+        setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, false);
+        return;
+      }
+
+      if (ringHostReady || ringHostReadyAnimationFrameId !== undefined) return;
+
+      setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, false);
+      ringHostReadyAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+        ringHostReadyAnimationFrameId = browserWindow.requestAnimationFrame(() => {
+          ringHostReadyAnimationFrameId = undefined;
+          if (!isRingHostPage()) return;
+          if (!hasStableRingHostDom()) return;
+
+          ringHostReady = true;
+          setRootAttribute(ROOT_RING_HOST_READY_ATTRIBUTE, true);
+          markRingHostActions();
+          configureObserver();
+        });
+      });
+    };
+
     const updateRootState = () => {
       const nextPageKind = getPageKind();
+      const isRingHost = isRingHostPage();
       if (nextPageKind !== pageKind) {
         markedSidebar?.removeAttribute(SIDEBAR_ATTRIBUTE);
         markedSidebar = undefined;
@@ -779,7 +840,10 @@
       setRootAttribute(ROOT_PROFILE_ATTRIBUTE, isProfilePage());
       setRootAttribute(ROOT_QUESTION_ATTRIBUTE, pageKind === "question");
       setRootAttribute(ROOT_TOPIC_ATTRIBUTE, isTopicPage());
+      setRootAttribute(ROOT_RING_INDEX_ATTRIBUTE, isRingIndexPage());
       setRootAttribute(ROOT_RING_FEEDS_ATTRIBUTE, isRingFeedsPage());
+      setRootAttribute(ROOT_RING_HOST_ATTRIBUTE, isRingHost);
+      updateRingHostReadyState(isRingHost);
       setRootAttribute(ROOT_PAPER_ATTRIBUTE, isPaperPage());
       setRootAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE, isPaperPreviewPage());
       setRootAttribute(ROOT_AI_SEARCH_ATTRIBUTE, isAiSearchPage());
@@ -1110,7 +1174,90 @@
       markedSidebar?.setAttribute(SIDEBAR_ATTRIBUTE, "");
     };
 
+    const markRingIndexActions = (root = browserDocument) => {
+      const candidates = new Set();
+      const element = root?.nodeType === 1 ? root : root?.parentElement;
+      if (element?.matches?.(RING_INDEX_ACTION_SELECTOR)) candidates.add(element);
+      const ancestor = element?.closest?.(RING_INDEX_ACTION_SELECTOR);
+      if (ancestor) candidates.add(ancestor);
+      element
+        ?.querySelectorAll?.(RING_INDEX_ACTION_SELECTOR)
+        .forEach((button) => candidates.add(button));
+      if (root === browserDocument) {
+        browserDocument
+          .querySelectorAll(RING_INDEX_ACTION_SELECTOR)
+          .forEach((button) => candidates.add(button));
+      }
+
+      candidates.forEach((button) => {
+        const label = button.textContent?.trim().replace(/\s+/g, "") ?? "";
+        const state = /^(?:已加入|取消加入|退出圈子)$/.test(label) ? "joined" : "join";
+        button.setAttribute(RING_INDEX_ACTION_ATTRIBUTE, state);
+        markedRingIndexActions.add(button);
+      });
+    };
+
+    const clearRingIndexActions = () => {
+      markedRingIndexActions.forEach((button) => button.removeAttribute(RING_INDEX_ACTION_ATTRIBUTE));
+      markedRingIndexActions.clear();
+    };
+
+    const markRingHostActions = (root = browserDocument) => {
+      const candidates = new Set();
+      const element = root?.nodeType === 1 ? root : root?.parentElement;
+      if (element?.matches?.(RING_HOST_ACTION_SELECTOR)) candidates.add(element);
+      const ancestor = element?.closest?.(RING_HOST_ACTION_SELECTOR);
+      if (ancestor) candidates.add(ancestor);
+      element
+        ?.querySelectorAll?.(RING_HOST_ACTION_SELECTOR)
+        .forEach((button) => candidates.add(button));
+      if (root === browserDocument) {
+        browserDocument
+          .querySelectorAll(RING_HOST_ACTION_SELECTOR)
+          .forEach((button) => candidates.add(button));
+      }
+
+      candidates.forEach((button) => {
+        const label = button.textContent?.trim().replace(/\s+/g, "") ?? "";
+        if (!/^(?:加入|加入圈子|已加入|取消加入|退出圈子)$/.test(label)) return;
+
+        const state = /^(?:已加入|取消加入|退出圈子)$/.test(label) ? "joined" : "join";
+        button.setAttribute(RING_HOST_ACTION_ATTRIBUTE, state);
+        markedRingHostActions.add(button);
+      });
+    };
+
+    const clearRingHostActions = () => {
+      markedRingHostActions.forEach((button) => button.removeAttribute(RING_HOST_ACTION_ATTRIBUTE));
+      markedRingHostActions.clear();
+    };
+
     const handleMutations = (records) => {
+      if (!started) return;
+
+      if (isRingHostPage() && !ringHostReady) {
+        updateRingHostReadyState(true);
+        return;
+      }
+
+      if (isRingHostPage()) {
+        records.forEach(({ addedNodes, target }) => {
+          markRingHostActions(target);
+          addedNodes.forEach((node) => markRingHostActions(node));
+        });
+        if (![...markedRingHostActions].some((button) => button.isConnected)) scheduleRefresh();
+        return;
+      }
+
+      if (isRingIndexPage()) {
+        records.forEach(({ addedNodes, target }) => {
+          markRingIndexActions(target);
+          addedNodes.forEach((node) => markRingIndexActions(node));
+        });
+        if (!browserDocument.querySelector(".App-main")) scheduleRefresh();
+        return;
+      }
+
       if (isAiSearchPage()) {
         records.forEach(({ addedNodes }) => {
           addedNodes.forEach((node) => {
@@ -1169,6 +1316,30 @@
         });
         return;
       }
+      if (isRingHostPage() && !ringHostReady) {
+        observer.observe(browserDocument.documentElement, { childList: true, subtree: true });
+        return;
+      }
+      if (isRingHostPage()) {
+        const action = [...markedRingHostActions].find((button) => button.isConnected);
+        observer.observe(action?.parentElement ?? browserDocument.documentElement, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+        return;
+      }
+      if (isRingIndexPage()) {
+        observer.observe(
+          browserDocument.querySelector(".App-main") ?? browserDocument.documentElement,
+          {
+            childList: true,
+            subtree: true,
+            characterData: true,
+          },
+        );
+        return;
+      }
       if (pageKind === "other") return;
 
       const needsSidebarDiscovery = !markedSidebar?.isConnected;
@@ -1196,6 +1367,16 @@
       updateColumnTabsPosition();
       ensureStyle(browserDocument, STYLE_ID$2, HOME_SIDEBAR_STYLE);
       markSidebar();
+      if (isRingIndexPage()) {
+        markRingIndexActions();
+      } else {
+        clearRingIndexActions();
+      }
+      if (isRingHostPage()) {
+        markRingHostActions();
+      } else {
+        clearRingHostActions();
+      }
       markAiSourcePanel();
       markAiDynamicElements();
       setupQuestionPositionObserver();
@@ -1295,6 +1476,9 @@
       if (positionAnimationFrameId !== undefined) {
         browserWindow.cancelAnimationFrame(positionAnimationFrameId);
       }
+      if (ringHostReadyAnimationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(ringHostReadyAnimationFrameId);
+      }
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
       browserDocument.removeEventListener("click", handleAiSourcePanelInteraction, true);
       removeRouteListeners();
@@ -1330,6 +1514,8 @@
         checkbox.removeAttribute(AI_SHARE_CHECKBOX_CHECKED_ATTRIBUTE);
       });
       markedAiShareCheckboxes.clear();
+      clearRingIndexActions();
+      clearRingHostActions();
       observedAiSearchMain = undefined;
       observedPageHeader = undefined;
       observedQuestionContent = undefined;
@@ -1341,7 +1527,10 @@
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_QUESTION_CONTENT_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_TOPIC_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_RING_INDEX_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_RING_FEEDS_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_ATTRIBUTE);
+      browserDocument.documentElement?.removeAttribute(ROOT_RING_HOST_READY_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_PAPER_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_PAPER_PREVIEW_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(ROOT_AI_SEARCH_ATTRIBUTE);
@@ -1949,31 +2138,209 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme] .SearchMain .SearchSubTabs {
+  html[data-zb-theme] .SearchMain :is(.PlaceHolder, .PlaceHolder-inner) {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .SearchMain > .ListShortcut,
+  html[data-zb-theme] .SearchMain > .ListShortcut > .List {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card,
+  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
     box-sizing: border-box !important;
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
     border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card {
+    padding-top: 0 !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchResult-Card:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      0 0 0 2px var(--zb-primary-soft),
+      var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card
+    :is(.ContentItem-title, .ContentItem-title a) {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card
+    :is(
+      .ContentItem-title:hover,
+      .ContentItem-title:focus-within,
+      .ContentItem-title a:hover,
+      .ContentItem-title a:focus-visible
+    ) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card
+    :is(
+      .RichContent-inner,
+      .RichContent-inner .RichText,
+      .SearchItem-meta.Highlight
+    ) {
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card
+    .FollowButton.Button--grey:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(
+      > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
+    )
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
+    margin-bottom: 12px !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs {
+    box-sizing: border-box !important;
+    display: flex !important;
+    height: auto !important;
+    min-height: 58px !important;
+    padding: 12px 16px !important;
+    align-items: center !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
     color: var(--zb-text) !important;
+    line-height: normal !important;
     box-shadow: var(--zb-shadow) !important;
   }
 
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs {
+    display: flex !important;
+    height: auto !important;
+    width: 100% !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    border-bottom: 0 !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-item {
+    display: flex !important;
+    height: auto !important;
+    padding: 0 !important;
+    align-items: center !important;
+    line-height: normal !important;
+  }
+
   html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    min-height: 32px !important;
+    padding: 5px 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
     transition:
       background-color 0.16s ease,
+      border-color 0.16s ease,
       color 0.16s ease !important;
   }
 
   html[data-zb-theme]
     .SearchMain
     .SearchSubTabs
-    .Tabs-link:is(:hover, .is-active, :focus-visible) {
+    .Tabs-link:hover {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 36%,
+      transparent
+    ) !important;
     color: var(--zb-primary) !important;
   }
 
+  html[data-zb-theme]
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link.is-active {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchSubTabs
+    .Tabs-link.is-active:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--ctp-crust) !important;
+  }
+
   html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
-    border-radius: 6px !important;
+    border-color: var(--zb-primary) !important;
     outline: 0 !important;
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
@@ -2386,8 +2753,8 @@ ${createPaletteVariables("mocha")}
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(3)
     span {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;
   }
 
   html[data-zb-theme]
@@ -2970,7 +3337,16 @@ ${createPaletteVariables("mocha")}
     .SearchMain
     .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
     h1 {
-    color: var(--zb-text) !important;
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
+    > .List-item:is(:hover, :focus-visible)
+    h1 {
+    color: var(--zb-primary-hover) !important;
   }
 
   html[data-zb-theme]
@@ -3015,8 +3391,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     .SearchMain
     .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
-    > .List-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
+    > .List-item:focus-visible {
     outline: 0 !important;
   }
 
@@ -3034,8 +3409,16 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     .SearchMain
     :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .KfeCollection-PcCollegeCard-link:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
   }
 
   html[data-zb-theme]
@@ -4827,6 +5210,152 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
+    div:has(> .Modal-content > .VoterList) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(> .VoterList) {
+    background-color: var(--zb-surface) !important;
+    border-radius: inherit !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .VoterList > .Topbar {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(
+      .Skeleton,
+      [class*="skeleton" i],
+      .PlaceHolder,
+      .PlaceHolder-inner,
+      [class*="placeholder" i],
+      [class*="loading" i],
+      [aria-busy="true"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content .PlaceHolder-bg {
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    img.Avatar:is(:not([src]), [src=""]) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content .List-item {
+    background-color: transparent !important;
+    transition: background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .List-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content .List-item::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.ContentItem-title, .UserItem-title, .UserLink-link) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.ContentItem-meta, .ContentItem-statusItem) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 50% !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--primary:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey:is(:hover, :focus-visible)
+    :where(span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme]
     .Modal:has(.SendGiftModal-GiftListWrapper)
     .Modal-content
     > div
@@ -5161,6 +5690,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
+    body
     .FavlistsModal
     .Favlists-updateButton.Button--grey:is(:hover, :focus-visible) {
     background-color: var(--zb-danger-soft) !important;
@@ -5170,6 +5700,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
+    body
     .FavlistsModal
     .Favlists-updateButton.Button--grey:is(:hover, :focus-visible)::after {
     content: "取消收藏" !important;
@@ -5184,20 +5715,19 @@ ${createPaletteVariables("mocha")}
     line-height: normal !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
-    [data-zb-arrow-action-panel-wrapper] {
+  html[data-zb-theme]
+    body
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme] [data-zb-arrow-action-panel-wrapper] {
     background-color: transparent !important;
     border-radius: 8px !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
-    [data-zb-arrow-action-panel] {
+  html[data-zb-theme] [data-zb-arrow-action-panel] {
     background-color: var(--zb-surface-raised) !important;
     border: 1px solid var(--zb-border-strong) !important;
     border-radius: 8px !important;
@@ -5206,29 +5736,30 @@ ${createPaletteVariables("mocha")}
     overflow: hidden !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
+  html[data-zb-theme]
     [data-zb-arrow-action-panel]
     > div:nth-child(2) {
     background-color: transparent !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
+  html[data-zb-theme]
     [data-zb-arrow-action-panel]
-    :is(span, button) {
+    > div:first-child
+    span {
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    > div:nth-child(3)
+    button {
     color: var(--zb-primary) !important;
     -webkit-text-fill-color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
+  html[data-zb-theme]
     [data-zb-arrow-action-panel]
     button {
     box-sizing: border-box !important;
@@ -5238,10 +5769,7 @@ ${createPaletteVariables("mocha")}
     white-space: nowrap !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
+  html[data-zb-theme]
     [data-zb-arrow-action-panel]
     button:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
@@ -5250,10 +5778,7 @@ ${createPaletteVariables("mocha")}
     outline: 0 !important;
   }
 
-  html[data-zb-theme]:is(
-      [data-zb-question-page="true"],
-      [data-zb-home-page="true"]
-    )
+  html[data-zb-theme]
     [data-zb-arrow-action-panel]
     :is(svg, path) {
     color: var(--zb-primary) !important;
@@ -5432,6 +5957,1214 @@ ${createPaletteVariables("mocha")}
     :is(a.Button, button.Button):hover {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .Messages-menuContainer .Messages-footer {
+    box-sizing: border-box !important;
+    min-height: 52px !important;
+    height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    flex: 1 1 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 6px !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:first-child:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary) 20%,
+      var(--zb-surface)
+    ) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:last-child:hover {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:focus-visible {
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .App-main .ChatWrapper > .Chat {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatSideBar {
+    background-color: var(--zb-surface) !important;
+    border-right: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(.ChatSideBar-Search, .ChatListGroup, .ChatListGroup-Section) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-Input
+    input {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-Input:focus-within
+    input {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatSideBar-SearchIcon {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionTitle {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionContent {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatUserListItem {
+    box-sizing: border-box !important;
+    width: calc(100% - 16px) !important;
+    margin: 4px 8px !important;
+    padding: 11px 12px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatUserListItem::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatListGroup-SectionTitle--bottomBorder::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatListGroup-SectionTitle--topBorder::before {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:focus-within {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(
+      .is-active,
+      .ChatUserListItem--active,
+      [aria-selected="true"]
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .ChatUserListItem-Content {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding-right: 34px !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .Chat-ActionMenuPopover-Button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 30px !important;
+    width: 30px !important;
+    height: 30px !important;
+    right: 6px !important;
+    padding: 0 !important;
+    background-image: none !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(
+      :hover,
+      :focus-within,
+      .is-active,
+      .ChatUserListItem--active,
+      [aria-selected="true"]
+    )
+    .Chat-ActionMenuPopover-Button {
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    background-image: none !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    :is(.userName, .userName-nameArea) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    :is(time, .ChatUserListItem-Snippet) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatBox-empty {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatBox-emptyImage path {
+    fill: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search--active {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap
+    .ChatUserListItem {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap
+    .ChatUserListItem:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.App-main .Chat)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu {
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.App-main .Chat)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.App-main .Chat)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.App-main .Chat)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:first-child {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      transparent
+    ) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.App-main .Chat)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 20%,
+      transparent
+    ) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(.Chat-ChatBox, .MessagesBox, .InputBox) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .Chat-ChatBox > header {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .MessagesBox {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button {
+    background-image: none !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible, :active) {
+    background-color: var(--zb-surface-hover) !important;
+    background-image: none !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert.ChatBox-alert {
+    box-sizing: border-box !important;
+    width: min(488px, calc(100% - 32px)) !important;
+    min-height: 50px !important;
+    padding: 10px 12px 10px 16px !important;
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      var(--zb-surface-raised)
+    ) !important;
+    border: 1px solid var(--zb-danger) !important;
+    border-radius: 8px !important;
+    color: var(--zb-danger) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-message {
+    min-width: 0 !important;
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-icon {
+    box-sizing: border-box !important;
+    flex: 0 0 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+    padding: 5px !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+    cursor: pointer !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-icon:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    color: var(--zb-danger) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage::before {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage > :first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border-strong) !important;
+    box-shadow: none !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    svg {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    > :last-child {
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    > :last-child:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage > :last-child {
+    display: grid !important;
+    gap: 2px !important;
+    padding: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div {
+    background-color: transparent !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    color: var(--zb-text-secondary) !important;
+    cursor: pointer !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .IconListMessage > div {
+    background-color: transparent !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .IconListMessage > div > img {
+    clip-path: inset(0 -32px 0 100%) !important;
+    filter: drop-shadow(32px 0 0 var(--zb-primary)) !important;
+    transform: translateX(-32px) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:is(:hover, :focus-visible)
+    > img {
+    filter: drop-shadow(32px 0 0 var(--zb-primary-hover)) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div
+    > div
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    .ZDI--ChatBubbleTwo24 {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox-input {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    padding: 0 14px !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox > .ToolBar {
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox-footer {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 51px !important;
+    padding: 9px 16px 10px !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .InputBox
+    :is(textarea, input, [contenteditable="true"]) {
+    box-sizing: border-box !important;
+    padding: 10px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .InputBox
+    :is(textarea, input, [contenteditable="true"]):focus {
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .TextMessage {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .TextMessage.TextMessage-receiver {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .MessagesBox .css-1oxfz4p {
+    box-sizing: border-box !important;
+    max-width: calc(100% - 32px) !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(time, .Message-status, .InputBox-footerDesc) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal > div:has(> .Modal-content) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(.Modal-content, .Chat-ChatBox, .MessagesBox, .InputBox) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox > header {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .MessagesBox {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .TextMessage {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage.TextMessage-receiver {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage
+    :where(div, span, p, strong, em) {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .TextMessage a {
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;
+    text-decoration-color: transparent !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+    text-decoration-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(time, .Message-status, .InputBox-footerDesc) {
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .InputBox-input {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(textarea, input, [contenteditable="true"]) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(textarea, input, [contenteditable="true"]):focus {
+    border-color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .Emoticons.EmoticonTool-panel {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    :is(.Emoticons-panelContainer, .EmoticonPanel) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPanel-item {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPanel-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Emoticons.EmoticonTool-panel .EmoticonsFooter {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item--selected {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPagination-bullet {
+    background-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPagination-bullet--active {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ActionMenuPopover-Button {
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.ChatBoxModal)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu {
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.ChatBoxModal)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.ChatBoxModal)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.ChatBoxModal)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:first-child {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      transparent
+    ) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    body:has(.ChatBoxModal)
+    .Popover-content:has(> .ActionMenu)
+    > .ActionMenu
+    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 20%,
+      transparent
+    ) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox:has(.Checkbox-input) {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > header {
+    flex: 0 0 50px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > div:has(.MessagesBox) {
+    min-height: 0 !important;
+    height: auto !important;
+    flex: 1 1 auto !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .MessagesBox {
+    height: 100% !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child {
+    box-sizing: border-box !important;
+    min-height: 88px !important;
+    height: 88px !important;
+    flex: 0 0 88px !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24) {
+    width: 72px !important;
+    height: 72px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24)
+    > div:first-child {
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24)
+    > div:last-child {
+    height: 20px !important;
+    line-height: 20px !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--Xmark24) {
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--Xmark24):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .Checkbox {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .Checkbox:has(.Checkbox-input:checked) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal-closeButton {
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal-closeButton:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(.ChatBoxModal-closeButton, .Chat-ActionMenuPopover-Button)
+    :where(svg, path),
+  html[data-zb-theme]
+    .ChatBoxModal-closeButton
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
   }
 
   html[data-zb-theme] .Topstory-mainColumnCard {
@@ -7719,6 +9452,18 @@ ${createPaletteVariables("mocha")}
     * {
     color: var(--zb-text) !important;
     font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    > :first-child
+    > :first-child {
+    color: var(--zb-text) !important;
   }
 
   html[data-zb-theme]
@@ -11368,6 +13113,1637 @@ ${createPaletteVariables("mocha")}
     overflow: visible !important;
   }
 
+  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main,
+  html[data-zb-theme][data-zb-ring-index-page="true"] .App-main > div {
+    min-height: calc(100vh - 52px) !important;
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div {
+    box-sizing: border-box !important;
+    width: min(982px, calc(100vw - 32px)) !important;
+    min-width: 0 !important;
+    padding: 28px 0 40px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div
+    > div:first-of-type {
+    color: var(--zb-text) !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div
+    > div:first-of-type
+    > * {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div
+    > div:first-of-type
+    svg {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    div:has(> div > .css-f1fy25) {
+    box-sizing: border-box !important;
+    min-height: 50px !important;
+    padding: 12px 16px !important;
+    gap: 16px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    div:has(> div > .css-f1fy25)
+    > div:first-of-type {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    div:has(> div > .css-f1fy25)
+    > div:nth-of-type(2)
+    > * {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    div:has(> div > .css-f1fy25)
+    > div:nth-of-type(2)
+    > :is(.css-f1fy25, :hover) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div
+    > div:has(> div > div > div > a[href*="/ring/host/"][href*="tab_id"])
+    > div:first-of-type {
+    color: var(--zb-text-secondary) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    > div
+    > div
+    > div:has(> div > div > div > a[href*="/ring/host/"][href*="tab_id"])
+    > div:nth-of-type(2)
+    > div:first-of-type {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"] {
+    box-sizing: border-box !important;
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+    overflow: hidden !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]::before {
+    content: none !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]:hover {
+    background-color: var(--zb-surface) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 36%, var(--zb-border)) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]:focus-visible {
+    border-color: var(--zb-primary) !important;
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]
+    > div {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]
+    img {
+    flex: 0 0 auto !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]
+    img
+    + div
+    > div:first-of-type,
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]
+    img
+    + div
+    > div:first-of-type
+    * {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href*="/ring/host/"][href*="tab_id"]
+    img
+    + div
+    > div:nth-of-type(2) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"] {
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]::before {
+    content: none !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]:hover {
+    background-color: var(--zb-surface) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 36%, var(--zb-border)) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]:focus-visible {
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    > :nth-child(2) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    img {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :first-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :nth-child(2)
+    > :first-child {
+    color: var(--zb-primary) !important;
+    transition: color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]:hover
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :nth-child(2)
+    > :first-child {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :nth-child(2)
+    > :nth-child(2),
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    > :nth-child(2)
+    > :nth-child(2) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button {
+    box-sizing: border-box !important;
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 66px !important;
+    min-height: 28px !important;
+    padding: 0 12px !important;
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    color: var(--ctp-crust) !important;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:focus-visible {
+    outline: 2px solid var(--zb-primary) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]) {
+    min-width: 80px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])
+    > * {
+    visibility: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"])::after {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    content: "已加入" !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):is(
+      :hover,
+      :focus-visible
+    )::after {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    content: "取消加入" !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:is([data-zb-ring-index-action="joined"], [aria-pressed="true"]):focus-visible {
+    outline-color: var(--zb-danger) !important;
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-index-page="true"]
+    .App-main
+    a[href^="/ring/host/"]
+    button:disabled {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text-subtle) !important;
+    cursor: not-allowed !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"] .App-main > div:first-child {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(-n + 5) {
+    background-color: var(--zb-surface) !important;
+    border-inline: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :first-child {
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 12px 12px 0 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(4) {
+    border-bottom: 1px solid var(--zb-border) !important;
+    border-radius: 0 0 12px 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :is(:nth-child(2), :nth-child(4))
+    :where(div, span, a) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > :first-child {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    min-height: 36px !important;
+    padding: 6px 16px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    cursor: pointer !important;
+    transition: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > :first-child:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    color: var(--ctp-crust) !important;
+    white-space: nowrap !important;
+    transition: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button
+    :where(div, span, svg) {
+    color: inherit !important;
+    fill: currentColor !important;
+    white-space: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button:hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > :is(:first-child, button):focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"] {
+    position: relative !important;
+    min-width: 80px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"]
+    > * {
+    visibility: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"]::after {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    content: "已加入" !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"]:is(:hover, :focus-visible)::after {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    content: "取消加入" !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button[data-zb-ring-host-action="joined"]:focus-visible {
+    outline: 2px solid var(--zb-danger) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > button:disabled {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-subtle) !important;
+    cursor: not-allowed !important;
+    opacity: 0.72 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(2)
+    > div:nth-child(2)
+    > :is(:first-child, button) {
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(4)
+    > * {
+    transition: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(4)
+    > * {
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(4)
+    :is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    > div:nth-child(2)
+    > :nth-child(4)
+    :focus-visible {
+    border-radius: 6px !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    .List {
+    background-color: transparent !important;
+    padding-top: 12px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    .List
+    > .List-item {
+    box-sizing: border-box !important;
+    margin-bottom: 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    .List
+    > .List-item:is(:hover, :focus-within) {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    .List
+    > .List-item::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:first-child
+    .PinToolbar-actions {
+    background-color: transparent !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child,
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div {
+    padding: 16px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2) {
+    gap: 16px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child {
+    min-height: 214px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div {
+    padding-top: 20px !important;
+    gap: 16px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child {
+    padding: 16px 12px !important;
+    gap: 12px !important;
+    margin-bottom: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > :first-child {
+    flex: 0 0 auto !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > div:nth-child(2) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 36px !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: var(--zb-primary) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    color: var(--ctp-crust) !important;
+    cursor: pointer !important;
+    transition: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > div:nth-child(2)
+    :where(div, span, svg) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > div:nth-child(2):hover {
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > div:nth-child(2):focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:first-child
+    > div:nth-child(2) {
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    > :first-child {
+    margin-bottom: 12px !important;
+    color: var(--zb-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    > :first-child
+    > :last-child:not(:only-child) {
+    color: var(--zb-primary) !important;
+    font-weight: 400 !important;
+    transition:
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    > :first-child
+    > :last-child:not(:only-child):is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2) {
+    margin-top: 0 !important;
+    padding: 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :nth-child(odd) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :first-child
+    > :first-child
+    > :nth-child(even) {
+    background-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :first-child
+    > :nth-child(2) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :nth-child(2) {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    color: var(--zb-primary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :nth-child(2)
+    :where(div, span, svg) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :nth-child(2):is(:hover, :focus-visible) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > :nth-child(2)
+    > :nth-child(2):focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(2)
+    > :nth-child(2) {
+    color: var(--zb-text-secondary) !important;
+    line-height: 1.65 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :is(:nth-child(2), :nth-child(3))
+    > :first-child {
+    color: var(--zb-text-muted) !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(2)
+    a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(2)
+    button {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(2)
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(2)
+    button:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(3)
+    img {
+    border: 1px solid var(--zb-border) !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div:nth-child(3)
+    > :nth-child(3)
+    a:is(:hover, :focus-visible)
+    img {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .App-main
+    > div:first-child
+    > div:nth-child(2)
+    > div
+    > div:nth-child(2)
+    > div
+    a:focus-visible {
+    border-radius: 6px !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-wrapper {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-excerpt, .LinkCard-desc) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard:is(:hover, :focus-visible) {
+    background: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    > .PinToolbar-actions {
+    box-sizing: border-box !important;
+    width: calc(100% + 40px) !important;
+    margin: -10px -20px !important;
+    padding: 10px 20px !important;
+    background-color: transparent !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    min-height: 32px !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .VoteButton:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"] {
+    color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    div:has(> .Modal-content input[placeholder="搜索你想邀请的人"]) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :first-child
+    > div
+    > :first-child {
+    color: var(--zb-text) !important;
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    .Input-wrapper {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    .Input-wrapper:focus-within {
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    input[placeholder="搜索你想邀请的人"] {
+    background-color: transparent !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    input[placeholder="搜索你想邀请的人"]::placeholder {
+    color: var(--zb-text-subtle) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :nth-child(2):has(button)
+    > div
+    > div
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :first-child
+    > :is(:first-child, :last-child) {
+    color: var(--zb-text-secondary) !important;
+    transition:
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :first-child
+    > :is(:first-child, :last-child)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :first-child
+    > :is(:first-child, :last-child):is(:hover, :focus-within) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :nth-child(3) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :nth-child(3)
+    :where(a, div, span) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :nth-child(3)
+    > div
+    > div
+    > div {
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    > div
+    > :nth-child(2)
+    > :nth-child(3)
+    img {
+    border: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    button {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    button:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
+    button:disabled {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: transparent !important;
+    color: var(--zb-text-subtle) !important;
+    cursor: not-allowed !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
+    > button[aria-label="关闭"] {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
+    > button[aria-label="关闭"]:is(:hover, :focus-visible) {
+    background-color: color-mix(in srgb, var(--zb-danger) 14%, var(--zb-surface-raised)) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
+    > button[aria-label="关闭"]:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px
+      color-mix(in srgb, var(--zb-danger) 22%, transparent) !important;
+  }
+
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
     > div {
@@ -12040,6 +15416,283 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-surface) !important;
     border-color: var(--zb-border) !important;
     color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    .LinkCard-wrapper {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-excerpt, .LinkCard-desc) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
+    background-color: var(--zb-surface-hover) !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard:is(:hover, :focus-visible) {
+    background: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    > .PinToolbar-actions {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: -10px 0 !important;
+    padding: 10px 0 !important;
+    background-color: transparent !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton) {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    min-height: 32px !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .VoteButton:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button
+    :where(svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button[aria-label="已收藏"] {
+    color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:is(
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    main
+    .PinDetail
+    .PinItem
+    .Comments-container
+    > div
+    > div:has(.InputLike.Editable) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding: 10px 0 !important;
+    padding-inline: 0 !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .Comments-container
+    .InputLike.Editable {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .PinDetail .FollowButton.Button--grey {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible)
+    :where(span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"] {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]
+    :where(div, span, svg, path) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
   html[data-zb-theme] .ProfileSideCreator-analytics,
