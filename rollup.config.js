@@ -45,10 +45,10 @@ const catppuccinPaletteHex = () => ({
 });
 
 const userscriptMetadata = `// ==UserScript==
-// @name         知乎美化 v5
-// @namespace    https://github.com/wangkezun/zhihu-beautification
+// @name         Make Zhihu Great Again
+// @namespace    https://github.com/wangkezun/make-zhihu-great-again
 // @version      ${packageJson.version}
-// @description  提供可自由开关的知乎页面美化功能
+// @description  改善知乎的视觉、交互、性能与隐私体验
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
 // @early-start
@@ -64,10 +64,10 @@ export default {
   plugins: [catppuccinPaletteHex(), nodeResolve()],
   output: {
     banner: userscriptMetadata,
-    file: "dist/Zhihu-Beautification.user.js",
+    file: "dist/Make-Zhihu-Great-Again.user.js",
     format: "iife",
     generatedCode: "es2015",
-    name: "ZhihuBeautification",
+    name: "MakeZhihuGreatAgain",
     sourcemap: false,
   },
 };

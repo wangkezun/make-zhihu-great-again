@@ -105,7 +105,7 @@ export const createTelemetryBlockerFeature = (browserWindow, settings, matchers 
               $e$: [
                 "Telemetry compression skipped",
                 "ZB_TELEMETRY_BLOCKED",
-                "Telemetry compression worker blocked by Zhihu Beautification",
+                "Telemetry compression worker blocked by Make Zhihu Great Again",
               ],
             },
           };

@@ -1,6 +1,6 @@
-# 知乎美化 v5
+# Make Zhihu Great Again
 
-基于 pnpm、Rollup 和原生 JavaScript 构建的知乎用户脚本。
+基于 pnpm、Rollup 和原生 JavaScript 构建的知乎体验增强用户脚本。
 
 ## 当前功能
 
@@ -10,11 +10,13 @@
 - 首页宽度支持标准、舒适、宽屏和自适应窗口四种模式。
 - 支持 Catppuccin Latte、Frappé、Macchiato、Mocha 四套主题。
 - 默认跟随系统明暗模式：浅色使用 Latte，深色使用 Mocha；也可以固定使用任意主题。
+- 停用已确认无用的轮播和提示词定时任务，减少页面空闲开销。
+- 可屏蔽知乎遥测请求和对应的压缩 Worker。
 - 用户选择保存在用户脚本专用存储中，刷新页面后仍然有效。
 
 ## 开关位置
 
-点击浏览器工具栏里的用户脚本扩展图标，在“知乎美化 v5”菜单中选择“隐藏右侧栏”或“显示首页分享想法”。
+点击浏览器工具栏里的用户脚本扩展图标，在“Make Zhihu Great Again”菜单中选择“隐藏右侧栏”或“显示首页分享想法”。
 
 主题也在同一菜单中选择。带 `✓` 的选项是当前主题模式：
 
@@ -48,7 +50,7 @@ pnpm build         # Rollup 生产构建
 pnpm check         # 执行全部检查并构建
 ```
 
-构建产物为 `dist/Zhihu-Beautification.user.js`，可以安装到支持用户脚本的浏览器扩展中。
+构建产物为 `dist/Make-Zhihu-Great-Again.user.js`，可以安装到支持用户脚本的浏览器扩展中。
 
 ## 项目结构
 

@@ -8,7 +8,7 @@
 - 先保持知乎原有信息结构和交互语义，再做视觉统一与体验增强。不要为了“更好看”擅自删除功能、改变内容顺序或扩大功能范围。
 - 修复应尽量局部、可回退，不用覆盖全站的宽泛规则解决单个组件问题。
 - 修改前先确认目标页面、组件状态和已有相邻规则，优先扩展现有模式，避免为同类组件发明另一套视觉语言。
-- 不直接编辑 `dist/Zhihu-Beautification.user.js`；它是 `pnpm build` 生成的产物。
+- 不直接编辑 `dist/Make-Zhihu-Great-Again.user.js`；它是 `pnpm build` 生成的产物。
 - 除非用户明确要求发布版本，否则不要自行修改 `package.json` 中的版本号。
 
 ## 项目结构
@@ -89,7 +89,7 @@
   - style 元素、class、`data-zb-*` 属性、占位节点和临时原生属性
   - 被包装的 History API；恢复时不得覆盖其他代码在之后安装的包装
 - 样式通过 `ensureStyle()` 注入，并为每个功能使用唯一的 `zb-*-style` id。
-- 存储 key 使用 `zhihu-beautification:*` 前缀；读取值必须校验，存储不可用时回退默认值且不让当前页面功能崩溃。
+- 为兼容已有用户设置，存储 key 继续使用 `zhihu-beautification:*` 前缀；读取值必须校验，存储不可用时回退默认值且不让当前页面功能崩溃。
 - 用户脚本菜单需要显示当前状态，切换后立即更新 DOM、持久化值并刷新菜单标记。
 
 ## SPA、动态 DOM 与性能
@@ -114,4 +114,4 @@
 - 视觉修复可对关键 CSS 片段做字符串断言以防回归，但不要只断言整个文件快照；行为能通过 DOM 状态验证时优先验证行为。
 - 完成修改后运行 `pnpm check`，它依次执行 lint、Prettier 检查、Vitest 和生产构建。
 - 若只改本文档，可至少运行 `pnpm exec prettier --check AGENTS.md`；无需为文档改动重建产物。
-- 提交前检查生成的 `dist/Zhihu-Beautification.user.js` 是否与源码构建结果一致，并确认没有无关文件变化。
+- 提交前检查生成的 `dist/Make-Zhihu-Great-Again.user.js` 是否与源码构建结果一致，并确认没有无关文件变化。

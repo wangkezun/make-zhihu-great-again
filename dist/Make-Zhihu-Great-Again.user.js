@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         知乎美化 v5
-// @namespace    https://github.com/wangkezun/zhihu-beautification
-// @version      5.2.69
-// @description  提供可自由开关的知乎页面美化功能
+// @name         Make Zhihu Great Again
+// @namespace    https://github.com/wangkezun/make-zhihu-great-again
+// @version      0.0.1
+// @description  改善知乎的视觉、交互、性能与隐私体验
 // @match        https://www.zhihu.com/*
 // @run-at       document-start
 // @early-start
@@ -2134,7 +2134,7 @@
                 $e$: [
                   "Telemetry compression skipped",
                   "ZB_TELEMETRY_BLOCKED",
-                  "Telemetry compression worker blocked by Zhihu Beautification",
+                  "Telemetry compression worker blocked by Make Zhihu Great Again",
                 ],
               },
             };
