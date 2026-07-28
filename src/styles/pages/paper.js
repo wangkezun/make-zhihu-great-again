@@ -180,6 +180,9 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
     box-sizing: border-box !important;
+    min-height: 56px !important;
+    padding: 8px 12px !important;
+    gap: 12px !important;
     background-color: var(--zb-surface) !important;
     border-top: 1px solid var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
@@ -193,7 +196,10 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button {
     box-sizing: border-box !important;
+    min-height: 40px !important;
+    padding: 6px 16px !important;
     border-radius: 999px !important;
+    line-height: 16px !important;
     transition:
       background-color 0.16s ease,
       border-color 0.16s ease,
@@ -206,6 +212,8 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:has(.ZDI--BookOpen24) {
+    flex: 0 0 72px !important;
+    min-width: 72px !important;
     ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
@@ -215,6 +223,8 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:nth-child(2) {
+    flex: 1 1 188px !important;
+    min-width: 160px !important;
     background-color: var(--zb-primary-soft) !important;
     border: 1px solid var(--zb-primary) !important;
     color: var(--zb-primary) !important;
@@ -225,6 +235,9 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:last-child {
+    flex: 2 1 280px !important;
+    min-width: 260px !important;
+    min-height: 48px !important;
     background-color: var(--zb-primary) !important;
     border: 1px solid var(--zb-primary) !important;
     color: var(--ctp-crust) !important;

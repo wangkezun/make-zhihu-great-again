@@ -3739,6 +3739,17 @@
     outline: 0 !important;
   }
 
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions {
+    box-sizing: border-box !important;
+    width: calc(100% + 32px) !important;
+    margin-right: -16px !important;
+    margin-left: -16px !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
   html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard,
   html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
     background: var(--zb-surface-raised) !important;
@@ -11824,6 +11835,125 @@ ${flavorRules}
     color: var(--zb-text) !important;
   }
 
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .SearchBar[role="search"]
+    > div:first-child {
+    box-sizing: border-box !important;
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .SearchBar[role="search"]
+    > div:first-child
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    div:has(
+      > div:first-child
+        > div:first-child
+        > div:first-child
+        > span
+        > .ZDI--Lightbulb24
+    )
+    > div:nth-child(2)
+    > div,
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    div:has(
+      > div:first-child > div:first-child > div:first-child > span > .ZDI--Fire24
+    )
+    > div:nth-child(2)
+    > div {
+    box-sizing: border-box !important;
+    min-height: 30px !important;
+    padding: 6px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    div:has(
+      > div:first-child
+        > div:first-child
+        > div:first-child
+        > span
+        > .ZDI--Lightbulb24
+    )
+    > div:nth-child(2)
+    > div:first-child,
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    div:has(
+      > div:first-child > div:first-child > div:first-child > span > .ZDI--Fire24
+    )
+    > div:nth-child(2)
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 35%, var(--zb-border)) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    a[href*="/creator/search-question/"] {
+    box-sizing: border-box !important;
+    min-height: 34px !important;
+    padding: 6px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    a[href*="/creator/search-question/"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    div:has(> img[alt="reward"]) {
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    [data-goalkeeper-selector="creator-home__announcement"] {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    [data-goalkeeper-selector="creator-home__announcement"]
+    :where(div, span, a) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    [data-goalkeeper-selector="creator-home__announcementMore"] {
+    color: var(--zb-primary) !important;
+  }
+
   html[data-zb-theme][data-zb-creator-page="true"] .CreatorIndex-BottomBox-Item {
     background-color: var(--zb-surface-raised) !important;
     border-color: var(--zb-border) !important;
@@ -12987,6 +13117,9 @@ ${flavorRules}
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button) {
     box-sizing: border-box !important;
+    min-height: 56px !important;
+    padding: 8px 12px !important;
+    gap: 12px !important;
     background-color: var(--zb-surface) !important;
     border-top: 1px solid var(--zb-border-strong) !important;
     color: var(--zb-text) !important;
@@ -13000,7 +13133,10 @@ ${flavorRules}
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button {
     box-sizing: border-box !important;
+    min-height: 40px !important;
+    padding: 6px 16px !important;
     border-radius: 999px !important;
+    line-height: 16px !important;
     transition:
       background-color 0.16s ease,
       border-color 0.16s ease,
@@ -13013,6 +13149,8 @@ ${flavorRules}
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:has(.ZDI--BookOpen24) {
+    flex: 0 0 72px !important;
+    min-width: 72px !important;
     ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
@@ -13022,6 +13160,8 @@ ${flavorRules}
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:nth-child(2) {
+    flex: 1 1 188px !important;
+    min-width: 160px !important;
     background-color: var(--zb-primary-soft) !important;
     border: 1px solid var(--zb-primary) !important;
     color: var(--zb-primary) !important;
@@ -13032,6 +13172,9 @@ ${flavorRules}
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:last-child {
+    flex: 2 1 280px !important;
+    min-width: 260px !important;
+    min-height: 48px !important;
     background-color: var(--zb-primary) !important;
     border: 1px solid var(--zb-primary) !important;
     color: var(--ctp-crust) !important;
@@ -13223,6 +13366,47 @@ ${flavorRules}
     .ProfileHeader-userCover
     :is(.UserCover, .UserCoverGuide) {
     border-radius: 12px 12px 0 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button {
+    box-sizing: border-box !important;
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button:focus-visible {
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper {
@@ -15945,6 +16129,81 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"]) {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"])::-webkit-scrollbar {
+    height: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"])::-webkit-scrollbar-thumb {
+    background-color: var(--zb-text-subtle) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    a[href*="/ring/host/"]
+    button:has(.ZDI--PlusFill16) {
+    box-sizing: border-box !important;
+    min-width: 28px !important;
+    min-height: 20px !important;
+    padding: 2px 5px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--zb-page) 48%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    a[href*="/ring/host/"]
+    button:has(.ZDI--PlusFill16)
+    svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16)) {
+    box-sizing: border-box !important;
+    width: 32px !important;
+    height: 32px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16)):hover {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16))
+    > svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
     :is(a[href="/ring"], a[href*="/ring/host/"]) {
     color: var(--zb-text) !important;
     transition:
@@ -16316,6 +16575,39 @@ ${flavorRules}
     box-shadow:
       0 0 0 2px var(--zb-primary-soft),
       var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .List-item:has(.HotLanding-title)
+    > div
+    > div:has(.ZDI--BrandZhihuLabelSparkleAlt) {
+    box-sizing: border-box !important;
+    min-height: 34px !important;
+    padding: 8px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .List-item:has(.HotLanding-title)
+    > div
+    > div:has(.ZDI--BrandZhihuLabelSparkleAlt)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      .KfeCollection-PcCollegeCard-wrapper,
+      .KfeCollection-PcCollegeCard-root,
+      .KfeCollection-PcCollegeCard
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-secondary) !important;
   }
 
   html[data-zb-theme]

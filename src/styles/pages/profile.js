@@ -29,6 +29,47 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     border-radius: 12px 12px 0 0 !important;
   }
 
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button {
+    box-sizing: border-box !important;
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-userCover
+    .UserCoverGuide-buttonContainer
+    > button:focus-visible {
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper {
     border-radius: 0 0 12px 12px !important;
   }

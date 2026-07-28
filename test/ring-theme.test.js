@@ -128,6 +128,32 @@ describe("ring page theme", () => {
 
   it("themes ring feed cards and scoped action states", () => {
     expectRule(
+      'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    #TopstoryContent\n    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"])',
+      [
+        "scrollbar-color: var(--zb-text-subtle) transparent !important;",
+        "scrollbar-width: thin !important;",
+      ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    #TopstoryContent\n    a[href*="/ring/host/"]\n    button:has(.ZDI--PlusFill16)',
+      [
+        "min-width: 28px !important;",
+        "min-height: 20px !important;",
+        "border: 1px solid var(--zb-primary) !important;",
+        "border-radius: 999px !important;",
+      ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    #TopstoryContent\n    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16))',
+      [
+        "width: 32px !important;",
+        "height: 32px !important;",
+        "background-color: var(--zb-surface-raised) !important;",
+        "border: 1px solid var(--zb-border-strong) !important;",
+        "color: var(--zb-text-secondary) !important;",
+      ],
+    );
+    expectRule(
       'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    #TopstoryContent\n    .List\n    > .List-item',
       [
         "background-color: var(--zb-surface) !important;",

@@ -105,6 +105,16 @@ describe("home page theme", () => {
         "outline: 0 !important;",
       ],
     );
+    expectSurfaceRule(
+      'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions',
+      [
+        "width: calc(100% + 32px) !important;",
+        "margin-right: -16px !important;",
+        "margin-left: -16px !important;",
+        "padding-right: 16px !important;",
+        "padding-left: 16px !important;",
+      ],
+    );
     expectRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-title,\n  html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-title\n    a',
       ["color: var(--zb-primary) !important;", "transition: color 0.16s ease !important;"],

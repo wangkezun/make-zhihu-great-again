@@ -65,6 +65,25 @@ describe("profile page theme", () => {
     );
   });
 
+  it("themes the empty cover guide without crowding its upload action", () => {
+    expectRule(
+      'html[data-zb-theme][data-zb-profile-page="true"]\n    .ProfileHeader-userCover\n    .UserCoverGuide',
+      [
+        "background-color: var(--zb-surface-raised) !important;",
+        "color: var(--zb-text-secondary) !important;",
+      ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-profile-page="true"]\n    .ProfileHeader-userCover\n    .UserCoverGuide-buttonContainer\n    > button',
+      [
+        "min-height: 36px !important;",
+        "padding: 6px 12px !important;",
+        "border: 1px solid var(--zb-border-strong) !important;",
+        "border-radius: 8px !important;",
+      ],
+    );
+  });
+
   it("themes activity lists and scoped action states", () => {
     expectRule(
       'html[data-zb-theme][data-zb-profile-page="true"]\n    .ProfileMain\n    :is(.List-header, .List-item)::after',

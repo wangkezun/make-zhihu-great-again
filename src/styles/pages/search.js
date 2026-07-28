@@ -80,6 +80,39 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
 
   html[data-zb-theme]
     .SearchMain
+    .List-item:has(.HotLanding-title)
+    > div
+    > div:has(.ZDI--BrandZhihuLabelSparkleAlt) {
+    box-sizing: border-box !important;
+    min-height: 34px !important;
+    padding: 8px 12px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    .List-item:has(.HotLanding-title)
+    > div
+    > div:has(.ZDI--BrandZhihuLabelSparkleAlt)
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
+    :is(
+      .KfeCollection-PcCollegeCard-wrapper,
+      .KfeCollection-PcCollegeCard-root,
+      .KfeCollection-PcCollegeCard
+    ) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .SearchMain
     .SearchResult-Card
     :is(.ContentItem-title, .ContentItem-title a) {
     color: var(--zb-primary) !important;

@@ -33,6 +33,17 @@ export const CROSS_PAGE_SURFACES_STYLE = `
     outline: 0 !important;
   }
 
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions {
+    box-sizing: border-box !important;
+    width: calc(100% + 32px) !important;
+    margin-right: -16px !important;
+    margin-left: -16px !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
   html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard,
   html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
     background: var(--zb-surface-raised) !important;

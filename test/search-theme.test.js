@@ -127,6 +127,25 @@ describe("search page theme", () => {
     ]);
   });
 
+  it("themes AI summary attribution and ebook cards on ordinary search routes", () => {
+    expectRule(
+      "html[data-zb-theme]\n    .SearchMain\n    .List-item:has(.HotLanding-title)\n    > div\n    > div:has(.ZDI--BrandZhihuLabelSparkleAlt)",
+      [
+        "min-height: 34px !important;",
+        "padding: 8px 12px !important;",
+        "background-color: var(--zb-surface-raised) !important;",
+        "border-top: 1px solid var(--zb-border) !important;",
+      ],
+    );
+    expectRule(
+      "html[data-zb-theme]\n    .SearchMain\n    :is(\n      .KfeCollection-PcCollegeCard-wrapper,\n      .KfeCollection-PcCollegeCard-root,\n      .KfeCollection-PcCollegeCard\n    )",
+      [
+        "background-color: var(--zb-surface) !important;",
+        "color: var(--zb-text-secondary) !important;",
+      ],
+    );
+  });
+
   it("themes hot-search sidebar cards and footer links", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "html[data-zb-theme] :is(.Card, .HotSearchCard) {\n    box-sizing: border-box !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",

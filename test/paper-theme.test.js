@@ -53,10 +53,16 @@ describe("paper page theme", () => {
     expectRule(
       'html[data-zb-theme][data-zb-paper-page="true"]\n    body\n    div:has(> section + section)\n    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)\n    > button:last-child',
       [
+        "min-width: 260px !important;",
+        "min-height: 48px !important;",
         "background-color: var(--zb-primary) !important;",
         "border: 1px solid var(--zb-primary) !important;",
         "color: var(--ctp-crust) !important;",
       ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-paper-page="true"]\n    body\n    div:has(> section + section)\n    > div:has(> button .ZDI--BookOpen24):has(> button + button + button)\n    > button:has(.ZDI--BookOpen24)',
+      ["flex: 0 0 72px !important;", "min-width: 72px !important;"],
     );
   });
 

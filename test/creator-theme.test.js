@@ -89,6 +89,39 @@ describe("creator page theme", () => {
     );
   });
 
+  it("themes creator home controls that otherwise keep light surfaces", () => {
+    expectRule(
+      'html[data-zb-theme][data-zb-creator-page="true"]\n    .SearchBar[role="search"]\n    > div:first-child',
+      [
+        "padding: 8px 12px !important;",
+        "background-color: var(--zb-surface-raised) !important;",
+        "border: 1px solid var(--zb-border) !important;",
+        "color: var(--zb-text) !important;",
+      ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-creator-page="true"]\n    .CreatorHome\n    div:has(\n      > div:first-child\n        > div:first-child\n        > div:first-child\n        > span\n        > .ZDI--Lightbulb24\n    )\n    > div:nth-child(2)\n    > div,\n  html[data-zb-theme][data-zb-creator-page="true"]\n    .CreatorHome\n    div:has(\n      > div:first-child > div:first-child > div:first-child > span > .ZDI--Fire24\n    )\n    > div:nth-child(2)\n    > div',
+      [
+        "min-height: 30px !important;",
+        "padding: 6px 12px !important;",
+        "background-color: var(--zb-surface-raised) !important;",
+        "border: 1px solid var(--zb-border) !important;",
+      ],
+    );
+    expect(CREATOR_PAGE_STYLE).not.toContain("div:has(> div:first-child .ZDI--Lightbulb24)");
+    expectRule(
+      'html[data-zb-theme][data-zb-creator-page="true"]\n    .CreatorHome\n    div:has(> img[alt="reward"])',
+      [
+        "background-color: var(--zb-surface-raised) !important;",
+        "border: 1px solid var(--zb-border) !important;",
+      ],
+    );
+    expectRule(
+      'html[data-zb-theme][data-zb-creator-page="true"]\n    [data-goalkeeper-selector="creator-home__announcement"]',
+      ["color: var(--zb-text-secondary) !important;"],
+    );
+  });
+
   it("keeps associated-account surfaces scoped to their nested route", () => {
     expectRule(
       'html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]\n    .Creator-mainColumn\n    > .Card\n    > div',

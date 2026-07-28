@@ -1402,6 +1402,81 @@ export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"]) {
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"])::-webkit-scrollbar {
+    height: 6px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> div > a[href="/ring"]):has(> div > a[href*="/ring/host/"])::-webkit-scrollbar-thumb {
+    background-color: var(--zb-text-subtle) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    a[href*="/ring/host/"]
+    button:has(.ZDI--PlusFill16) {
+    box-sizing: border-box !important;
+    min-width: 28px !important;
+    min-height: 20px !important;
+    padding: 2px 5px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-primary) !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--zb-page) 48%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    a[href*="/ring/host/"]
+    button:has(.ZDI--PlusFill16)
+    svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16)) {
+    box-sizing: border-box !important;
+    width: 32px !important;
+    height: 32px !important;
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 999px !important;
+    color: var(--zb-text-secondary) !important;
+    box-shadow: var(--zb-shadow) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16)):hover {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
+    div:has(> :is(.ZDI--ArrowLeft16, .ZDI--ArrowRight16))
+    > svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-ring-feeds-page="true"]
+    #TopstoryContent
     :is(a[href="/ring"], a[href*="/ring/host/"]) {
     color: var(--zb-text) !important;
     transition:
