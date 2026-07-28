@@ -151,6 +151,23 @@
   const PLACEHOLDER_ACTIVE_CLASS = "is-active";
   const STYLE_ID$4 = "zb-answer-actions-sticky-style";
 
+  const addClass = (element, className) => {
+    if (!element.classList.contains(className)) element.classList.add(className);
+  };
+
+  const removeClass = (element, className) => {
+    if (element.classList.contains(className)) element.classList.remove(className);
+  };
+
+  const removeStyleProperty = (element, property) => {
+    if (element.style.getPropertyValue(property)) element.style.removeProperty(property);
+  };
+
+  const setStyleProperty = (element, property, value) => {
+    if (element.style.getPropertyValue(property) !== value)
+      element.style.setProperty(property, value);
+  };
+
   const createAnswerActionsStickyFeature = (browserWindow) => {
     const browserDocument = browserWindow.document;
     const actions = new Set();
@@ -162,11 +179,12 @@
     let started = false;
 
     const clearOwnedFixedState = (action, state) => {
-      action.classList.remove(FIXED_CLASS, NATIVE_FIXED_CLASS);
-      action.style.removeProperty("--zb-answer-actions-left");
-      action.style.removeProperty("--zb-answer-actions-width");
-      state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
-      state.placeholder.style.removeProperty("--zb-answer-actions-height");
+      removeClass(action, FIXED_CLASS);
+      removeClass(action, NATIVE_FIXED_CLASS);
+      removeStyleProperty(action, "--zb-answer-actions-left");
+      removeStyleProperty(action, "--zb-answer-actions-width");
+      removeClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+      removeStyleProperty(state.placeholder, "--zb-answer-actions-height");
     };
 
     const removeAction = (action) => {
@@ -217,8 +235,8 @@
     const updateFixedGeometry = (action, state, richRect) => {
       const left = richRect.left + state.leftInset;
       const width = Math.max(0, richRect.width - state.leftInset - state.rightInset);
-      action.style.setProperty("--zb-answer-actions-left", `${left}px`);
-      action.style.setProperty("--zb-answer-actions-width", `${width}px`);
+      setStyleProperty(action, "--zb-answer-actions-left", `${left}px`);
+      setStyleProperty(action, "--zb-answer-actions-width", `${width}px`);
     };
 
     const refreshAction = (action) => {
@@ -263,15 +281,15 @@
         const actionStyle = browserWindow.getComputedStyle(action);
         state.leftInset = -Number.parseFloat(actionStyle.paddingLeft || "0");
         state.rightInset = -Number.parseFloat(actionStyle.paddingRight || "0");
-        action.classList.remove(FIXED_CLASS);
-        action.classList.add(NATIVE_FIXED_CLASS);
-        state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
-        state.placeholder.style.removeProperty("--zb-answer-actions-height");
+        removeClass(action, FIXED_CLASS);
+        addClass(action, NATIVE_FIXED_CLASS);
+        removeClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+        removeStyleProperty(state.placeholder, "--zb-answer-actions-height");
         updateFixedGeometry(action, state, richRect);
         return;
       }
 
-      action.classList.remove(NATIVE_FIXED_CLASS);
+      removeClass(action, NATIVE_FIXED_CLASS);
       const isOwnedFixed = action.classList.contains(FIXED_CLASS);
       const naturalRect = isOwnedFixed
         ? state.placeholder.getBoundingClientRect()
@@ -288,9 +306,9 @@
       if (!isOwnedFixed) {
         state.leftInset = naturalRect.left - richRect.left;
         state.rightInset = richRect.right - naturalRect.right;
-        state.placeholder.style.setProperty("--zb-answer-actions-height", `${naturalRect.height}px`);
-        state.placeholder.classList.add(PLACEHOLDER_ACTIVE_CLASS);
-        action.classList.add(FIXED_CLASS);
+        setStyleProperty(state.placeholder, "--zb-answer-actions-height", `${naturalRect.height}px`);
+        addClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+        addClass(action, FIXED_CLASS);
       }
       updateFixedGeometry(action, state, richRect);
     };
@@ -307,22 +325,24 @@
     };
 
     const handleMutations = (records) => {
+      let shouldRefresh = false;
       records.forEach(({ addedNodes, target, type }) => {
         if (type === "attributes") {
           if (
             target.matches?.(".RichContent, .ContentItem-actions") &&
             !target.classList.contains(FIXED_CLASS)
           ) {
-            scheduleRefresh();
+            shouldRefresh = true;
           }
           return;
         }
 
+        shouldRefresh = true;
         addedNodes.forEach((node) => {
           if (node.nodeType === 1) scanActions(node);
         });
       });
-      scheduleRefresh();
+      if (shouldRefresh) scheduleRefresh();
     };
 
     const setupObservers = () => {
@@ -4377,8 +4397,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu {
     background-color: var(--zb-surface) !important;
     border-radius: 8px !important;
@@ -4386,8 +4406,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item {
     box-sizing: border-box !important;
@@ -4402,8 +4422,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:is(:hover, :focus-visible) {
     background-color: var(--zb-surface-hover) !important;
@@ -4411,8 +4431,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child {
     background-color: color-mix(
@@ -4424,8 +4444,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
     background-color: color-mix(
@@ -5794,7 +5814,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme][data-zb-question-content-under-header="true"]
-    .AppHeader:has(.PageHeader.is-shown) {
+    .AppHeader {
     box-shadow:
       0 10px 0 var(--zb-page),
       var(--zb-shadow) !important;
@@ -10395,6 +10415,7 @@ ${flavorRules}
   const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
   const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
   const ACTION_MENU_POPOVER_ATTRIBUTE = "data-zb-action-menu-popover";
+  const CHAT_MODAL_OPEN_ATTRIBUTE = "data-zb-chat-modal-open";
   const COMMENT_MODAL_ATTRIBUTE = "data-zb-comment-modal";
   const POLL_MODAL_OPEN_ATTRIBUTE = "data-zb-poll-modal-open";
   const POLL_OPTION_POPOVER_ATTRIBUTE = "data-zb-poll-option-popover";
@@ -10569,6 +10590,11 @@ ${flavorRules}
       browserDocument.documentElement?.setAttribute(POLL_MODAL_OPEN_ATTRIBUTE, String(isOpen));
     };
 
+    const updateChatModalState = () => {
+      const isOpen = Boolean(browserDocument.querySelector(".ChatBoxModal"));
+      browserDocument.body?.setAttribute(CHAT_MODAL_OPEN_ATTRIBUTE, String(isOpen));
+    };
+
     const markPortalComponents = (root) => {
       markActionMenuPopovers(root);
       markArrowPanels(root);
@@ -10602,6 +10628,7 @@ ${flavorRules}
           }
         });
       });
+      updateChatModalState();
       updatePollModalState();
     };
 
@@ -10612,6 +10639,7 @@ ${flavorRules}
       observer ??= new browserWindow.MutationObserver(handleMutations);
       observer.observe(body, { childList: true });
       Array.from(body.children).forEach(observePortalRoot);
+      updateChatModalState();
       updatePollModalState();
     };
 
@@ -10675,6 +10703,7 @@ ${flavorRules}
       browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
       browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
       browserDocument.documentElement?.removeAttribute(POLL_MODAL_OPEN_ATTRIBUTE);
+      browserDocument.body?.removeAttribute(CHAT_MODAL_OPEN_ATTRIBUTE);
       markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
       markedArrowPanelWrappers.forEach((wrapper) =>
         wrapper.removeAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE),

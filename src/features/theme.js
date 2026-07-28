@@ -9,6 +9,7 @@ const THEME_ATTRIBUTE = "data-zb-theme";
 const ARROW_PANEL_ATTRIBUTE = "data-zb-arrow-action-panel";
 const ARROW_PANEL_WRAPPER_ATTRIBUTE = "data-zb-arrow-action-panel-wrapper";
 const ACTION_MENU_POPOVER_ATTRIBUTE = "data-zb-action-menu-popover";
+const CHAT_MODAL_OPEN_ATTRIBUTE = "data-zb-chat-modal-open";
 const COMMENT_MODAL_ATTRIBUTE = "data-zb-comment-modal";
 const POLL_MODAL_OPEN_ATTRIBUTE = "data-zb-poll-modal-open";
 const POLL_OPTION_POPOVER_ATTRIBUTE = "data-zb-poll-option-popover";
@@ -183,6 +184,11 @@ export const createThemeFeature = (browserWindow, settings) => {
     browserDocument.documentElement?.setAttribute(POLL_MODAL_OPEN_ATTRIBUTE, String(isOpen));
   };
 
+  const updateChatModalState = () => {
+    const isOpen = Boolean(browserDocument.querySelector(".ChatBoxModal"));
+    browserDocument.body?.setAttribute(CHAT_MODAL_OPEN_ATTRIBUTE, String(isOpen));
+  };
+
   const markPortalComponents = (root) => {
     markActionMenuPopovers(root);
     markArrowPanels(root);
@@ -216,6 +222,7 @@ export const createThemeFeature = (browserWindow, settings) => {
         }
       });
     });
+    updateChatModalState();
     updatePollModalState();
   };
 
@@ -226,6 +233,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     observer ??= new browserWindow.MutationObserver(handleMutations);
     observer.observe(body, { childList: true });
     Array.from(body.children).forEach(observePortalRoot);
+    updateChatModalState();
     updatePollModalState();
   };
 
@@ -289,6 +297,7 @@ export const createThemeFeature = (browserWindow, settings) => {
     browserDocument.getElementById(CRITICAL_STYLE_ID)?.remove();
     browserDocument.documentElement?.removeAttribute(THEME_ATTRIBUTE);
     browserDocument.documentElement?.removeAttribute(POLL_MODAL_OPEN_ATTRIBUTE);
+    browserDocument.body?.removeAttribute(CHAT_MODAL_OPEN_ATTRIBUTE);
     markedArrowPanels.forEach((panel) => panel.removeAttribute(ARROW_PANEL_ATTRIBUTE));
     markedArrowPanelWrappers.forEach((wrapper) =>
       wrapper.removeAttribute(ARROW_PANEL_WRAPPER_ATTRIBUTE),

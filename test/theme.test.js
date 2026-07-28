@@ -183,6 +183,27 @@ describe("Catppuccin theme feature", () => {
     expect(popover.hasAttribute("data-zb-action-menu-popover")).toBe(false);
   });
 
+  it("tracks the chat modal on body without a root-level relational selector", async () => {
+    const page = createPage();
+    const feature = createThemeFeature(page.window);
+    feature.start();
+    const chatModal = page.window.document.createElement("div");
+    chatModal.className = "ChatBoxModal";
+
+    page.window.document.body.append(chatModal);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(page.window.document.body.dataset.zbChatModalOpen).toBe("true");
+
+    chatModal.remove();
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(page.window.document.body.dataset.zbChatModalOpen).toBe("false");
+
+    feature.destroy();
+    expect(page.window.document.body.hasAttribute("data-zb-chat-modal-open")).toBe(false);
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain("body:has(.ChatBoxModal)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('body[data-zb-chat-modal-open="true"]');
+  });
+
   it("marks poll option popovers only while a poll or PK modal is open", async () => {
     const page = createPage();
     const feature = createThemeFeature(page.window);
@@ -702,9 +723,7 @@ describe("Catppuccin theme feature", () => {
       ".Emoticons.EmoticonTool-panel {\n    background-color: var(--zb-surface-raised) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Emoticons.EmoticonTool-panel .EmoticonsFooter {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Popover-content:has(> .ActionMenu)\n    > .ActionMenu {",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-action-menu-popover]\n    > .ActionMenu {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> .ActionMenu\n    > .ActionMenu-item {\n    box-sizing: border-box !important;\n    width: calc(100% - 12px) !important;",
     );
@@ -836,7 +855,10 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       'html[data-zb-theme][data-zb-question-content-under-header="true"]',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".AppHeader:has(.PageHeader.is-shown)");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      '[data-zb-question-content-under-header="true"]\n    .AppHeader',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".AppHeader:has(.PageHeader.is-shown)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("0 10px 0 var(--zb-page)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Question-mainColumn\n    :is(.AnswerCard, .ViewAll, .MoreAnswers)",

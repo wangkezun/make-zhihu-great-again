@@ -192,6 +192,27 @@ describe("answer actions sticky feature", () => {
     feature.destroy();
   });
 
+  it("does not rewrite stable fixed-row attributes on every refresh", async () => {
+    const page = createPage();
+    const feature = createAnswerActionsStickyFeature(page.window);
+    feature.start();
+    const { action, placeholder } = setRects(page);
+    await waitForFrame(page);
+    await waitForFrame(page);
+    const mutations = [];
+    const observer = new page.window.MutationObserver((records) => mutations.push(...records));
+    observer.observe(action, { attributes: true });
+    observer.observe(placeholder, { attributes: true });
+
+    page.window.dispatchEvent(new page.window.Event("scroll"));
+    await waitForFrame(page);
+    await new Promise((resolve) => page.window.queueMicrotask(resolve));
+
+    expect(mutations).toEqual([]);
+    observer.disconnect();
+    feature.destroy();
+  });
+
   it("discovers answers added after startup and removes owned state on destroy", async () => {
     const page = new JSDOM(
       "<!doctype html><html data-zb-theme='latte'><head></head><body><main class='QuestionPage'></main></body></html>",

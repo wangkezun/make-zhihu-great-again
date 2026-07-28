@@ -2222,8 +2222,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu {
     background-color: var(--zb-surface) !important;
     border-radius: 8px !important;
@@ -2231,8 +2231,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item {
     box-sizing: border-box !important;
@@ -2247,8 +2247,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:is(:hover, :focus-visible) {
     background-color: var(--zb-surface-hover) !important;
@@ -2256,8 +2256,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child {
     background-color: color-mix(
@@ -2269,8 +2269,8 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme]
-    body:has(.ChatBoxModal)
-    .Popover-content:has(> .ActionMenu)
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
     > .ActionMenu
     > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
     background-color: color-mix(
@@ -3639,7 +3639,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme][data-zb-question-content-under-header="true"]
-    .AppHeader:has(.PageHeader.is-shown) {
+    .AppHeader {
     box-shadow:
       0 10px 0 var(--zb-page),
       var(--zb-shadow) !important;

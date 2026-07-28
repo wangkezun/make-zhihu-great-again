@@ -9,6 +9,23 @@ const PLACEHOLDER_CLASS = "zb-answer-actions-placeholder";
 const PLACEHOLDER_ACTIVE_CLASS = "is-active";
 const STYLE_ID = "zb-answer-actions-sticky-style";
 
+const addClass = (element, className) => {
+  if (!element.classList.contains(className)) element.classList.add(className);
+};
+
+const removeClass = (element, className) => {
+  if (element.classList.contains(className)) element.classList.remove(className);
+};
+
+const removeStyleProperty = (element, property) => {
+  if (element.style.getPropertyValue(property)) element.style.removeProperty(property);
+};
+
+const setStyleProperty = (element, property, value) => {
+  if (element.style.getPropertyValue(property) !== value)
+    element.style.setProperty(property, value);
+};
+
 export const createAnswerActionsStickyFeature = (browserWindow) => {
   const browserDocument = browserWindow.document;
   const actions = new Set();
@@ -20,11 +37,12 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   let started = false;
 
   const clearOwnedFixedState = (action, state) => {
-    action.classList.remove(FIXED_CLASS, NATIVE_FIXED_CLASS);
-    action.style.removeProperty("--zb-answer-actions-left");
-    action.style.removeProperty("--zb-answer-actions-width");
-    state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
-    state.placeholder.style.removeProperty("--zb-answer-actions-height");
+    removeClass(action, FIXED_CLASS);
+    removeClass(action, NATIVE_FIXED_CLASS);
+    removeStyleProperty(action, "--zb-answer-actions-left");
+    removeStyleProperty(action, "--zb-answer-actions-width");
+    removeClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+    removeStyleProperty(state.placeholder, "--zb-answer-actions-height");
   };
 
   const removeAction = (action) => {
@@ -75,8 +93,8 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   const updateFixedGeometry = (action, state, richRect) => {
     const left = richRect.left + state.leftInset;
     const width = Math.max(0, richRect.width - state.leftInset - state.rightInset);
-    action.style.setProperty("--zb-answer-actions-left", `${left}px`);
-    action.style.setProperty("--zb-answer-actions-width", `${width}px`);
+    setStyleProperty(action, "--zb-answer-actions-left", `${left}px`);
+    setStyleProperty(action, "--zb-answer-actions-width", `${width}px`);
   };
 
   const refreshAction = (action) => {
@@ -121,15 +139,15 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
       const actionStyle = browserWindow.getComputedStyle(action);
       state.leftInset = -Number.parseFloat(actionStyle.paddingLeft || "0");
       state.rightInset = -Number.parseFloat(actionStyle.paddingRight || "0");
-      action.classList.remove(FIXED_CLASS);
-      action.classList.add(NATIVE_FIXED_CLASS);
-      state.placeholder.classList.remove(PLACEHOLDER_ACTIVE_CLASS);
-      state.placeholder.style.removeProperty("--zb-answer-actions-height");
+      removeClass(action, FIXED_CLASS);
+      addClass(action, NATIVE_FIXED_CLASS);
+      removeClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+      removeStyleProperty(state.placeholder, "--zb-answer-actions-height");
       updateFixedGeometry(action, state, richRect);
       return;
     }
 
-    action.classList.remove(NATIVE_FIXED_CLASS);
+    removeClass(action, NATIVE_FIXED_CLASS);
     const isOwnedFixed = action.classList.contains(FIXED_CLASS);
     const naturalRect = isOwnedFixed
       ? state.placeholder.getBoundingClientRect()
@@ -146,9 +164,9 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     if (!isOwnedFixed) {
       state.leftInset = naturalRect.left - richRect.left;
       state.rightInset = richRect.right - naturalRect.right;
-      state.placeholder.style.setProperty("--zb-answer-actions-height", `${naturalRect.height}px`);
-      state.placeholder.classList.add(PLACEHOLDER_ACTIVE_CLASS);
-      action.classList.add(FIXED_CLASS);
+      setStyleProperty(state.placeholder, "--zb-answer-actions-height", `${naturalRect.height}px`);
+      addClass(state.placeholder, PLACEHOLDER_ACTIVE_CLASS);
+      addClass(action, FIXED_CLASS);
     }
     updateFixedGeometry(action, state, richRect);
   };
@@ -165,22 +183,24 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   };
 
   const handleMutations = (records) => {
+    let shouldRefresh = false;
     records.forEach(({ addedNodes, target, type }) => {
       if (type === "attributes") {
         if (
           target.matches?.(".RichContent, .ContentItem-actions") &&
           !target.classList.contains(FIXED_CLASS)
         ) {
-          scheduleRefresh();
+          shouldRefresh = true;
         }
         return;
       }
 
+      shouldRefresh = true;
       addedNodes.forEach((node) => {
         if (node.nodeType === 1) scanActions(node);
       });
     });
-    scheduleRefresh();
+    if (shouldRefresh) scheduleRefresh();
   };
 
   const setupObservers = () => {
