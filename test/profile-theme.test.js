@@ -3,16 +3,19 @@ import { describe, expect, it } from "vitest";
 
 import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import { PROFILE_PAGE_STYLE } from "../src/styles/pages/profile.js";
 import {
   createRuleExpectation,
+  createGroupedRuleExpectation,
   dispatchPageContext,
   expectStyleInjected,
   expectStyleRemoved,
 } from "./helpers/style-rules.js";
 
 const expectRule = createRuleExpectation(PROFILE_PAGE_STYLE);
+const expectSharedRule = createGroupedRuleExpectation(CROSS_PAGE_CONTROLS_STYLE);
 
 describe("profile page theme", () => {
   it("loads the extracted module only on profile routes", () => {
@@ -23,7 +26,8 @@ describe("profile page theme", () => {
 
     feature.start();
 
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-profile-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_CONTROLS_STYLE);
+    expect(PROFILE_PAGE_STYLE).not.toContain(".Button:not(.VoteButton):hover");
     expectStyleInjected(page, "zb-profile-page-theme-style", PROFILE_PAGE_STYLE);
 
     page.window.history.pushState({}, "", "/question/123");
@@ -69,7 +73,7 @@ describe("profile page theme", () => {
         "border-color: var(--zb-border) !important;",
       ],
     );
-    expectRule(
+    expectSharedRule(
       'html[data-zb-theme][data-zb-profile-page="true"]\n    .ProfileMain\n    .ContentItem-actions\n    .Button:not(.VoteButton)',
       [
         "background-color: transparent !important;",

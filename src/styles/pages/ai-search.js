@@ -1,3 +1,24 @@
+import {
+  CARD_FRAME_STYLE,
+  CURRENT_COLOR_ICON_STYLE,
+  INHERITED_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_BORDER_FOCUS_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
+  RAISED_ACTION_CONTROL_STYLE,
+  RAISED_CONTROL_SURFACE_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  SECONDARY_TEXT_PAINT_STYLE,
+  SOFT_PRIMARY_ACTION_STYLE,
+  SOFT_PRIMARY_FOCUS_ACTION_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+  SURFACE_TEXT_ONLY_STYLE,
+  TEXT_PAINT_STYLE,
+  THIN_SCROLLBAR_STYLE,
+  TRANSPARENT_TEXT_STYLE,
+} from "../shared-components.js";
+
 export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain:has(
       :is(
@@ -14,9 +35,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       )
     )
     > div
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -26,13 +45,11 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="Block:zhida_answer_result_block"]
     )
     :is(.Render-markdown, div[dir="auto"]) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -42,8 +59,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="Button:reference_card_block_more_btn"],
       [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -80,8 +96,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -102,23 +117,19 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
     > div:nth-child(3) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(4) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    > div:nth-child(4) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
     > div:last-child
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -157,8 +168,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
     h1
     + div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
   }
@@ -204,16 +214,13 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       .KfeCollection-PcCollegeCard-wrapper,
       .KfeCollection-PcCollegeCard-root,
       .KfeCollection-PcCollegeCard
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -227,18 +234,14 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme]
     .SearchMain
     :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -251,9 +254,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
         [data-testid="Block:zhida_answer_result_block"],
         [data-testid="Block:zhida_input_box"]
       )
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -262,8 +263,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="Block:zhida_answer_result_block"],
       [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
     ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -282,10 +282,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Button:expand_btn"]
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -298,8 +295,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-content-discovery-heading] {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -325,15 +321,13 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="answer-thinking-text"] {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-scroll-to-bottom] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     outline: 0 !important;
@@ -348,59 +342,19 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-zb-ai-scroll-to-bottom]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
-    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {${SOFT_PRIMARY_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-answer-actions]
     > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
+    > [tabindex="0"],
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -409,20 +363,15 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-zb-ai-share-actions]
     > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
+    > [tabindex="0"] {${RAISED_ACTION_CONTROL_STYLE}
   }
 
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path),
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -433,12 +382,14 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     [data-zb-ai-share-actions]
     > div
     > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(div, span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]),
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -447,11 +398,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-zb-ai-share-actions]
     > div
-    > [tabindex="0"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > [tabindex="0"]:is(:hover, :focus-visible) {${SOFT_PRIMARY_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -478,15 +425,13 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-zb-ai-share-checkbox]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -504,8 +449,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-zb-ai-user-question]
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -534,8 +478,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     width: auto !important;
     min-height: 44px !important;
     padding: 4px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -598,8 +541,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="Button:thinking_node"],
       [data-testid="Button:reference_card_block_more_btn"]
     ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -613,9 +555,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :where(div, span) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -629,16 +569,14 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     [data-zb-ai-source-panel]
     > div:first-child
     > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:first-child
     > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -650,12 +588,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:first-child
-    > div:last-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div:last-child:is(:hover, :focus-visible) {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -672,17 +605,14 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     > div:first-child
     > div:last-child
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:last-child
     > div
-    > div {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
+    > div {${THIN_SCROLLBAR_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -719,8 +649,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     > div
     > div:first-child
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -729,8 +658,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     > div
     > div:first-child
     span:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -739,8 +667,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     > div
     > div:last-child
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -761,8 +688,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     [data-testid="Card:reference_card"]
     div[style*="cursor: pointer"]:is(:hover, :focus-visible)
     div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     outline: 0 !important;
     box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
   }
@@ -772,15 +698,13 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     [data-testid="Card:reference_card"]
     div[style*="cursor: pointer"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     [style*="color: rgb(23, 114, 246)"] {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -792,8 +716,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
         > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
     )
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -811,8 +734,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
     transition:
       background-color 0.16s ease,
@@ -836,12 +758,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       :hover,
       :focus-visible
     )
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -862,8 +779,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
           + [data-testid="Card:OpenUrl:ai_search_content_card"]
       )
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 12px !important;
     overflow: hidden !important;
   }
@@ -918,9 +834,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
         > [data-testid="Card:OpenUrl:ai_search_content_card"]
           + [data-testid="Card:OpenUrl:ai_search_content_card"]
       )
-    ) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ) {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -933,8 +847,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
@@ -950,9 +863,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
         + [data-testid="Card:OpenUrl:ai_search_content_card"]
     ) {
     padding: 0 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     overflow: hidden !important;
   }
 
@@ -1002,8 +913,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-testid="Card:OpenUrl:ai_search_content_card"]
     :where(div, span, p, h1, h2, h3, strong) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1015,8 +925,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     > [data-testid="Card:OpenUrl:ai_search_content_card"]
     > div:first-child
     > :is(div:nth-child(2), div:nth-child(4)) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1027,9 +936,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     )
     > [data-testid="Card:OpenUrl:ai_search_content_card"]
     > div:first-child
-    > div:nth-child(3) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    > div:nth-child(3) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1070,21 +977,13 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     .SearchMain
     [data-testid="Button:ai_search_input_field_button"]
     > div
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(div, span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1100,9 +999,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Block:zhida_input_box"]
-    .InputLike.Editable {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    .InputLike.Editable {${TRANSPARENT_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1111,9 +1008,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="SearchExpansionWord:Button:related_question_word"],
       [data-testid="Block:zhida_input_box"]
     )
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :where(div, span) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1123,8 +1018,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
       [data-testid="Block:zhida_input_box"]
     ):is(:hover, :focus-visible, :focus-within) {
     border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -1140,8 +1034,7 @@ export const AI_SEARCH_PAGE_STYLE = `  html[data-zb-theme]
     [data-testid="Block:zhida_input_box"]
     div[style*="background-color: rgb(173, 176, 183)"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
 `;

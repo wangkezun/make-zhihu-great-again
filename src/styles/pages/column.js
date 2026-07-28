@@ -1,3 +1,15 @@
+import {
+  CARD_FRAME_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_BUTTON_HOVER_STYLE,
+  PRIMARY_BUTTON_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  RAISED_TEXT_STYLE,
+  SECONDARY_TEXT_PAINT_STYLE,
+  TEXT_PAINT_STYLE,
+} from "../shared-components.js";
+
 export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="true"]
     .App-main
     > div
@@ -107,8 +119,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     box-sizing: border-box !important;
     margin-top: 16px !important;
     padding: 16px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 10px !important;
   }
 
@@ -203,9 +214,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     > section
     > div:last-of-type
     > div:last-child {
-    min-width: 0 !important;
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    min-width: 0 !important;${SECONDARY_TEXT_PAINT_STYLE}
     font-weight: 500 !important;
   }
 
@@ -248,8 +257,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     + div
     > div:first-child
     :where(a, div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -268,8 +276,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     + div
     > div:first-child
     .UserLink-link {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -323,8 +330,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     + div
     > div:first-child
     .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
     -webkit-text-fill-color: var(--ctp-crust) !important;
   }
@@ -341,18 +347,6 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     color: var(--ctp-crust) !important;
     fill: currentColor !important;
     -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -381,8 +375,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     .AuthorInfo
     + div
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -419,10 +412,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     > div
     > .Card
     .FollowButton
-    + .Button.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
+    + .Button.Button--blue {${PRIMARY_BUTTON_STYLE}
     -webkit-text-fill-color: var(--ctp-crust) !important;
   }
 
@@ -437,8 +427,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     > .Card
     .FollowButton
     + .Button.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -446,9 +435,6 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     > div
     > .Card
     .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
     -webkit-text-fill-color: var(--zb-text-muted) !important;
   }
 
@@ -457,33 +443,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     > div
     > .Card
     .FollowButton.Button--grey:hover {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
     -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton:focus-visible,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -509,9 +469,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     .App-main
     > div
     > .Card
-    .Button--plain:has(.Zi--Dots):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    .Button--plain:has(.Zi--Dots):hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -521,27 +479,7 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     .Button--plain:has(.Zi--Dots):focus-visible {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots)
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -553,76 +491,10 @@ export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="tru
     border-radius: 3px !important;
   }
 
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
   html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
     box-sizing: border-box !important;
     margin-top: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;

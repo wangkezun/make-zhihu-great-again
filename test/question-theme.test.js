@@ -4,8 +4,13 @@ import { describe, expect, it } from "vitest";
 import { PAGE_CONTEXT_CHANGE_EVENT } from "../src/features/page-context.js";
 import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
+import { CROSS_PAGE_SURFACES_STYLE } from "../src/styles/components/cross-page-surfaces.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import { QUESTION_PAGE_STYLE } from "../src/styles/pages/question.js";
+import { createGroupedRuleExpectation } from "./helpers/style-rules.js";
+
+const expectSurfaceRule = createGroupedRuleExpectation(CROSS_PAGE_SURFACES_STYLE);
 
 const expectRule = (selector, declarations) => {
   const ruleStart = QUESTION_PAGE_STYLE.indexOf(`${selector} {`);
@@ -46,8 +51,9 @@ describe("question page theme", () => {
     page.window.close();
   });
 
-  it("keeps extracted question rules out of the always-loaded theme", () => {
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-question-page="true"]');
+  it("keeps page structure lazy while sharing common controls globally", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_CONTROLS_STYLE);
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_SURFACES_STYLE);
     expect(CATPPUCCIN_THEME_STYLE).not.toContain(QUESTION_PAGE_STYLE);
   });
 
@@ -101,7 +107,7 @@ describe("question page theme", () => {
       "color: var(--zb-text) !important;",
       "overflow: hidden !important;",
     ]);
-    expectRule(
+    expectSurfaceRule(
       '  html[data-zb-theme][data-zb-question-page="true"]\n' + "    .QuestionInvitation-input",
       [
         "background-color: var(--zb-surface-raised) !important;",

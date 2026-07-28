@@ -81,6 +81,148 @@
   }
 `;
 
+  const PAGE_CONTEXT_CHANGE_EVENT = "zb:page-context-change";
+
+  const PAGE_ATTRIBUTES = {
+    aiSearch: "data-zb-ai-search-page",
+    column: "data-zb-column-page",
+    creator: "data-zb-creator-page",
+    creatorAssociatedAccount: "data-zb-creator-associated-account-page",
+    home: "data-zb-home-page",
+    messages: "data-zb-messages-page",
+    paper: "data-zb-paper-page",
+    paperPreview: "data-zb-paper-preview-page",
+    profile: "data-zb-profile-page",
+    question: "data-zb-question-page",
+    ringFeeds: "data-zb-ring-feeds-page",
+    ringHost: "data-zb-ring-host-page",
+    ringIndex: "data-zb-ring-index-page",
+    search: "data-zb-search-page",
+    topic: "data-zb-topic-page",
+  };
+
+  const PAGE_CONTEXT_KEYS = Object.freeze(Object.keys(PAGE_ATTRIBUTES));
+
+  const getPageContext = (browserWindow) => {
+    const { hostname, pathname, search } = browserWindow.location;
+    const isZhihu = hostname === "www.zhihu.com";
+    const matches = (pattern) => isZhihu && pattern.test(pathname);
+
+    return {
+      aiSearch:
+        matches(/^\/search\/?$/) && new browserWindow.URLSearchParams(search).get("type") === "zhida",
+      column: matches(/^\/column\/[^/]+\/?$/),
+      creator: matches(/^\/creator(?:\/.*)?$/),
+      creatorAssociatedAccount: matches(/^\/creator\/account\/associated-account\/?$/),
+      home: matches(/^\/(?:follow\/?)?$/),
+      messages: matches(/^\/messages(?:\/.*)?$/),
+      paper: matches(/^\/kvip\/sku\/paper\/\d+\/?$/),
+      paperPreview: matches(/^\/kvip\/pdf\/paper\/\d+\/?$/),
+      profile: matches(/^\/people\/[^/]+(?:\/.*)?$/),
+      question: matches(/^\/question\/\d+(?:\/answer\/\d+)?\/?$/),
+      ringFeeds: matches(/^\/ring-feeds\/?$/),
+      ringHost: matches(/^\/ring\/host\/\d+\/?$/),
+      ringIndex: matches(/^\/ring\/?$/),
+      search: matches(/^\/search\/?$/),
+      topic: matches(/^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/),
+    };
+  };
+
+  const createPageContextFeature = (browserWindow) => {
+    const browserDocument = browserWindow.document;
+    let animationFrameId;
+    let originalPushState;
+    let originalReplaceState;
+    let wrappedPushState;
+    let wrappedReplaceState;
+    let scheduled = false;
+    let started = false;
+
+    const refresh = () => {
+      const root = browserDocument.documentElement;
+      if (!root) return;
+
+      const context = getPageContext(browserWindow);
+      Object.entries(PAGE_ATTRIBUTES).forEach(([key, attribute]) => {
+        root.setAttribute(attribute, String(context[key]));
+      });
+      browserWindow.dispatchEvent(
+        new browserWindow.CustomEvent(PAGE_CONTEXT_CHANGE_EVENT, { detail: context }),
+      );
+    };
+
+    const scheduleRefresh = () => {
+      if (scheduled) return;
+      scheduled = true;
+      animationFrameId = browserWindow.requestAnimationFrame(() => {
+        scheduled = false;
+        animationFrameId = undefined;
+        refresh();
+      });
+    };
+
+    const installRouteListeners = () => {
+      browserWindow.addEventListener("popstate", scheduleRefresh);
+      if (browserWindow.navigation?.addEventListener) {
+        browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
+        return;
+      }
+
+      const history = browserWindow.history;
+      if (!history?.pushState || !history?.replaceState) return;
+
+      originalPushState = history.pushState;
+      originalReplaceState = history.replaceState;
+      wrappedPushState = function (...args) {
+        const result = originalPushState.apply(this, args);
+        scheduleRefresh();
+        return result;
+      };
+      wrappedReplaceState = function (...args) {
+        const result = originalReplaceState.apply(this, args);
+        scheduleRefresh();
+        return result;
+      };
+      history.pushState = wrappedPushState;
+      history.replaceState = wrappedReplaceState;
+    };
+
+    const removeRouteListeners = () => {
+      browserWindow.removeEventListener("popstate", scheduleRefresh);
+      browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
+      const history = browserWindow.history;
+      if (history && wrappedPushState && history.pushState === wrappedPushState) {
+        history.pushState = originalPushState;
+      }
+      if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
+        history.replaceState = originalReplaceState;
+      }
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      refresh();
+      installRouteListeners();
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      removeRouteListeners();
+      if (animationFrameId !== undefined) {
+        browserWindow.cancelAnimationFrame(animationFrameId);
+      }
+      Object.values(PAGE_ATTRIBUTES).forEach((attribute) => {
+        browserDocument.documentElement?.removeAttribute(attribute);
+      });
+      animationFrameId = undefined;
+      scheduled = false;
+      started = false;
+    };
+
+    return { destroy, refresh, start };
+  };
+
   const ensureStyle = (browserDocument, styleId, styleText) => {
     if (browserDocument.getElementById(styleId)) return;
 
@@ -175,6 +317,7 @@
     let animationFrameId;
     let mutationObserver;
     let resizeObserver;
+    let active = false;
     let scheduled = false;
     let started = false;
 
@@ -220,9 +363,14 @@
       };
       actions.add(action);
       actionState.set(action, state);
+      mutationObserver?.observe(action, {
+        attributeFilter: ["class"],
+        attributes: true,
+      });
       resizeObserver?.observe(item);
       resizeObserver?.observe(richContent);
       resizeObserver?.observe(action);
+      scheduleRefresh();
     };
 
     const scanActions = (root = browserDocument) => {
@@ -276,6 +424,11 @@
 
       const viewportHeight = browserWindow.innerHeight;
       const itemRect = state.item.getBoundingClientRect();
+      if (itemRect.bottom <= 0 || itemRect.top >= viewportHeight) {
+        clearOwnedFixedState(action, state);
+        return;
+      }
+
       const richRect = state.richContent.getBoundingClientRect();
       if (isNativeFixed) {
         const actionStyle = browserWindow.getComputedStyle(action);
@@ -319,7 +472,7 @@
     };
 
     const scheduleRefresh = () => {
-      if (!started || scheduled) return;
+      if (!active || scheduled) return;
       scheduled = true;
       animationFrameId = browserWindow.requestAnimationFrame(refresh);
     };
@@ -337,7 +490,7 @@
           return;
         }
 
-        shouldRefresh = true;
+        if (actions.size > 0) shouldRefresh = true;
         addedNodes.forEach((node) => {
           if (node.nodeType === 1) scanActions(node);
         });
@@ -346,15 +499,22 @@
     };
 
     const setupObservers = () => {
-      const root = browserDocument.documentElement;
+      const root =
+        browserDocument.querySelector("#root") ??
+        browserDocument.body ??
+        browserDocument.documentElement;
       if (!root || mutationObserver) return;
 
       mutationObserver = new browserWindow.MutationObserver(handleMutations);
       mutationObserver.observe(root, {
-        attributeFilter: ["class"],
-        attributes: true,
         childList: true,
         subtree: true,
+      });
+      actions.forEach((action) => {
+        mutationObserver.observe(action, {
+          attributeFilter: ["class"],
+          attributes: true,
+        });
       });
 
       if (browserWindow.ResizeObserver) {
@@ -368,9 +528,9 @@
       }
     };
 
-    const start = () => {
-      if (started) return;
-      started = true;
+    const activate = () => {
+      if (active) return;
+      active = true;
       ensureStyle(browserDocument, STYLE_ID$4, ANSWER_ACTIONS_STICKY_STYLE);
       scanActions();
       setupObservers();
@@ -380,8 +540,9 @@
       scheduleRefresh();
     };
 
-    const destroy = () => {
-      started = false;
+    const deactivate = () => {
+      if (!active) return;
+      active = false;
       scheduled = false;
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
@@ -396,6 +557,32 @@
       browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
       Array.from(actions).forEach(removeAction);
       browserDocument.getElementById(STYLE_ID$4)?.remove();
+    };
+
+    const updatePageState = (context = getPageContext(browserWindow)) => {
+      if (context.home || context.question) {
+        activate();
+      } else {
+        deactivate();
+      }
+    };
+
+    const handlePageContextChange = (event) => {
+      updatePageState(event.detail ?? getPageContext(browserWindow));
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      browserWindow.addEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+      updatePageState();
+    };
+
+    const destroy = () => {
+      if (!started) return;
+      browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+      deactivate();
+      started = false;
     };
 
     return { destroy, start };
@@ -612,7 +799,13 @@
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
     [data-za-detail-view-path-module="RightSideBar"],
   html[data-zb-home-page="true"][data-zb-hide-home-sidebar="true"]
-    .Topstory-container > :has([role="complementary"][aria-label="创作中心卡片"]) {
+    .Topstory-container > :has([role="complementary"][aria-label="创作中心卡片"]),
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .Question-sideColumn,
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    [data-zb-home-sidebar],
+  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
+    .QuestionHeader-side {
     display: none !important;
   }
 
@@ -625,18 +818,6 @@
     .Topstory-mainColumn {
     width: 100% !important;
     min-width: 0 !important;
-  }
-
-  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
-    .Question-sideColumn,
-  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
-    [data-zb-home-sidebar] {
-    display: none !important;
-  }
-
-  html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
-    .QuestionHeader-side {
-    display: none !important;
   }
 
   html[data-zb-question-page="true"][data-zb-hide-home-sidebar="true"]
@@ -677,148 +858,6 @@
     min-width: 0 !important;
   }
 `;
-
-  const PAGE_CONTEXT_CHANGE_EVENT = "zb:page-context-change";
-
-  const PAGE_ATTRIBUTES = {
-    aiSearch: "data-zb-ai-search-page",
-    column: "data-zb-column-page",
-    creator: "data-zb-creator-page",
-    creatorAssociatedAccount: "data-zb-creator-associated-account-page",
-    home: "data-zb-home-page",
-    messages: "data-zb-messages-page",
-    paper: "data-zb-paper-page",
-    paperPreview: "data-zb-paper-preview-page",
-    profile: "data-zb-profile-page",
-    question: "data-zb-question-page",
-    ringFeeds: "data-zb-ring-feeds-page",
-    ringHost: "data-zb-ring-host-page",
-    ringIndex: "data-zb-ring-index-page",
-    search: "data-zb-search-page",
-    topic: "data-zb-topic-page",
-  };
-
-  const PAGE_CONTEXT_KEYS = Object.freeze(Object.keys(PAGE_ATTRIBUTES));
-
-  const getPageContext = (browserWindow) => {
-    const { hostname, pathname, search } = browserWindow.location;
-    const isZhihu = hostname === "www.zhihu.com";
-    const matches = (pattern) => isZhihu && pattern.test(pathname);
-
-    return {
-      aiSearch:
-        matches(/^\/search\/?$/) && new browserWindow.URLSearchParams(search).get("type") === "zhida",
-      column: matches(/^\/column\/[^/]+\/?$/),
-      creator: matches(/^\/creator(?:\/.*)?$/),
-      creatorAssociatedAccount: matches(/^\/creator\/account\/associated-account\/?$/),
-      home: matches(/^\/(?:follow\/?)?$/),
-      messages: matches(/^\/messages(?:\/.*)?$/),
-      paper: matches(/^\/kvip\/sku\/paper\/\d+\/?$/),
-      paperPreview: matches(/^\/kvip\/pdf\/paper\/\d+\/?$/),
-      profile: matches(/^\/people\/[^/]+(?:\/.*)?$/),
-      question: matches(/^\/question\/\d+(?:\/answer\/\d+)?\/?$/),
-      ringFeeds: matches(/^\/ring-feeds\/?$/),
-      ringHost: matches(/^\/ring\/host\/\d+\/?$/),
-      ringIndex: matches(/^\/ring\/?$/),
-      search: matches(/^\/search\/?$/),
-      topic: matches(/^\/topic\/\d+(?:\/(?:intro|hot|newest|top-answers|unanswered|questions))?\/?$/),
-    };
-  };
-
-  const createPageContextFeature = (browserWindow) => {
-    const browserDocument = browserWindow.document;
-    let animationFrameId;
-    let originalPushState;
-    let originalReplaceState;
-    let wrappedPushState;
-    let wrappedReplaceState;
-    let scheduled = false;
-    let started = false;
-
-    const refresh = () => {
-      const root = browserDocument.documentElement;
-      if (!root) return;
-
-      const context = getPageContext(browserWindow);
-      Object.entries(PAGE_ATTRIBUTES).forEach(([key, attribute]) => {
-        root.setAttribute(attribute, String(context[key]));
-      });
-      browserWindow.dispatchEvent(
-        new browserWindow.CustomEvent(PAGE_CONTEXT_CHANGE_EVENT, { detail: context }),
-      );
-    };
-
-    const scheduleRefresh = () => {
-      if (scheduled) return;
-      scheduled = true;
-      animationFrameId = browserWindow.requestAnimationFrame(() => {
-        scheduled = false;
-        animationFrameId = undefined;
-        refresh();
-      });
-    };
-
-    const installRouteListeners = () => {
-      browserWindow.addEventListener("popstate", scheduleRefresh);
-      if (browserWindow.navigation?.addEventListener) {
-        browserWindow.navigation.addEventListener("currententrychange", scheduleRefresh);
-        return;
-      }
-
-      const history = browserWindow.history;
-      if (!history?.pushState || !history?.replaceState) return;
-
-      originalPushState = history.pushState;
-      originalReplaceState = history.replaceState;
-      wrappedPushState = function (...args) {
-        const result = originalPushState.apply(this, args);
-        scheduleRefresh();
-        return result;
-      };
-      wrappedReplaceState = function (...args) {
-        const result = originalReplaceState.apply(this, args);
-        scheduleRefresh();
-        return result;
-      };
-      history.pushState = wrappedPushState;
-      history.replaceState = wrappedReplaceState;
-    };
-
-    const removeRouteListeners = () => {
-      browserWindow.removeEventListener("popstate", scheduleRefresh);
-      browserWindow.navigation?.removeEventListener?.("currententrychange", scheduleRefresh);
-      const history = browserWindow.history;
-      if (history && wrappedPushState && history.pushState === wrappedPushState) {
-        history.pushState = originalPushState;
-      }
-      if (history && wrappedReplaceState && history.replaceState === wrappedReplaceState) {
-        history.replaceState = originalReplaceState;
-      }
-    };
-
-    const start = () => {
-      if (started) return;
-      started = true;
-      refresh();
-      installRouteListeners();
-    };
-
-    const destroy = () => {
-      if (!started) return;
-      removeRouteListeners();
-      if (animationFrameId !== undefined) {
-        browserWindow.cancelAnimationFrame(animationFrameId);
-      }
-      Object.values(PAGE_ATTRIBUTES).forEach((attribute) => {
-        browserDocument.documentElement?.removeAttribute(attribute);
-      });
-      animationFrameId = undefined;
-      scheduled = false;
-      started = false;
-    };
-
-    return { destroy, refresh, start };
-  };
 
   const HOME_SIDEBAR_STORAGE_KEY = "zhihu-beautification:hide-home-sidebar";
 
@@ -2175,3697 +2214,99 @@
         const PALETTE_HEX = {"latte":"rosewater:#dc8a78,flamingo:#dd7878,pink:#ea76cb,mauve:#8839ef,red:#d20f39,maroon:#e64553,peach:#fe640b,yellow:#df8e1d,green:#40a02b,teal:#179299,sky:#04a5e5,sapphire:#209fb5,blue:#1e66f5,lavender:#7287fd,text:#4c4f69,subtext1:#5c5f77,subtext0:#6c6f85,overlay2:#7c7f93,overlay1:#8c8fa1,overlay0:#9ca0b0,surface2:#acb0be,surface1:#bcc0cc,surface0:#ccd0da,base:#eff1f5,mantle:#e6e9ef,crust:#dce0e8","frappe":"rosewater:#f2d5cf,flamingo:#eebebe,pink:#f4b8e4,mauve:#ca9ee6,red:#e78284,maroon:#ea999c,peach:#ef9f76,yellow:#e5c890,green:#a6d189,teal:#81c8be,sky:#99d1db,sapphire:#85c1dc,blue:#8caaee,lavender:#babbf1,text:#c6d0f5,subtext1:#b5bfe2,subtext0:#a5adce,overlay2:#949cbb,overlay1:#838ba7,overlay0:#737994,surface2:#626880,surface1:#51576d,surface0:#414559,base:#303446,mantle:#292c3c,crust:#232634","macchiato":"rosewater:#f4dbd6,flamingo:#f0c6c6,pink:#f5bde6,mauve:#c6a0f6,red:#ed8796,maroon:#ee99a0,peach:#f5a97f,yellow:#eed49f,green:#a6da95,teal:#8bd5ca,sky:#91d7e3,sapphire:#7dc4e4,blue:#8aadf4,lavender:#b7bdf8,text:#cad3f5,subtext1:#b8c0e0,subtext0:#a5adcb,overlay2:#939ab7,overlay1:#8087a2,overlay0:#6e738d,surface2:#5b6078,surface1:#494d64,surface0:#363a4f,base:#24273a,mantle:#1e2030,crust:#181926","mocha":"rosewater:#f5e0dc,flamingo:#f2cdcd,pink:#f5c2e7,mauve:#cba6f7,red:#f38ba8,maroon:#eba0ac,peach:#fab387,yellow:#f9e2af,green:#a6e3a1,teal:#94e2d5,sky:#89dceb,sapphire:#74c7ec,blue:#89b4fa,lavender:#b4befe,text:#cdd6f4,subtext1:#bac2de,subtext0:#a6adc8,overlay2:#9399b2,overlay1:#7f849c,overlay0:#6c7086,surface2:#585b70,surface1:#45475a,surface0:#313244,base:#1e1e2e,mantle:#181825,crust:#11111b"};
         const EARLY_COLORS = {"latte":{"page":"#e6e9ef","surface":"#eff1f5","text":"#4c4f69"},"frappe":{"page":"#292c3c","surface":"#303446","text":"#c6d0f5"},"macchiato":{"page":"#1e2030","surface":"#24273a","text":"#cad3f5"},"mocha":{"page":"#181825","surface":"#1e1e2e","text":"#cdd6f4"}};
 
-  const paletteVariables = Object.fromEntries(
-    Object.entries(PALETTE_HEX).map(([flavor, colors]) => [
-      flavor,
-      colors
-        .split(",")
-        .map((color) => color.split(":"))
-        .map(([name, hex]) => `    --ctp-${name}: ${hex};`)
-        .join("\n"),
-    ]),
-  );
-
-  const createPaletteVariables = (name) => paletteVariables[name];
-
-  const createFlavorRule = (name) => `
-  html[data-zb-theme="${name}"] {
-${createPaletteVariables(name)}
-    color-scheme: ${name === "latte" ? "light" : "dark"};
-  }`;
-
-  const flavorRules$1 = FLAVOR_NAMES.map(createFlavorRule).join("\n");
-
-  const CATPPUCCIN_THEME_STYLE = `
-${flavorRules$1}
-
-  html[data-zb-theme="system"] {
-${createPaletteVariables("latte")}
-    color-scheme: light;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    html[data-zb-theme="system"] {
-${createPaletteVariables("mocha")}
-      color-scheme: dark;
-    }
-  }
-
-  html[data-zb-theme] {
-    --zb-page: var(--ctp-mantle);
-    --zb-surface: var(--ctp-base);
-    --zb-surface-raised: var(--ctp-surface0);
-    --zb-surface-hover: var(--ctp-surface1);
-    --zb-border: var(--ctp-surface0);
-    --zb-border-strong: var(--ctp-surface1);
-    --zb-text: var(--ctp-text);
-    --zb-text-secondary: var(--ctp-subtext1);
-    --zb-text-muted: var(--ctp-subtext0);
-    --zb-text-subtle: var(--ctp-overlay0);
-    --zb-primary: var(--ctp-blue);
-    --zb-primary-hover: var(--ctp-sapphire);
-    --zb-primary-soft: color-mix(in srgb, var(--ctp-blue) 16%, transparent);
-    --zb-danger: var(--ctp-red);
-    --zb-danger-soft: color-mix(in srgb, var(--ctp-red) 14%, transparent);
-    --zb-success: var(--ctp-green);
-    --zb-warning: var(--ctp-peach);
-    --zb-shadow: 0 1px 3px color-mix(in srgb, var(--ctp-crust) 28%, transparent);
-    background: var(--zb-page) !important;
-    scrollbar-color: var(--ctp-overlay0) var(--zb-page);
-  }
-
-  html[data-zb-theme] body,
-  html[data-zb-theme] #root,
-  html[data-zb-theme] .App-main,
-  html[data-zb-theme] .Topstory-body {
-    background-color: var(--zb-page) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] ::selection {
-    background: var(--ctp-lavender) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] :focus-visible {
-    outline-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .AppHeader,
-  html[data-zb-theme] .AppHeader-inner,
-  html[data-zb-theme] .Sticky.is-fixed {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-    border-color: var(--zb-border) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .AppHeader a,
-  html[data-zb-theme] .AppHeader button,
-  html[data-zb-theme] .AppHeader svg,
-  html[data-zb-theme] .AppHeader-Tabs a {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .AppHeader a:hover,
-  html[data-zb-theme] .AppHeader button:hover,
-  html[data-zb-theme] .AppHeader-Tab--active a,
-  html[data-zb-theme] .AppHeader-Tabs a[aria-current="page"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .AppHeader
-    .SearchBar-searchButton
-    .SearchBar-searchIcon {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .AppHeader
-    .SearchBar-searchButton
-    .SearchBar-searchIcon.isFocus {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .AppHeader
-    .SearchBar-input--focus
-    .SearchBar-searchButton {
-    background-color: transparent !important;
-    border-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .AppHeader
-    .SearchBar-askDropdownButton
-    .ZDI--PlusFill24 {
-    color: var(--ctp-crust) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .SearchBar-menu .Menu-item:hover,
-  html[data-zb-theme] .SearchBar-menu .Menu-item.is-active,
-  html[data-zb-theme] .SearchBar-menu .Menu-item:focus,
-  html[data-zb-theme] .SearchBar-menu .Menu-item:focus-within {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .SearchBar-input,
-  html[data-zb-theme] .Input-wrapper,
-  html[data-zb-theme] input,
-  html[data-zb-theme] textarea,
-  html[data-zb-theme] select,
-  html[data-zb-theme] [contenteditable="true"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] input::placeholder,
-  html[data-zb-theme] textarea::placeholder,
-  html[data-zb-theme] [contenteditable="true"]:empty::before {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskTitle-input,
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
+  const COMPACT_ACTION_BUTTON_STYLE = `
     box-sizing: border-box !important;
-    width: 100% !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
+    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;`;
 
-  html[data-zb-theme] .Modal .Ask-form .AskTitle-input {
-    min-height: 46px !important;
-    padding: 9px 12px !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
-    min-height: 104px !important;
-    padding: 11px 12px !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskTitle-input:focus-within,
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea,
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content,
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .DraftEditor-root,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .AskDetail-input
-    .DraftEditor-editorContainer,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .AskDetail-input
-    .public-DraftEditor-content,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .AskDetail-input
-    .public-DraftEditorPlaceholder-root,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .AskDetail-input
-    .public-DraftEditorPlaceholder-inner {
+  const COMPACT_ACTION_MUTED_STYLE = `
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 4px 6px !important;
     background-color: transparent !important;
     border: 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea {
-    width: 100% !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content {
-    min-height: 80px !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .public-DraftEditorPlaceholder-inner {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-controls {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control {
-    background-color: transparent !important;
+    border-radius: 6px !important;
     color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control:hover,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .Editable-toolbar
-    .Editable-control.is-active,
-  html[data-zb-theme]
-    .Modal
-    .Ask-form
-    .Editable-toolbar
-    .Editable-control[aria-pressed="true"] {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-separator {
-    background-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .WriteArea :where(section, div, span) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .WriteArea > div > section {
-    flex: 1 1 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme] .WriteArea > div > section > div,
-  html[data-zb-theme] .WriteArea .WritePinV2-Form,
-  html[data-zb-theme] .WriteArea .WritePinToolbar,
-  html[data-zb-theme] .WriteArea .TitleArea,
-  html[data-zb-theme] .WriteArea .EditorArea,
-  html[data-zb-theme] .WriteArea .InputLike.Editable {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme] .WriteArea textarea,
-  html[data-zb-theme] .WriteArea .TitleArea,
-  html[data-zb-theme] .WriteArea .InputLike.Editable,
-  html[data-zb-theme] .WriteArea .DraftEditor-root,
-  html[data-zb-theme] .WriteArea .DraftEditor-editorContainer,
-  html[data-zb-theme] .WriteArea .public-DraftEditor-content,
-  html[data-zb-theme] .WriteArea .public-DraftEditorPlaceholder-root,
-  html[data-zb-theme] .WriteArea .public-DraftEditorPlaceholder-inner {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .WriteArea .InputLike.Editable:focus-within {
-    border-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea,
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    transition:
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea {
-    min-height: 46px !important;
-    padding: 9px 12px 7px !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar {
-    align-self: flex-start !important;
-    margin-top: 11px !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea {
-    margin-top: 10px !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
-    min-height: 84px !important;
-    padding: 10px 12px !important;
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable::-webkit-scrollbar {
-    width: 8px !important;
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable::-webkit-scrollbar-track {
-    background-color: transparent !important;
-    margin-block: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable::-webkit-scrollbar-thumb {
-    background-color: var(--zb-text-subtle) !important;
-    background-clip: content-box !important;
-    border: 2px solid transparent !important;
-    border-radius: 999px !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable::-webkit-scrollbar-thumb:hover {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable::-webkit-scrollbar-corner {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea:focus-within,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea textarea,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .Editable-content,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .DraftEditor-root,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .DraftEditor-editorContainer,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .public-DraftEditor-content,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .public-DraftEditorPlaceholder-root,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .public-DraftEditorPlaceholder-inner {
-    background-color: transparent !important;
-    border: 0 !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .Editable-content {
-    min-height: 62px !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child,
-  html[data-zb-theme]
-    .WriteArea:has(.WritePinV2-Form)
-    .EditorArea
-    .InputLike.Editable
-    .public-DraftEditorPlaceholder-inner {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child {
-    top: 50% !important;
-    right: 12px !important;
-    height: 20px !important;
-    line-height: 20px !important;
-    transform: translateY(-50%) !important;
-  }
-
-  html[data-zb-theme] .Card,
-  html[data-zb-theme] .TopstoryItem,
-  html[data-zb-theme] .Topstory-mainColumnCard,
-  html[data-zb-theme] .Topstory-mainColumnCard > div,
-  html[data-zb-theme] .WriteArea,
-  html[data-zb-theme] .HotSearchCard,
-  html[data-zb-theme] .CreatorEntrance,
-  html[data-zb-theme] .KfeCollection-CreateSaltCard,
-  html[data-zb-theme] .Modal-inner,
-  html[data-zb-theme] .Popover-content,
-  html[data-zb-theme] .Menu,
-  html[data-zb-theme] .Dropdown-menu,
-  html[data-zb-theme] .Select-list,
-  html[data-zb-theme] .AutoComplete-menu {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-
-  html[data-zb-theme] div:has(> .Modal-content) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .Modal .Topbar {
-    background-color: var(--zb-surface) !important;
-    border-bottom-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    div:has(> .Modal-content > .VoterList) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .Modal-content:has(> .VoterList) {
-    background-color: var(--zb-surface) !important;
-    border-radius: inherit !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .VoterList > .Topbar {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .VoterList-content {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    :is(
-      .Skeleton,
-      [class*="skeleton" i],
-      .PlaceHolder,
-      .PlaceHolder-inner,
-      [class*="placeholder" i],
-      [class*="loading" i],
-      [aria-busy="true"]
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .VoterList-content .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    img.Avatar:is(:not([src]), [src=""]) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .VoterList-content .List-item {
-    background-color: transparent !important;
-    transition: background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    .List-item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .VoterList-content .List-item::after {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    :is(.ContentItem-title, .UserItem-title, .UserLink-link) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    :is(.ContentItem-meta, .ContentItem-statusItem) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .VoterList-content img.Avatar {
-    background-color: var(--zb-surface-raised) !important;
-    border-radius: 50% !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    .FollowButton.Button--primary:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .VoterList-content
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
     transition:
       background-color 0.16s ease,
-      border-color 0.16s ease,
       color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
+      box-shadow 0.16s ease !important;`;
 
-  html[data-zb-theme]
-    .VoterList-content
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+  const COMPACT_ACTION_HOVER_STYLE = `
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;`;
+
+  const COMPACT_ACTION_FOCUS_STYLE = `
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;`;
+
+  const CONTENT_MORE_STYLE = `
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;`;
+
+  const SOFT_PRIMARY_STATE_STYLE = `
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary) !important;`;
+
+  const CONTENT_MORE_ACTIVE_STYLE = SOFT_PRIMARY_STATE_STYLE;
+
+  const PRIMARY_FOCUS_STYLE = `
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;`;
+
+  const PRIMARY_BUTTON_STYLE = `
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;`;
+
+  const PRIMARY_BUTTON_HOVER_STYLE = `
+    background-color: var(--zb-primary-hover) !important;
+    border-color: var(--zb-primary-hover) !important;`;
+
+  const RAISED_MUTED_CONTROL_STYLE = `
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;`;
+
+  const DANGER_CONTROL_STYLE = `
     background-color: var(--zb-danger-soft) !important;
     border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-  }
+    color: var(--zb-danger) !important;`;
 
-  html[data-zb-theme]
-    .VoterList-content
-    .FollowButton.Button--grey:is(:hover, :focus-visible)
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
+  const FOLLOWING_BUTTON_STYLE = RAISED_MUTED_CONTROL_STYLE;
 
-  html[data-zb-theme]
-    .VoterList-content
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
+  const FOLLOWING_BUTTON_DANGER_STYLE = DANGER_CONTROL_STYLE;
 
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-GiftListWrapper)
-    .Modal-content
-    > div
-    > div:has(+ div + div > .SendGiftModal-GiftListWrapper),
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-RedpacketListWrapper)
-    .Modal-content
-    > div
-    > div:has(+ div > .SendGiftModal-RedpacketListWrapper) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-RedpacketListWrapper)
-    .Modal-content
-    > div
-    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
-    > button {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-RedpacketListWrapper)
-    .Modal-content
-    > div
-    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
-    > button:is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-GiftListWrapper)
-    .Modal-content
-    > div
-    > div:has(+ div > .SendGiftModal-GiftListWrapper),
-  html[data-zb-theme]
-    .Modal:has(.SendGiftModal-GiftListWrapper)
-    .SendGiftModal-GiftListWrapper
-    > div
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    .SendGiftModal-GiftListWrapper
-    > div
-    > div:not(:last-child),
-  html[data-zb-theme]
-    .Modal
-    .SendGiftModal-RedpacketListWrapper
-    > div
-    > div {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    .SendGiftModal-RedpacketListWrapper
-    > div:not(:empty) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:not(:last-child) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:not(:last-child)
-    :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:first-child
-    > div:nth-child(2),
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:nth-child(2)
-    span {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(> button):last-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    a[href*="/grapp/protocol/payment"] {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(> button):last-child
-    > div:nth-child(2),
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    ):has(a[href*="/grapp/protocol/payment"])
-    .Modal-content
-    > div
-    > div:has(a[href*="/grapp/protocol/payment"])
-    > div:first-child
-    > div:last-child {
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(
-      :is(
-        .SendGiftModal-GiftListWrapper,
-        .SendGiftModal-RedpacketListWrapper
-      )
-    )
-    .Modal-closeIcon {
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder="0"])
-    .Modal-content
-    > div
-    > div:nth-child(2),
-  html[data-zb-theme]
-    .Modal:has(input[placeholder="0"])
-    input[placeholder="0"] {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder="0"])
-    input[placeholder="0"]::placeholder {
-    color: var(--zb-text-subtle) !important;
-    -webkit-text-fill-color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Modal-inner {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal :is(.Modal-title, .Favlists-itemNameText) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    :is(.Modal-subtitle, .Favlists-itemContent, .Favlists-itemIcon) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-items {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-item {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    padding: 8px 10px !important;
-    background-color: transparent !important;
-    border-bottom-color: var(--zb-border) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    .Favlists-item:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-itemInner {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-itemName {
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-itemNameText {
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-updateButton {
-    flex: 0 0 76px !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-updateButton.Button--blue,
-  html[data-zb-theme] .FavlistsModal .Favlists-addButton {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    border-radius: 6px !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    :is(.Favlists-updateButton.Button--blue, .Favlists-addButton):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    :is(.Favlists-updateButton, .Favlists-addButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Favlists-actions {
-    background-color: var(--zb-surface) !important;
-    border-top-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .FavlistsModal .Modal-closeButton {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    .Modal-closeButton:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .FavlistsModal
-    .Favlists-updateButton.Button--grey {
-    position: relative !important;
-    border-radius: 6px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .FavlistsModal
-    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: transparent !important;
-    -webkit-text-fill-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .FavlistsModal
-    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible)::after {
-    content: "取消收藏" !important;
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    font-size: 14px !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .FavlistsModal
-    .Favlists-updateButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme] [data-zb-arrow-action-panel-wrapper] {
-    background-color: transparent !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme] [data-zb-arrow-action-panel] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    > div:nth-child(2) {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    > div:first-child
-    span {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-    font-weight: 600 !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    > div:nth-child(3)
-    button {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    button {
-    box-sizing: border-box !important;
-    min-width: max-content !important;
-    padding: 4px 8px !important;
-    border-radius: 6px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-radius: 6px !important;
-    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-arrow-action-panel]
-    :is(svg, path) {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .WriteArea,
-  html[data-zb-theme] .Topstory-mainColumnCard {
-    background-clip: padding-box !important;
-    border-radius: 12px !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-menuContainer, .Messages-menuContainer) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
-    .Popover-arrow::after {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .Popover-content > .Popover-arrow::after {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .TooltipContent,
-  html[data-zb-theme] .TooltipContent.TooltipContent--white {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .TooltipContent
-    :where(.TooltipContent-children, div, span, p, strong) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme] body .TooltipContent.TooltipContent--white,
-  html[data-zb-theme] body .TooltipContent.TooltipContent--white * {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-    opacity: 1 !important;
-  }
-
-  html[data-zb-theme] .TooltipContent .TooltipContent-arrow::after,
-  html[data-zb-theme]
-    .TooltipContent.TooltipContent--white
-    .TooltipContent-arrow::after {
-    background: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      .PushNotifications-menu,
-      .PushNotifications-content,
-      .PushNotifications-header,
-      .PushNotifications-list,
-      .PushNotifications-footer,
-      .Notifications-footer,
-      .Messages-menu,
-      .Messages-content,
-      .Messages-header,
-      .Messages-list,
-      .Messages-footer
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-header, .Messages-header) {
-    border-bottom: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer) {
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-list, .Messages-list) {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-tab,
-  html[data-zb-theme] .Messages-tab {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-tab:hover,
-  html[data-zb-theme] .PushNotifications-tab:focus-visible,
-  html[data-zb-theme] .Messages-tab:hover,
-  html[data-zb-theme] .Messages-tab:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-selectedTabIcon {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-item,
-  html[data-zb-theme] .Messages-item {
-    background-color: transparent !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-item::after,
-  html[data-zb-theme] .Messages-item::after {
-    background-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-item:hover,
-  html[data-zb-theme] .PushNotifications-item:focus-visible,
-  html[data-zb-theme] .Messages-item:hover,
-  html[data-zb-theme] .Messages-item:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Messages-newItem {
-    background-color: var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-actor,
-  html[data-zb-theme] .Messages-userName,
-  html[data-zb-theme] .Messages-userName a {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-item a {
-    color: var(--zb-primary) !important;
-    text-decoration-color: transparent !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme] .PushNotifications-item a:hover,
-  html[data-zb-theme] .PushNotifications-item a:focus-visible {
-    color: var(--zb-primary-hover) !important;
-    text-decoration-color: currentColor !important;
-  }
-
-  html[data-zb-theme] .Messages-itemContent {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
-    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
-    :is(a.Button, button.Button) {
-    background-color: transparent !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
-    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
-    :is(a.Button, button.Button):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme] .Messages-menuContainer .Messages-footer {
-    box-sizing: border-box !important;
-    min-height: 52px !important;
-    height: 52px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    padding: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    height: 36px !important;
-    flex: 1 1 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 12px !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 6px !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(
-      in srgb,
-      var(--zb-primary) 38%,
-      var(--zb-border)
-    ) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button:first-child:hover {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-primary) 20%,
-      var(--zb-surface)
-    ) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button:last-child:hover {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button:focus-visible {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .Messages-menuContainer
-    .Messages-footer
-    > button.Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .App-main .ChatWrapper > .Chat {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatSideBar {
-    background-color: var(--zb-surface) !important;
-    border-right: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    :is(.ChatSideBar-Search, .ChatListGroup, .ChatListGroup-Section) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search-Input
-    input {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search-Input:focus-within
-    input {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatSideBar-SearchIcon {
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionTitle {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionContent {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatUserListItem {
-    box-sizing: border-box !important;
-    width: calc(100% - 16px) !important;
-    margin: 4px 8px !important;
-    padding: 11px 12px !important;
-    background-color: transparent !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatUserListItem::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatListGroup-SectionTitle--bottomBorder::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatListGroup-SectionTitle--topBorder::before {
-    display: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem:focus-within {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem:is(
-      .is-active,
-      .ChatUserListItem--active,
-      [aria-selected="true"]
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem
-    .ChatUserListItem-Content {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    padding-right: 34px !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem
-    .Chat-ActionMenuPopover-Button {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 30px !important;
-    width: 30px !important;
-    height: 30px !important;
-    right: 6px !important;
-    padding: 0 !important;
-    background-image: none !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem:is(
-      :hover,
-      :focus-within,
-      .is-active,
-      .ChatUserListItem--active,
-      [aria-selected="true"]
-    )
-    .Chat-ActionMenuPopover-Button {
-    opacity: 1 !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem
-    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    background-image: none !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem
-    :is(.userName, .userName-nameArea) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatUserListItem
-    :is(time, .ChatUserListItem-Snippet) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatBox-empty {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .ChatBox-emptyImage path {
-    fill: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search--active {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search-ResultListWrap {
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search-ResultListWrap
-    .ChatUserListItem {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .ChatSideBar-Search-ResultListWrap
-    .ChatUserListItem:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme][data-zb-messages-page="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu {
-    background-color: var(--zb-surface) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-messages-page="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    padding-right: 14px !important;
-    padding-left: 14px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-messages-page="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-messages-page="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:first-child {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-danger) 12%,
-      transparent
-    ) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-messages-page="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-danger) 20%,
-      transparent
-    ) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    :is(.Chat-ChatBox, .MessagesBox, .InputBox) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .Chat-ChatBox > header {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .MessagesBox {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    .Chat-ActionMenuPopover-Button {
-    background-image: none !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible, :active) {
-    background-color: var(--zb-surface-hover) !important;
-    background-image: none !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    .Chat-ActionMenuPopover-Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .AbnormalAlert.ChatBox-alert {
-    box-sizing: border-box !important;
-    width: min(488px, calc(100% - 32px)) !important;
-    min-height: 50px !important;
-    padding: 10px 12px 10px 16px !important;
-    background-color: color-mix(
-      in srgb,
-      var(--zb-danger) 12%,
-      var(--zb-surface-raised)
-    ) !important;
-    border: 1px solid var(--zb-danger) !important;
-    border-radius: 8px !important;
-    color: var(--zb-danger) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .AbnormalAlert
-    .AbnormalAlert-message {
-    min-width: 0 !important;
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .AbnormalAlert
-    .AbnormalAlert-icon {
-    box-sizing: border-box !important;
-    flex: 0 0 28px !important;
-    width: 28px !important;
-    height: 28px !important;
-    padding: 5px !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    fill: currentColor !important;
-    cursor: pointer !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .AbnormalAlert
-    .AbnormalAlert-icon:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    color: var(--zb-danger) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .CardMessage {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .CardMessage::before {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .CardMessage > :first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border-strong) !important;
-    box-shadow: none !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :first-child
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :first-child
-    svg {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :first-child
-    > :last-child {
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :first-child
-    > :last-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .CardMessage > :last-child {
-    display: grid !important;
-    gap: 2px !important;
-    padding: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :last-child
-    > div {
-    background-color: transparent !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    box-shadow: none !important;
-    color: var(--zb-text-secondary) !important;
-    cursor: pointer !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :last-child
-    > div
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :last-child
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .CardMessage
-    > :last-child
-    > div:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .IconListMessage > div {
-    background-color: transparent !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-secondary) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .IconListMessage > div > img {
-    clip-path: inset(0 -32px 0 100%) !important;
-    filter: drop-shadow(32px 0 0 var(--zb-primary)) !important;
-    transform: translateX(-32px) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .IconListMessage
-    > div
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .IconListMessage
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .IconListMessage
-    > div:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .IconListMessage
-    > div:is(:hover, :focus-visible)
-    > img {
-    filter: drop-shadow(32px 0 0 var(--zb-primary-hover)) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .IconListMessage
-    > div
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    > div:has(.ZDI--ChatBubbleTwo24) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    > div:has(.ZDI--ChatBubbleTwo24)
-    > div {
-    background-color: transparent !important;
-    border: 0 !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    > div:has(.ZDI--ChatBubbleTwo24)
-    > div
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 999px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    > div:has(.ZDI--ChatBubbleTwo24)
-    > div
-    > div
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .Chat-ChatBox
-    > div:has(.ZDI--ChatBubbleTwo24)
-    .ZDI--ChatBubbleTwo24 {
-    color: var(--zb-primary) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .InputBox-input {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    padding: 0 14px !important;
-    background-color: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .InputBox > .ToolBar {
-    border-top-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .InputBox-footer {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    min-height: 51px !important;
-    padding: 9px 16px 10px !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .InputBox
-    :is(textarea, input, [contenteditable="true"]) {
-    box-sizing: border-box !important;
-    padding: 10px 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .InputBox
-    :is(textarea, input, [contenteditable="true"]):focus {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .TextMessage {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    .TextMessage.TextMessage-receiver {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(
-      in srgb,
-      var(--zb-primary) 38%,
-      var(--zb-border)
-    ) !important;
-  }
-
-  html[data-zb-theme] .App-main .Chat .MessagesBox .css-1oxfz4p {
-    box-sizing: border-box !important;
-    max-width: calc(100% - 32px) !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .App-main
-    .Chat
-    :is(time, .Message-status, .InputBox-footerDesc) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal > div:has(> .Modal-content) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    :is(.Modal-content, .Chat-ChatBox, .MessagesBox, .InputBox) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox > header {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .MessagesBox {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .TextMessage {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .TextMessage.TextMessage-receiver {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(
-      in srgb,
-      var(--zb-primary) 38%,
-      var(--zb-border)
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .TextMessage
-    :where(div, span, p, strong, em) {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .TextMessage a {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    text-decoration-color: transparent !important;
-    text-underline-offset: 2px !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .TextMessage
-    a:is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-    -webkit-text-fill-color: var(--zb-primary-hover) !important;
-    text-decoration-color: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    :is(time, .Message-status, .InputBox-footerDesc) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .InputBox-input {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    :is(textarea, input, [contenteditable="true"]) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    :is(textarea, input, [contenteditable="true"]):focus {
-    border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .Emoticons.EmoticonTool-panel {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    :is(.Emoticons-panelContainer, .EmoticonPanel) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonPanel-item {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonPanel-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Emoticons.EmoticonTool-panel .EmoticonsFooter {
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonsFooter-item {
-    background-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonsFooter-item--selected {
-    background-color: var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonsFooter-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonPagination-bullet {
-    background-color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .Emoticons.EmoticonTool-panel
-    .EmoticonPagination-bullet--active {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ActionMenuPopover-Button {
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    body[data-zb-chat-modal-open="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu {
-    background-color: var(--zb-surface) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body[data-zb-chat-modal-open="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    padding-right: 14px !important;
-    padding-left: 14px !important;
-    background-color: transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body[data-zb-chat-modal-open="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    body[data-zb-chat-modal-open="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:first-child {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-danger) 12%,
-      transparent
-    ) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    body[data-zb-chat-modal-open="true"]
-    [data-zb-action-menu-popover]
-    > .ActionMenu
-    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
-    background-color: color-mix(
-      in srgb,
-      var(--zb-danger) 20%,
-      transparent
-    ) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox:has(.Checkbox-input) {
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
-    height: 100% !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > header {
-    flex: 0 0 50px !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > div:has(.MessagesBox) {
-    min-height: 0 !important;
-    height: auto !important;
-    flex: 1 1 auto !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    .MessagesBox {
-    height: 100% !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child {
-    box-sizing: border-box !important;
-    min-height: 88px !important;
-    height: 88px !important;
-    flex: 0 0 88px !important;
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--ExclamationTriangle24) {
-    width: 72px !important;
-    height: 72px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--ExclamationTriangle24)
-    > div:first-child {
-    width: 36px !important;
-    height: 36px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 999px !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--ExclamationTriangle24)
-    > div:last-child {
-    height: 20px !important;
-    line-height: 20px !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--ExclamationTriangle24):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--Xmark24) {
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    > :last-child
-    > button:has(.ZDI--Xmark24):is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    .Checkbox {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    .Chat-ChatBox:has(.Checkbox-input)
-    .Checkbox:has(.Checkbox-input:checked) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .ChatBoxModal-closeButton {
-    border-radius: 8px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal-closeButton:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .ChatBoxModal
-    :is(.ChatBoxModal-closeButton, .Chat-ActionMenuPopover-Button)
-    :where(svg, path),
-  html[data-zb-theme]
-    .ChatBoxModal-closeButton
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .Topstory-mainColumnCard {
-    overflow: hidden !important;
-    overflow: clip !important;
-  }
-
-  html[data-zb-theme] .TopstoryItem,
-  html[data-zb-theme] .ContentItem,
-  html[data-zb-theme] .List-item,
-  html[data-zb-theme] .Menu-item,
-  html[data-zb-theme] .Menu-divider {
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] h1,
-  html[data-zb-theme] h2,
-  html[data-zb-theme] h3,
-  html[data-zb-theme] h4,
-  html[data-zb-theme] h5,
-  html[data-zb-theme] h6,
-  html[data-zb-theme] .ContentItem-title,
-  html[data-zb-theme] .AuthorInfo-name,
-  html[data-zb-theme] .RichContent,
-  html[data-zb-theme] .RichText {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .TopstoryItem .RichContent-inner,
-  html[data-zb-theme] .TopstoryItem .RichContent-inner .RichText {
-    color: var(--zb-text-secondary) !important;
-  }
-
-  html[data-zb-theme] .ContentItem-meta,
-  html[data-zb-theme] .ContentItem-time,
-  html[data-zb-theme] .AuthorInfo-badgeText,
-  html[data-zb-theme] .RichContent-actions,
-  html[data-zb-theme] .Button:not(.Button--blue):not(.VoteButton) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] a:hover,
-  html[data-zb-theme] .ContentItem-title a:hover,
-  html[data-zb-theme] .RichText a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Button:not(.Button--blue):not(.VoteButton):hover,
-  html[data-zb-theme] .Menu-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Popover-content .Menu > .Menu-item {
-    box-sizing: border-box !important;
-    width: calc(100% - 12px) !important;
-    margin-right: 6px !important;
-    margin-left: 6px !important;
-    padding-right: 14px !important;
-    padding-left: 14px !important;
-    border-radius: 4px !important;
-  }
-
-  html[data-zb-theme]
-    .Popover-content
-    .Menu
-    > .Menu-item:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Editable-languageSuggestions,
-  html[data-zb-theme] .Editable-languageSuggestions .Popover-content,
-  html[data-zb-theme] .Editable-languageSuggestionsMenu,
-  html[data-zb-theme] .TopicSuggestion-Popover,
-  html[data-zb-theme] .TopicSuggestion-Popover-container {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Editable-languageSuggestionsInput,
-  html[data-zb-theme] .Editable-languageSuggestionsInput input {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Editable-languageSuggestions .Menu-item,
-  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .TopicSuggestion-TopicItem,
-  html[data-zb-theme] .TopicSuggestion-TopicItem .topic-name {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .TopicSuggestion-TopicItem .pin-count {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .TopicSuggestion-TopicItem .new-topic {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer,
-  html[data-zb-theme] .MentionSuggestions-menu {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item,
-  html[data-zb-theme] .MentionSuggestions-menu .Menu-item {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer .AutoComplete-DefaultItem,
-  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserItem,
-  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserDetail {
-    background-color: transparent !important;
-    color: inherit !important;
-  }
-
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:hover,
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:focus,
-  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item.is-active,
-  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:hover,
-  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:focus,
-  html[data-zb-theme] .MentionSuggestions-menu .Menu-item.is-active {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserName {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserHeadline {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserSocialTag {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Editable-languageSuggestions .Menu-item:hover,
-  html[data-zb-theme] .Editable-languageSuggestions .Menu-item.is-active,
-  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item:hover,
-  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item.is-active {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .EmoticonPopover {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 8px !important;
-    color: var(--zb-text) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .EmoticonPopover > svg {
-    fill: var(--zb-surface) !important;
-    color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    .EmoticonPopover
-    > div:last-child
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border-top: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .EmoticonPopover
-    > div:last-child
-    > div:last-child
-    > ul {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .EmoticonPopover
-    > div:last-child
-    > div:first-child
-    li {
-    padding-block: 2px !important;
-    padding-inline: 3px !important;
-  }
-
-  html[data-zb-theme]
-    .EmoticonPopover
-    > div:last-child
-    > div:last-child
-    > ul
-    > li {
-    background-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .EmoticonPopover
-    > div:last-child
-    > div:last-child
-    > ul
-    > .css-1c21y8s {
-    background-color: var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .EmoticonPopover li:hover,
-  html[data-zb-theme] .EmoticonPopover li:focus-visible {
-    background-color: var(--zb-surface-hover) !important;
-    outline-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> button.Button--primary) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> button.Button--primary)
-    :where(div, label, svg) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> button.Button--primary)
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    .Modal-content
-    > div
-    > div:last-child
-    > div:last-child:has(> button) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    .Modal-content
-    > div
-    > div:last-child
-    > div:last-child:has(> button)
-    > div,
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    .Modal-content
-    > div
-    > div:last-child
-    > div:last-child:has(> button)
-    > div
-    :where(div, span) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> input[placeholder="输入关键字查找图片"]) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> input[placeholder="输入关键字查找图片"]):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    input[placeholder="输入关键字查找图片"] {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    input[placeholder="输入关键字查找图片"]
-    + button {
-    background-color: transparent !important;
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    input[placeholder="输入关键字查找图片"]
-    + button:hover {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.MaterialLibrary-SearchInputContainer)
-    div:has(> div > input[type="file"][multiple])
-    > div
-    > div:last-child {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder) {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder):is(
-      :hover,
-      :focus-within
-    ) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Modal .MaterialLibraryNav-Folder .nav-name {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder)
-    .nav-num {
-    min-width: 20px !important;
-    padding-inline: 6px !important;
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme]
-    .Modal
-    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active
-    .nav-num {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .ReferenceModal :is(.InputLike, .Select-button) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .ReferenceModal
-    :is(.InputLike, .Select-button):is(:hover, :focus, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    ) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:first-child
-    :where(h1, h2, h3, p, div, span, label) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:first-child
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:last-child
-    > div:first-child,
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:last-child
-    > div:first-child
-    :where(div, span, label) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> div:first-child > h1):has(
-      > div:last-child button.Button--primary
-    )
-    > div:last-child
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.Modal-content > div[class*="r-"])
-    .Modal-content
-    > div:first-child {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.Modal-content > div[class*="r-"])
-    .Modal-content
-    [dir="auto"] {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.Modal-content > div[class*="r-"])
-    .Modal-content
-    [tabindex="0"] {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.Modal-content > div[class*="r-"])
-    .Modal-content
-    [tabindex="0"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.Modal-content > div[class*="r-"])
-    .Modal-content
-    [tabindex="0"]
-    [dir="auto"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Modal:has(canvas[alt="二维码"]) .Modal-content div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(canvas[alt="二维码"])
-    .Modal-content
-    > div
-    > div
-    > div
-    > div:first-child
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(canvas[alt="二维码"])
-    .Modal-content
-    > div
-    > div
-    > div
-    > div:first-child
-    > div:first-child
-    > div:last-child,
-  html[data-zb-theme]
-    .Modal:has(canvas[alt="二维码"])
-    .Modal-content
-    > div
-    > div
-    > div
-    > div:nth-last-child(2) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:first-child,
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:has(> svg + div)
-    > svg
-    + div {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:has(> svg + div) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:has(> svg + div)
-    > svg {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:last-child,
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:last-child
-    div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(.VideoUploadButton-fileInput)
-    .Modal-content
-    > div:last-child
-    a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal .Modal-inner,
-  html[data-zb-theme] .Editable-videoModal .Modal-content {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal-title,
-  html[data-zb-theme] .Editable-videoModal-uploader-text {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal-uploader {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal-uploader:hover {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal-uploader-icon {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal-uploader-tip,
-  html[data-zb-theme] .Editable-videoModal .Modal-footer,
-  html[data-zb-theme] .Editable-videoModal .Modal-footer p {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal .Modal-footer {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal .Modal-footer a {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Editable-videoModal .Modal-closeButton {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .VoteTypeSelectorPopover,
-  html[data-zb-theme] .VoteTypeSelectorPopover > div > div {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:hover,
-  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:focus,
-  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:focus-within {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .CommentSetting-submenuBox,
-  html[data-zb-theme] .RingSetting-submenuBox {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .CommentSetting-submenuBox > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .CommentSetting-submenuBox > div:hover,
-  html[data-zb-theme] .CommentSetting-submenuBox > div:focus,
-  html[data-zb-theme] .CommentSetting-submenuBox > div:focus-within {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .CommentSetting-submenuBox .ZDI--Check24 {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox > div:first-child,
-  html[data-zb-theme] .RingSetting-submenuBox > div:nth-child(3) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox > div:first-child div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox > div:first-child > div:first-child,
-  html[data-zb-theme] .RingSetting-submenuBox > div:nth-child(3) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox > div:first-child svg {
-    color: var(--zb-text-muted) !important;
-    fill: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper input {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img) {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img):hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img)
-    > div:nth-child(2)
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img)
-    > div:nth-child(2)
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img)
-    > div:nth-child(2)
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .RingSetting-submenuBox
-    > div:last-child
-    > div
-    > div:has(> img)
-    > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .VoteTypeSelectorPopover
-    > div
-    > div
-    > div:first-child
-    > div:last-child {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .VoteTypeSelectorPopover
-    > div
-    > div
-    > div:last-child:not(:first-child) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    .Modal-content
-    > div
-    > div:first-child {
-    background-color: transparent !important;
-    border: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    div:has(> input[type="text"]) {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    padding: 0 10px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 4px !important;
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    div:has(> input[type="text"]):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    input[type="text"] {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    outline: 0 !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    input[type="text"]::placeholder {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    .Modal-content
-    > div
-    > div:nth-child(2)
-    > div:first-child {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    .Modal-content
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    div {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
-    .Modal-content
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    svg {
-    color: var(--zb-text-muted) !important;
-    fill: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="投票 标题"])
-    div:has(> div > input[placeholder^="请填写选项"])
-    > div:first-child {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="投票 标题"])
-    div:has(> div > input[placeholder^="请填写选项"])
-    > div:first-child
-    div {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="投票 标题"])
-    .Modal-content
-    div:has(> svg.ZDI--Plus24 + div) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="投票 标题"])
-    .Modal-content
-    div:has(> svg.ZDI--Plus24 + div):hover {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .Modal:has(input[placeholder*="投票 标题"])
-    .Modal-content
-    div:has(> svg.ZDI--Plus24 + div)
-    :where(svg, div) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-poll-modal-open="true"]
-    [data-zb-poll-option-popover] {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-    scrollbar-color: var(--ctp-overlay0) transparent;
-  }
-
-  html[data-zb-theme][data-zb-poll-modal-open="true"]
-    [data-zb-poll-option-popover]
-    > svg {
-    color: var(--zb-surface) !important;
-    fill: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-poll-modal-open="true"]
-    [data-zb-poll-option-popover]
-    > svg
-    + div
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-poll-modal-open="true"]
-    [data-zb-poll-option-popover]
-    > svg
-    + div
-    > div:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"]
-    + div,
-  html[data-zb-theme]
-    body
-    > div
-    > div
-    > div:has(> svg[viewBox="0 0 26 10"]):has(
-      div[style*="cursor: default"]
-    )
-    div[style*="cursor: default"]
-    + div
-    * {
-    color: var(--zb-text-secondary) !important;
-    font-weight: 400 !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
-  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue):hover,
-  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    :is(.FollowButton, .WriteAnswerButton),
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    :is(.FollowButton, .WriteAnswerButton) {
-    min-height: 34px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .FollowButton.Button--blue,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .FollowButton.Button--blue:hover,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader .WriteAnswerButton,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .WriteAnswerButton {
+  const OUTLINED_PRIMARY_BUTTON_STYLE = `
     background-color: transparent !important;
     border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
+    color: var(--zb-primary) !important;`;
 
-  html[data-zb-theme] .QuestionHeader .WriteAnswerButton:hover,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .WriteAnswerButton:hover {
+  const OUTLINED_PRIMARY_BUTTON_HOVER_STYLE = `
     background-color: var(--zb-primary-soft) !important;
     border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
+    color: var(--zb-primary-hover) !important;`;
 
-  html[data-zb-theme] .QuestionHeader .FollowButton.Button--grey,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
+  const CARD_FRAME_STYLE = `
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;`;
 
-  html[data-zb-theme]
-    .QuestionHeader
-    .FollowButton.Button--grey:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    :is(.FollowButton, .WriteAnswerButton):focus-visible,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    :is(.FollowButton, .WriteAnswerButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .FollowButton.Button--grey:focus-visible,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    :is(.FollowButton, .WriteAnswerButton)
-    svg,
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    :is(.FollowButton, .WriteAnswerButton)
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer-main {
-    column-gap: 12px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup .Button {
-    min-height: 34px !important;
-    margin: 0 !important;
-    font-size: 14px !important;
-    line-height: 32px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions {
-    align-items: center !important;
-    gap: 4px !important;
-  }
-
-  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions > * {
-    margin: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeaderActions
-    .Button,
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
-    > .Button {
+  const CARD_SURFACE_STYLE = `
     box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 34px !important;
-    margin: 0 !important;
-    padding: 0 10px !important;
-    border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    line-height: 32px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
-    > .Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
-    > .Button
-    svg,
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeaderActions
-    .Button
-    svg {
-    width: 16px !important;
-    height: 16px !important;
-    color: inherit !important;
-    fill: currentColor !important;
-    flex: 0 0 16px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeader-actions
-    > .Button
-    svg {
-    margin-left: 4px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeaderActions
-    .Button--iconOnly {
-    width: 34px !important;
-    padding: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeaderActions
-    .Button
-    svg {
-    margin-right: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader-footer
-    .QuestionHeaderActions
-    .Button--iconOnly
-    svg {
-    margin-right: 0 !important;
-  }
-
-  html[data-zb-theme] .PageHeader .QuestionHeader-title {
-    font-size: 22px !important;
-    font-weight: 600 !important;
-    line-height: 32px !important;
-  }
-
-  html[data-zb-theme][data-zb-question-content-under-header="true"]
-    .AppHeader {
-    box-shadow:
-      0 10px 0 var(--zb-page),
-      var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme]
-    .PageHeader
-    .QuestionButtonGroup
-    :is(.FollowButton, .WriteAnswerButton)
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-title,
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item > a,
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText,
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText a {
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text) !important;
-  }
+    box-shadow: var(--zb-shadow) !important;`;
 
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard {
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-heat {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item,
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item {
-    box-sizing: border-box !important;
-    margin: 6px -8px !important;
-    padding: 6px 8px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .HotSearchCard-tag {
+  const HOT_SEARCH_TAG_LAYOUT_STYLE = `
     box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -5874,919 +2315,107 @@ ${createPaletteVariables("mocha")}
     width: auto !important;
     min-width: 24px !important;
     padding: 0 5px !important;
-    white-space: nowrap !important;
-  }
+    white-space: nowrap !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-itemLink:focus-visible {
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-item:focus-within {
+  const RAISED_CONTROL_SURFACE_STYLE = `
     background-color: var(--zb-surface-raised) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-  }
+    border: 1px solid var(--zb-border) !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-item:hover
-    .HotSearchCard-itemText,
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-item:hover
-    .HotSearchCard-itemText
-    :where(a, span),
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-item:focus-within
-    .HotSearchCard-itemText,
-  html[data-zb-theme]
-    .Question-sideColumn
-    .HotSearchCard-item:focus-within
-    .HotSearchCard-itemText
-    :where(a, span) {
-    color: var(--zb-primary) !important;
-  }
+  const RAISED_STRONG_CONTROL_SURFACE_STYLE = `
+    background-color: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    ) {
+  const RAISED_ACTION_CONTROL_STYLE = `
     box-sizing: border-box !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    margin: 4px -8px !important;
-    padding: 6px 8px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 10px !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
-    font-size: 13px !important;
-    line-height: 21px !important;
-    overflow: hidden !important;
-    white-space: nowrap !important;
-    transition: background-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    )
-    > a[href^="/question/"] {
-    display: block !important;
-    flex: 1 1 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
-    color: var(--zb-text) !important;
-    font-size: 14px !important;
-    line-height: 21px !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    text-align: left !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(.RelatedQuestions, .SimilarQuestions-list)
-    a[href^="/question/"] {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    [data-za-detail-view-path-module="RelatedQuestions"]
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    ) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    ):is(:hover, :focus-within) {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    ):is(:hover, :focus-within)
-    > a[href^="/question/"],
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(.RelatedQuestions, .SimilarQuestions-list)
-    a[href^="/question/"]:is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(
-      .RelatedQuestions-item,
-      .RelatedQuestions-listItem,
-      .SimilarQuestions-item
-    )
-    > a[href^="/question/"]:focus-visible {
     outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(.AnswerAuthor, .NumberBoard)
-    .NumberBoard-item {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor
-    .NumberBoard-itemName {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor
-    .NumberBoard-itemValue {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor
-    .NumberBoard-item {
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor
-    .NumberBoard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor
-    .NumberBoard-item:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    :is(.AnswerAuthor, .NumberBoard)
-    .NumberBoard-item:hover
-    .NumberBoard-itemValue {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] {
-    background-color: var(--zb-surface) !important;
-    background-clip: padding-box !important;
-    padding-right: 16px !important;
-    padding-left: 16px !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] .Avatar {
-    top: -8px !important;
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    [data-zb-hover-card-avatar-row] {
-    padding-bottom: 21px !important;
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] .HoverCard-description {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] .UserLink-link {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .UserLink-link:is(:hover, :focus-visible) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .NumberBoard-itemName {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .NumberBoard-itemValue {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .NumberBoard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] .HoverCard-buttons {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .Button {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    width: auto !important;
-    margin: 0 !important;
-    border-radius: 6px !important;
-    flex: 1 1 0 !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme] [data-zb-hover-card] .NumberBoard-item {
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .NumberBoard-item:hover {
-    background-color: var(--zb-surface-raised) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .NumberBoard-item:focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .Button:not(.FollowButton) {
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    .HoverCard-buttons
-    .Button:not(.FollowButton):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    [data-zb-hover-card-single-action]
-    > .Button.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    [data-zb-hover-card-single-action]
-    > .Button.Button--grey {
-    position: relative !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    [data-zb-hover-card-single-action]
-    > .Button.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-hover-card]
-    [data-zb-hover-card-single-action]
-    > .Button.Button--grey:is(:hover, :focus-visible)::after {
-    content: "取消关注" !important;
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: var(--zb-danger) !important;
-    font-size: 14px !important;
-    line-height: normal !important;
-  }
-
-  html[data-zb-theme] .AnswerList .List-headerOptions .Button,
-  html[data-zb-theme] .AnswerList .Select-button {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .AnswerList .List-headerOptions .Button:hover,
-  html[data-zb-theme] .AnswerList .Select-button:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 34px !important;
-    padding-inline: 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    line-height: 32px !important;
     transition:
-      background-color 160ms ease,
-      border-color 160ms ease,
-      color 160ms ease !important;
-  }
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;`;
 
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button:hover,
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button:focus-visible,
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button[aria-expanded="true"] {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .AnswersNavWrapper
-    .List-headerOptions
-    .Select-button
-    svg {
-    width: 14px !important;
-    height: 14px !important;
-    margin-left: 6px !important;
-    color: inherit !important;
-    fill: currentColor !important;
-    flex: 0 0 14px !important;
-  }
-
-  html[data-zb-theme] .Select-option {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Select-option:hover,
-  html[data-zb-theme] .Select-option.is-selected,
-  html[data-zb-theme] .Select-option[aria-selected="true"] {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn {
-    min-width: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    :is(.AnswerCard, .ViewAll, .MoreAnswers) {
-    background-clip: padding-box !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .ViewAll
-    :is(a, .Button) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .ViewAll
-    :is(a, .Button):is(:hover, :focus-visible) {
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText-more.Button,
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText-more.Button {
-    display: inline-flex !important;
-    align-items: center !important;
-  }
-
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button {
-    display: block !important;
-    width: max-content !important;
-    margin: 8px auto 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText-more.Button:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
+  const SOFT_PRIMARY_ACTION_STYLE = `
     background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText--collapsed:is(:hover, :focus-within) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText-more.Button:focus-visible,
-  html[data-zb-theme]
-    body
-    .QuestionPage
-    .AnswerItem
-    .ContentItem-expandButton.Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionHeader
-    .QuestionRichText-more.Button
-    svg {
-    width: 16px !important;
-    height: 16px !important;
-    margin-left: 4px !important;
-    color: inherit !important;
-    fill: currentColor !important;
-    flex: 0 0 16px !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .VoteButton {
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .RichContent-actions.is-fixed {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: border-box !important;
-    border: 0 !important;
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
-  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
-    background-color: transparent !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .AnswersNavWrapper
-    .List-header {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    min-height: 50px !important;
-    margin: 0 0 10px !important;
-    padding: 0 20px !important;
-    background-color: var(--zb-surface) !important;
-    border: 0 !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .AnswersNavWrapper
-    .List-item {
-    box-sizing: border-box !important;
-    margin-bottom: 10px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .AnswersNavWrapper
-    .List-item:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .AnswersNavWrapper
-    .List-item::after {
-    display: none !important;
-  }
-
-  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-header {
-    margin-bottom: 8px !important;
-  }
-
-  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-headerText {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .MoreAnswers
-    :is(.List-header, .List-item)::after {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .AnswerAuthor .Card-section::after {
-    border-bottom-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton {
-    min-height: 34px !important;
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
     border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
-    .FollowButton
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor-buttons
-    .Button:not(.FollowButton) {
-    min-height: 34px !important;
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    border-radius: 6px !important;
     color: var(--zb-primary) !important;
-    font-weight: 500 !important;
-  }
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor-buttons
-    .Button:not(.FollowButton):hover {
+  const SOFT_PRIMARY_FOCUS_ACTION_STYLE = `
     background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor-buttons
-    .Button:not(.FollowButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
     outline: 0 !important;
-  }
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    .AnswerAuthor-buttons
-    .Button:not(.FollowButton)
-    svg {
+  const CURRENT_COLOR_ICON_STYLE = `
     color: inherit !important;
-    fill: currentColor !important;
-  }
+    fill: currentColor !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    > div[style*="position: sticky"][style*="overflow: auto"] {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-  }
+  const INHERITED_ICON_STYLE = `${CURRENT_COLOR_ICON_STYLE}
+    -webkit-text-fill-color: currentColor !important;`;
 
-  html[data-zb-theme]
-    .Question-sideColumn
-    > div[style*="position: sticky"][style*="overflow: auto"]::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
+  const SURFACE_TEXT_STYLE = `background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;`;
 
-  html[data-zb-theme] .Question-sideColumn :is(.Footer, footer) {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    color: var(--zb-text-muted) !important;
-    overflow-x: hidden !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .Footer a,
-  html[data-zb-theme] .Question-sideColumn .Footer-item,
-  html[data-zb-theme] .Question-sideColumn .Footer-copyright,
-  html[data-zb-theme] .Question-sideColumn .Footer-certificate,
-  html[data-zb-theme] .Question-sideColumn .Footer-zhihuIntegrity {
-    max-width: 100% !important;
-    color: var(--zb-text-muted) !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn .Footer a:hover,
-  html[data-zb-theme] .Question-sideColumn .Footer a:focus-visible,
-  html[data-zb-theme]
-    .Question-sideColumn
-    .Footer
-    a:is(:hover, :focus-visible)
-    :where(span, svg),
-  html[data-zb-theme]
-    .Question-sideColumn
-    footer
-    a:is(:hover, :focus-visible)
-    :where(span, svg) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    footer
-    :where(a, button, div, span, p, svg) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .Question-sideColumn footer :where(a, button):hover {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Question-sideColumn
-    footer
-    :where(a, button):is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .Question-sideColumn
-    footer
-    :where(a, button):is(:hover, :focus-visible)
-    :where(span, div, svg) {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .CornerButton {
+  const SURFACE_TEXT_ONLY_STYLE = `
     background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
+    color: var(--zb-text) !important;`;
 
-  html[data-zb-theme] .CornerButton:hover {
+  const RAISED_TEXT_STYLE = `
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text) !important;`;
+
+  const TRANSPARENT_TEXT_STYLE = `
+    background-color: transparent !important;
+    color: var(--zb-text) !important;`;
+
+  const SECTION_HEADER_STYLE = `background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;`;
+
+  const PRIMARY_BORDER_FOCUS_STYLE = `
+    border-color: var(--zb-primary) !important;
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;`;
+
+  const RAISED_PRIMARY_HOVER_STYLE = `
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
-  }
+    outline: 0 !important;`;
 
-  html[data-zb-theme] .CornerButton svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
+  const THIN_SCROLLBAR_STYLE = `
+    scrollbar-color: var(--zb-text-subtle) transparent !important;
+    scrollbar-width: thin !important;`;
 
-  html[data-zb-theme] .Comments-container::before,
+  const SKELETON_SHIMMER_STYLE = `
+    background: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 20%,
+      var(--zb-surface-raised) 40%,
+      var(--zb-surface-raised) 100%
+    ) !important;`;
+
+  const TEXT_PAINT_STYLE = `
+    color: var(--zb-text) !important;
+    -webkit-text-fill-color: var(--zb-text) !important;`;
+
+  const SECONDARY_TEXT_PAINT_STYLE = `
+    color: var(--zb-text-secondary) !important;
+    -webkit-text-fill-color: var(--zb-text-secondary) !important;`;
+
+  const MUTED_TEXT_PAINT_STYLE = `
+    color: var(--zb-text-muted) !important;
+    -webkit-text-fill-color: var(--zb-text-muted) !important;`;
+
+  const PRIMARY_TEXT_PAINT_STYLE = `
+    color: var(--zb-primary) !important;
+    -webkit-text-fill-color: var(--zb-primary) !important;`;
+
+  const COMMENTS_COMPONENT_STYLE = `  html[data-zb-theme] .Comments-container::before,
   html[data-zb-theme] .Comments-container::after {
     content: none !important;
     display: none !important;
@@ -6809,8 +2438,7 @@ ${createPaletteVariables("mocha")}
     .RichContent
     section
     > div:has(> a[href*="/column/"]) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -6873,10 +2501,7 @@ ${createPaletteVariables("mocha")}
     a[href*="/column/"]
     > div
     > div:nth-child(2)
-    > div:last-child {
-    color: var(--zb-text-muted) !important;
-  }
-
+    > div:last-child,
   html[data-zb-theme]
     .QuestionPage
     .AnswerItem
@@ -7099,8 +2724,7 @@ ${createPaletteVariables("mocha")}
       :focus-within,
       :active
     ) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme]
@@ -7160,8 +2784,7 @@ ${createPaletteVariables("mocha")}
     > div:first-child
     > div:last-child
     > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     font-weight: 600 !important;
   }
 
@@ -7199,8 +2822,7 @@ ${createPaletteVariables("mocha")}
     .Comments-container
     [data-id]
     > .Button.Button--secondary {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     margin-top: -4px !important;
   }
 
@@ -7210,20 +2832,8 @@ ${createPaletteVariables("mocha")}
       :hover,
       :focus-visible
     ) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     outline-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .Comments-container
-    .Button:is(.Button--withLabel, .Button--secondary):is(
-      :hover,
-      :focus-visible
-    )
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme]
@@ -7266,8 +2876,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     .Comments-container
     div:has(> div > div > .InputLike.Editable) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -7290,9 +2899,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .Comments-container
-    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {${TRANSPARENT_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -7311,9 +2918,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     .Comments-container
-    div:has(> div > div > .InputLike.Editable:focus-within) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    div:has(> div > div > .InputLike.Editable:focus-within) {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -7331,41 +2936,16 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .Comments-container .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .Comments-container
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .Comments-container
-    div:has(> div + svg[width="656"][height="44"]) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-surface) !important;
-  }
-
   html[data-zb-theme]
     .Comments-container
     div:has(> div + svg[width="656"][height="44"])
-    > div:first-child {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
+    > div:first-child,
+  html[data-zb-theme]
+    [data-zb-comment-modal]
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"])
+    > div:first-child {${SKELETON_SHIMMER_STYLE}
   }
 
   html[data-zb-theme]
@@ -7379,6 +2959,13 @@ ${createPaletteVariables("mocha")}
     path {
     color: var(--zb-surface) !important;
     fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Comments-container
+    div:has(> div + svg[width="656"][height="44"]) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-surface) !important;
   }
 
   html[data-zb-theme]
@@ -7412,9 +2999,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme] [data-zb-comment-modal] {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    ${SURFACE_TEXT_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -7445,8 +3030,7 @@ ${createPaletteVariables("mocha")}
     > div:first-child
     > div:last-child
     > .css-m0zh86 {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     font-weight: 600 !important;
   }
 
@@ -7492,8 +3076,7 @@ ${createPaletteVariables("mocha")}
     > div:first-child
     > div:last-child
     > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme]
@@ -7534,20 +3117,8 @@ ${createPaletteVariables("mocha")}
       :hover,
       :focus-visible
     ) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     outline-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    .Button:is(.Button--withLabel, .Button--secondary):is(
-      :hover,
-      :focus-visible
-    )
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme]
@@ -7608,8 +3179,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     [data-zb-comment-modal]
     div:has(> div > div > .InputLike.Editable) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -7640,9 +3210,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     [data-zb-comment-modal]
-    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {${TRANSPARENT_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -7654,9 +3222,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     [data-zb-comment-modal]
-    div:has(> div > div > .InputLike.Editable:focus-within) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    div:has(> div > div > .InputLike.Editable:focus-within) {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -7671,63 +3237,6 @@ ${createPaletteVariables("mocha")}
     :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
     background-color: transparent !important;
     color: var(--zb-text-subtle) !important;
-  }
-
-  /* Keep the comment theme active while sorting temporarily unmounts CommentContent. */
-  html[data-zb-theme]
-    [data-zb-comment-modal] {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:first-child
-    > div:first-child
-    :where(div, span) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:first-child
-    > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-surface-raised) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:first-child
-    > div:last-child
-    > div {
-    background-color: transparent !important;
-    border-radius: 4px !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:first-child
-    > div:last-child
-    > .css-m0zh86 {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    font-weight: 600 !important;
   }
 
   html[data-zb-theme]
@@ -7752,53 +3261,6 @@ ${createPaletteVariables("mocha")}
     [data-zb-comment-modal]
     > div
     > div:nth-child(2)
-    .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:nth-child(2)
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:nth-child(2)
-    div:has(> div + svg[width="656"][height="44"]) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:nth-child(2)
-    div:has(> div + svg[width="656"][height="44"])
-    > div:first-child {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    [data-zb-comment-modal]
-    > div
-    > div:nth-child(2)
     div:has(> div + svg[width="656"][height="44"])
     > svg,
   html[data-zb-theme]
@@ -7814,9 +3276,11 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme]
     [data-zb-comment-modal]
-    img.Avatar {
-    background-color: var(--zb-surface-raised) !important;
-    border-radius: 6px !important;
+    > div
+    > div:nth-child(2)
+    div:has(> div + svg[width="656"][height="44"]) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-surface) !important;
   }
 
   html[data-zb-theme]
@@ -7826,761 +3290,11 @@ ${createPaletteVariables("mocha")}
     border-radius: 6px !important;
     overflow: hidden !important;
   }
+`;
 
-  html[data-zb-theme] .QuestionPage .AnswerFormPortalContainer,
-  html[data-zb-theme] .QuestionPage .QuestionAnswers-statusWrapper,
-  html[data-zb-theme] .QuestionPage .AnswerAdd,
-  html[data-zb-theme] .QuestionPage .AnswerForm,
-  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer,
-  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    > div:first-child
-    > div:first-child {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    > div:first-child
-    > div:first-child
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    .Catalog-Title {
-    color: var(--zb-text-subtle) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    .Catalog-Title
-    > div {
-    background-color: transparent !important;
-    color: inherit !important;
-    border-radius: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    .Catalog-Title:is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    .Catalog-Title::before {
-    background-color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer
-    .Catalog
-    .Catalog-Title:is(:hover, :focus-within)::before {
-    background-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer:has(.Catalog)
-    .toolbarV3
-    .ToolbarButton:has(.ZDI--Catalog24) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormPortalContainer:has(.Catalog)
-    .toolbarV3
-    .ToolbarButton:has(.ZDI--Catalog24)
-    :where(div, span, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .QuestionAnswers-answerAdd
-    > .AnswerAdd
-    > div:first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .QuestionAnswers-answerAdd
-    > .AnswerAdd
-    > div:first-child
-    :where(div, span, button, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .QuestionAnswers-answerAdd
-    > .AnswerAdd
-    > div:nth-child(2) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .toolbarV3,
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerFormPortalContainer, .AnswerForm)
-    :is(.Sticky, .Editable-toolbar) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .ToolbarButton,
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerFormPortalContainer, .AnswerForm)
-    :is(.Editable-control, .Button:not(.Button--blue)) {
-    background-color: transparent !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .ToolbarButton:hover,
-  html[data-zb-theme] .QuestionPage .ToolbarButton:focus-visible,
-  html[data-zb-theme] .QuestionPage .ToolbarButton.is-active,
-  html[data-zb-theme] .QuestionPage .ToolbarButton[aria-pressed="true"],
-  html[data-zb-theme]
-    .QuestionPage
-    :is(.AnswerFormPortalContainer, .AnswerForm)
-    :is(.Editable-control, .Button:not(.Button--blue)):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .ToolbarDivider {
-    background-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .ToolbarV3Menu-container
-    .Button
-    > span:last-child {
-    padding: 2px 6px !important;
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerForm-editor.InputLike.Editable,
-  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerForm-editor
-    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerForm-editor
-    :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
-    color: var(--zb-text-subtle) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormEditorContainer
-    > div:has([role="combobox"]) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AnswerFormEditorContainer
-    > div:has([role="combobox"])
-    [role="combobox"] {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container,
-  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container > div {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:last-child
-    > div
-    > div:first-child
-    :where(div, span, svg) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:last-child
-    > div
-    > :last-child {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:first-child {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:first-child
-    :where(div, span, button, svg) {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-primary) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    :where(div, span, svg, button) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:first-child
-    button {
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:first-child
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:first-child
-    button
-    :is(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:nth-child(2) {
-    padding: 8px 10px !important;
-    background-color: var(--zb-surface) !important;
-    border-left: 3px solid var(--zb-primary) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:nth-child(3)
-    > div {
-    background-color: var(--zb-surface-hover) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:nth-child(3)
-    > div:is(:hover, :focus-within) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:nth-child(3)
-    img {
-    border-radius: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:has(
-      :is(
-        .CircleLoadingBar,
-        img[src*="editor_ai_image"],
-        .ZDI--ExclamationCircle24
-      )
-    )
-    > div:nth-child(2)
-    > div:first-child
-    > div:nth-child(4)
-    > div {
-    padding: 2px 6px !important;
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-    border-radius: 999px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    .CircleLoadingBar
-    .path {
-    stroke: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:nth-child(2) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:last-child
-    > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    > div
-    > div:first-child
-    > div:last-child
-    > div:is(:hover, :focus-within) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    div:has(> div > textarea[placeholder="请描述你想要配图的内容"])
-    > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-primary) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    div:has(> textarea[placeholder="请描述你想要配图的内容"]) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    border-radius: 10px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    div:has(
-      > textarea[placeholder="请描述你想要配图的内容"]
-    ):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    textarea[placeholder="请描述你想要配图的内容"] {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-    caret-color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    textarea[placeholder="请描述你想要配图的内容"]::placeholder {
-    color: var(--zb-text-subtle) !important;
-    opacity: 1 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    [role="button"][aria-label^="选择"] {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    color: var(--zb-primary) !important;
-    border-radius: 999px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    [role="button"][aria-label^="选择"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-hover) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    div:has(> textarea[placeholder="请描述你想要配图的内容"])
-    > div:last-child
-    > div:last-child
-    > div {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .AIAssistantPanelV2-container
-    div:has(> textarea[placeholder="请描述你想要配图的内容"])
-    > div:last-child
-    > div:last-child
-    > div
-    > div {
-    color: inherit !important;
-  }
-
-  html[data-zb-theme]
-    .Popover-content:has(.Menu-item > div > div:first-child:empty)
-    .Menu-item
-    > div
-    > div:last-child {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .Popover-content:has(.Menu-item > div > div:first-child:empty)
-    .Menu-item:is(:hover, :focus-visible)
-    > div
-    > div:last-child {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory,
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side,
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-main {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side {
-    border-right: 1px solid var(--zb-border) !important;
-  }
-
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-title,
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-versionDate {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .DraftHistoryModal
-    .DraftHistory-history
-    > div:not(:empty):is(:hover, :focus-within) {
-    background-color: var(--zb-surface-hover) !important;
-  }
-
-  html[data-zb-theme]
-    .DraftHistoryModal
-    .DraftHistory-history
-    .DraftHistory-versionDate[style*="rgb(23, 114, 246)"] {
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-draft {
-    background-color: var(--zb-page) !important;
-  }
-
-  html[data-zb-theme]
-    .DraftHistoryModal
-    .PreviewEditableInstance.InputLike.Editable {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    border-radius: 8px !important;
-  }
-
-  html[data-zb-theme]
-    .DraftHistoryModal
-    .PreviewEditableInstance
-    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .DraftHistoryModal .DraftHistory-actions {
-    background-color: var(--zb-surface) !important;
-    border-top: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .EditorHelpDoc {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .EditorHelpDoc > div {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .EditorHelpDoc
-    :where(div, h1, h2, h3, p, span) {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .EditorHelpDoc
-    :where(h1, h2, h3, p, div, span, svg) {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .EditorHelpDoc button {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 999px !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .EditorHelpDoc
-    button:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
-    .EditorHelpDoc
-    div:has(> svg.ZDI)
-    > div:nth-child(n + 3) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-    border-radius: 4px !important;
-  }
-
-  html[data-zb-theme] .Answers-select,
+  const CONTENT_MENUS_COMPONENT_STYLE = `  html[data-zb-theme] .Answers-select,
   html[data-zb-theme] .Answers-select .Select-option {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    ${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme] .Answers-select {
@@ -8612,9 +3326,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .ShareMenu-content,
   html[data-zb-theme] .ShareMenu-menuItems,
   html[data-zb-theme] .ShareMenu-qrcodeBox {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    ${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme] .ShareMenu-button {
@@ -8622,9 +3334,7 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .ShareMenu-button:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .ShareMenu-button:hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme] .ShareMenu-qrcodeSection {
@@ -8640,8 +3350,432 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .ShareMenu-qrcodeText {
     color: var(--zb-text-muted) !important;
   }
+`;
+
+  const CROSS_PAGE_CONTROLS_STYLE = `
+  html[data-zb-theme] body .Button.FollowButton.Button--blue {${PRIMARY_BUTTON_STYLE}
+  }
 
   html[data-zb-theme]
+    body
+    .Button.FollowButton.Button--blue:hover {${PRIMARY_BUTTON_HOVER_STYLE}
+  }
+
+  html[data-zb-theme] body .Button.FollowButton.Button--grey {${FOLLOWING_BUTTON_STYLE}
+  }
+
+  html[data-zb-theme]
+    body
+    .Button.FollowButton.Button--grey:is(:hover, :focus-visible) {${FOLLOWING_BUTTON_DANGER_STYLE}
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .Button.FollowButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .WriteAnswerButton:hover,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .WriteAnswerButton:hover,
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .HoverCard-buttons
+    .Button:not(.FollowButton):is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton):hover,
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    :is(
+      a[href="/creator"],
+      a[href="/question/waiting"],
+      a[href="/consult"],
+      a[href="/education/learning"],
+      .KfeCollection-CreateSaltCard-button
+    ):is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileHeader-buttons
+    .FollowButton
+    + .Button:hover,
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .Profile-sideColumn
+    :is(a[href="/creator"], a[href="/question/waiting"]):is(
+      :hover,
+      :focus-visible
+    ),
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation
+    .AutoInviteItem-wrapper--desktop
+    .ContentItem-extra
+    .AutoInviteItem-button--closed.Button.Button--link:is(
+      :hover,
+      :focus-visible
+    ) {${OUTLINED_PRIMARY_BUTTON_HOVER_STYLE}
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton),
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme]:where([data-zb-search-page="true"])
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton) {${COMPACT_ACTION_BUTTON_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-topic-page="true"]
+    .TopicFeedItem
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton),
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton),
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton) {${COMPACT_ACTION_MUTED_STYLE}
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):hover,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):hover,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme]:where([data-zb-search-page="true"])
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme][data-zb-topic-page="true"]
+    .TopicFeedItem
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover,
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton):hover {${COMPACT_ACTION_HOVER_STYLE}
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:not(.VoteButton):focus-visible,
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-actions
+    .Button:not(.VoteButton):not(.Button--blue):focus-visible,
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-actions
+    .Button:not(.VoteButton):focus-visible,
+  html[data-zb-theme]:where([data-zb-search-page="true"])
+    .HotLanding
+    :is(.ContentItem-actions, .RichContent-actions)
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ),
+  html[data-zb-theme][data-zb-topic-page="true"]
+    .TopicFeedItem
+    :is(.ContentItem-actions, .RichContent-actions)
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ),
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    :is(
+      .Button:not(.VoteButton):focus-visible,
+      .ShareMenu-toggler[aria-expanded="true"] .Button
+    ),
+  html[data-zb-theme][data-zb-profile-page="true"]
+    .ProfileMain
+    .ContentItem-actions
+    .Button:not(.VoteButton):focus-visible {${COMPACT_ACTION_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:is(
+      [aria-label="已收藏"],
+      [aria-label="收藏"]:is(:hover, :focus-visible)
+    ) {
+    color: var(--zb-warning) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.ContentItem-actions, .RichContent-actions)
+    .Button:is(
+      [aria-label="喜欢"]:is(:hover, :focus-visible),
+      .Button--red,
+      .is-active,
+      [aria-label="取消喜欢"],
+      [aria-pressed="true"]
+    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme] .TopstoryItem-isFollow .ContentItem-more,
+  html[data-zb-theme][data-zb-home-page="true"] .TopstoryItem .ContentItem-more,
+  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {${CONTENT_MORE_STYLE}
+  }
+
+  html[data-zb-theme]
+    .TopstoryItem-isFollow
+    .ContentItem-more:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-home-page="true"]
+    .TopstoryItem
+    .ContentItem-more:is(:hover, :focus-visible),
+  html[data-zb-theme][data-zb-column-page="true"]
+    .ContentItem-more:is(:hover, :focus-visible) {${CONTENT_MORE_ACTIVE_STYLE}
+  }
+
+  html[data-zb-theme]
+    :is(
+      [data-zb-home-sidebar],
+      .Topstory-container > .Topstory-mainColumn + *
+    )
+    .HotSearchCard-tag,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-tag,
+  html[data-zb-theme]:where([data-zb-search-page="true"])
+    .Search-container
+    .HotSearchCard-tag {${HOT_SEARCH_TAG_LAYOUT_STYLE}
+  }
+`;
+
+  const CROSS_PAGE_SURFACES_STYLE = `
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+    background-clip: padding-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:hover,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme][data-zb-home-page="true"]
+    .Topstory-recommend
+    > .TopstoryItem:focus-visible,
+  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible,
+  html[data-zb-theme] .Topstory-hot .HotItem:focus-visible {
+    border-color: var(--zb-primary) !important;
+    box-shadow:
+      var(--zb-shadow),
+      0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard,
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-wrapper,
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    .LinkCard-wrapper {
+    background: transparent !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-title,
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-title {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-excerpt, .LinkCard-desc),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-excerpt, .LinkCard-desc) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard
+    .LinkCard-image,
+  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-image {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    a.LinkCard:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard:is(:hover, :focus-visible) {
+    background: var(--zb-surface-hover) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    text-decoration: none !important;
+  }
+
+  html[data-zb-theme][data-zb-ring-host-page="true"]
+    .PinItem
+    .ContentItem-actions
+    .VoteButton,
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    .VoteButton {
+    box-sizing: border-box !important;
+    min-height: 32px !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .RichContent-actions.is-fixed,
+  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    background-clip: border-box !important;
+    border: 0 !important;
+    border-top: 1px solid var(--zb-border) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -6px 14px
+      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path),
+  html[data-zb-theme]
+    .SearchMain
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path),
+  html[data-zb-theme][data-zb-topic-page="true"]
+    .TopicFeedList
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path),
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path),
+  html[data-zb-theme]
+    .Comments-container
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path),
+  html[data-zb-theme]
+    [data-zb-comment-modal]
+    > div
+    > div:nth-child(2)
+    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
+    color: var(--zb-surface) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-topic-page="true"]
+    .TopicFeedItem
+    .Comments-container
+    :is(.InputLike, .Editable),
+  html[data-zb-theme][data-zb-question-page="true"]
+    .QuestionInvitation-input,
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormEditorContainer
+    > div:has([role="combobox"])
+    [role="combobox"],
+  html[data-zb-theme] .Editable-languageSuggestionsInput,
+  html[data-zb-theme] .Editable-languageSuggestionsInput input,
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    .Modal-content
+    > div
+    > div:nth-child(2)
+    > div:first-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+  }
+`;
+
+  const DISCOVERY_COMPONENT_STYLE = `  html[data-zb-theme]
     .Topstory-mainColumnCard:is(
       :has(.Topstory-hot),
       :has(.hot-column-container)
@@ -8663,12 +3797,7 @@ ${createPaletteVariables("mocha")}
     .Topstory-content
     > div
     > div:has(+ .Topstory-hot) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ${CARD_SURFACE_STYLE}
     margin-bottom: 12px !important;
     overflow: hidden !important;
     overflow: clip !important;
@@ -8706,9 +3835,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .Topstory-hot .HotItem {
     box-sizing: border-box !important;
     width: 100% !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text) !important;
     box-shadow: var(--zb-shadow) !important;
     margin-left: 0 !important;
@@ -8721,14 +3848,6 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .Topstory-hot .HotItem:hover {
     border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme] .Topstory-hot .HotItem:focus-visible {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
   }
 
   html[data-zb-theme] .Topstory-hot .HotItem-title {
@@ -8769,9 +3888,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .hot-column-container {
     box-sizing: border-box !important;
     height: auto !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     margin-bottom: 12px !important;
     padding-bottom: 0 !important;
@@ -8798,8 +3915,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .hot-column .card {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 10px !important;
     overflow: hidden !important;
     overflow: clip !important;
@@ -8827,9 +3943,7 @@ ${createPaletteVariables("mocha")}
     position: static !important;
     height: auto !important;
     min-height: 0 !important;
-    padding: 12px 16px 16px !important;
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    padding: 12px 16px 16px !important;${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme] .hot-column-container .more {
@@ -8841,8 +3955,7 @@ ${createPaletteVariables("mocha")}
     min-width: 96px !important;
     min-height: 34px !important;
     padding: 0 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 6px !important;
     color: var(--zb-text-muted) !important;
     font-size: 14px !important;
@@ -8863,14 +3976,8 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-primary) !important;
   }
 
-  html[data-zb-theme] .hot-column-container .more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
   html[data-zb-theme] .hot-column-container .more :is(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme] .hot-column-container .more svg {
@@ -8899,9 +4006,7 @@ ${createPaletteVariables("mocha")}
 
   html[data-zb-theme] .recommend-column .subscrib-card {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     margin-bottom: 12px !important;
     overflow: hidden !important;
@@ -9147,32 +4252,291 @@ ${createPaletteVariables("mocha")}
 
 
 
+`;
 
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow {
+  const EDITOR_FOUNDATION_COMPONENT_STYLE = `  html[data-zb-theme] .Modal .Ask-form .AskTitle-input,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
     box-sizing: border-box !important;
-    margin-bottom: 10px !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
+    width: 100% !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
   }
 
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:hover {
-    border-color: var(--zb-border-strong) !important;
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input {
+    min-height: 46px !important;
+    padding: 9px 12px !important;
   }
 
-  html[data-zb-theme] .TopstoryItem.TopstoryItem-isFollow:focus-visible {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input {
+    min-height: 104px !important;
+    padding: 11px 12px !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input:focus-within,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content,
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .DraftEditor-root,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .AskDetail-input
+    .DraftEditor-editorContainer,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .AskDetail-input
+    .public-DraftEditor-content,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .AskDetail-input
+    .public-DraftEditorPlaceholder-root,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .AskDetail-input
+    .public-DraftEditorPlaceholder-inner {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .AskTitle-input textarea {
+    width: 100% !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .AskDetail-input .Editable-content {
+    min-height: 80px !important;
   }
 
   html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .public-DraftEditorPlaceholder-inner {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-controls {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar .Editable-control:hover,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .Editable-toolbar
+    .Editable-control.is-active,
+  html[data-zb-theme]
+    .Modal
+    .Ask-form
+    .Editable-toolbar
+    .Editable-control[aria-pressed="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Modal .Ask-form .Editable-toolbar-separator {
+    background-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .WriteArea :where(section, div, span) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .WriteArea > div > section {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .WriteArea > div > section > div,
+  html[data-zb-theme] .WriteArea .WritePinV2-Form,
+  html[data-zb-theme] .WriteArea .WritePinToolbar,
+  html[data-zb-theme] .WriteArea .TitleArea,
+  html[data-zb-theme] .WriteArea .EditorArea,
+  html[data-zb-theme] .WriteArea .InputLike.Editable {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .WriteArea textarea,
+  html[data-zb-theme] .WriteArea .TitleArea,
+  html[data-zb-theme] .WriteArea .InputLike.Editable,
+  html[data-zb-theme] .WriteArea .DraftEditor-root,
+  html[data-zb-theme] .WriteArea .DraftEditor-editorContainer,
+  html[data-zb-theme] .WriteArea .public-DraftEditor-content,
+  html[data-zb-theme] .WriteArea .public-DraftEditorPlaceholder-root,
+  html[data-zb-theme] .WriteArea .public-DraftEditorPlaceholder-inner {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .WriteArea .InputLike.Editable:focus-within {
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea,
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea {
+    min-height: 46px !important;
+    padding: 9px 12px 7px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .AppHeader-profileAvatar {
+    align-self: flex-start !important;
+    margin-top: 11px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea {
+    margin-top: 10px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .EditorArea .InputLike.Editable {
+    min-height: 84px !important;
+    padding: 10px 12px !important;${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar {
+    width: 8px !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-track {
+    background-color: transparent !important;
+    margin-block: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-thumb {
+    background-color: var(--zb-text-subtle) !important;
+    background-clip: content-box !important;
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-thumb:hover {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable::-webkit-scrollbar-corner {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea:focus-within,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea textarea,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .Editable-content,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .DraftEditor-root,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .DraftEditor-editorContainer,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditor-content,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-root,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-inner {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .Editable-content {
+    min-height: 62px !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child,
+  html[data-zb-theme]
+    .WriteArea:has(.WritePinV2-Form)
+    .EditorArea
+    .InputLike.Editable
+    .public-DraftEditorPlaceholder-inner {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .WriteArea:has(.WritePinV2-Form) .TitleArea > div:last-child {
+    top: 50% !important;
+    right: 12px !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    transform: translateY(-50%) !important;
+  }
+`;
+
+  const FOLLOWING_FEED_COMPONENT_STYLE = `  html[data-zb-theme]
     .TopstoryItem-isFollow
     .ContentItem-title,
   html[data-zb-theme]
@@ -9218,393 +4582,9 @@ ${createPaletteVariables("mocha")}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
+`;
 
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .TopstoryItem-isFollow
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(
-      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
-    )
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme] .VoteButton {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: transparent !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme] .VoteButton:hover,
-  html[data-zb-theme] .VoteButton[aria-pressed="true"],
-  html[data-zb-theme] .VoteButton.is-active {
-    background-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme] .PinItem .PinToolbar-actions {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    .LinkCard-wrapper {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-excerpt, .LinkCard-desc) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
-    background-color: var(--zb-surface-hover) !important;
-    border-radius: 4px !important;
-  }
-
-  html[data-zb-theme] .PinDetail .PinItem a.LinkCard .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard:is(:hover, :focus-visible) {
-    background: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a.LinkCard:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    > .PinToolbar-actions {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    margin: -10px 0 !important;
-    padding: 10px 0 !important;
-    background-color: transparent !important;
-    border-top: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .VoteButton:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    body
-    main
-    .PinDetail
-    .PinItem
-    .Comments-container
-    > div
-    > div:has(.InputLike.Editable) {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    margin: 0 !important;
-    margin-right: 0 !important;
-    margin-left: 0 !important;
-    padding: 10px 0 !important;
-    padding-inline: 0 !important;
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .Comments-container
-    .InputLike.Editable {
-    background-color: transparent !important;
-  }
-
-  html[data-zb-theme] .PinDetail .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .FollowButton.Button--grey:is(:hover, :focus-visible)
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"] {
-    background-color: var(--zb-primary-soft) !important;
-    border: 1px solid transparent !important;
-    border-radius: 999px !important;
-    color: var(--zb-primary) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    .PinDetail
-    .PinItem
-    a[href*="/ring/host/"]:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .ProfileSideCreator-analytics,
-  html[data-zb-theme] .KfeCollection-CreateSaltCard-content {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + *,
+  const HOME_SIDEBAR_COMPONENT_STYLE = `  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + *,
   html[data-zb-theme] [data-zb-home-sidebar] {
     color: var(--zb-text) !important;
   }
@@ -9613,10 +4593,7 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     [data-za-detail-view-path-module="RightSideBar"]
     .Card
-    :where(div, span) {
-    color: inherit !important;
-  }
-
+    :where(div, span),
   html[data-zb-theme]
     [aria-label="创作中心卡片"]
     :where(div, span) {
@@ -9641,20 +4618,7 @@ ${createPaletteVariables("mocha")}
     [data-za-detail-view-path-module="RightSideBar"]
     .Card
     > div {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    :is(.Card, .HotSearchCard) {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -9664,8 +4628,7 @@ ${createPaletteVariables("mocha")}
     )
     .Card:is(:focus-visible, :focus-within) {
     border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + * .Card,
@@ -9762,23 +4725,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme]
     :is(
       [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    .HotSearchCard-tag {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 24px !important;
-    padding: 0 5px !important;
-    white-space: nowrap !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
       [data-za-detail-view-path-module="RightSideBar"]
     )
     [data-zb-follow-card]
@@ -9847,43 +4793,9 @@ ${createPaletteVariables("mocha")}
       a[href="/consult"],
       a[href="/education/learning"],
       .KfeCollection-CreateSaltCard-button
-    ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
-    ):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      .Topstory-container > .Topstory-mainColumn + *
-    )
-    :is(
-      a[href="/creator"],
-      a[href="/question/waiting"],
-      a[href="/consult"],
-      a[href="/education/learning"],
-      .KfeCollection-CreateSaltCard-button
     )
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -9971,64 +4883,6 @@ ${createPaletteVariables("mocha")}
       [data-za-detail-view-path-module="RightSideBar"]
     )
     [data-zb-follow-card]
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    [data-zb-follow-card]
-    .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    [data-zb-follow-card]
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    [data-zb-follow-card]
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    [data-zb-follow-card]
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    :is(
-      [data-zb-home-sidebar],
-      [data-za-detail-view-path-module="RightSideBar"]
-    )
-    [data-zb-follow-card]
     .FollowButton.Button--grey:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
     outline: 0 !important;
@@ -10042,8 +4896,7 @@ ${createPaletteVariables("mocha")}
     [data-zb-follow-card]
     .FollowButton
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme] .HotSearchCard-tagHot {
@@ -10052,8 +4905,7 @@ ${createPaletteVariables("mocha")}
   }
 
   html[data-zb-theme] .HotSearchCard-tagActivity {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme] .HotSearchCard-dot {
@@ -10073,9 +4925,7 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-text) !important;
     box-shadow: none !important;
     overflow-x: hidden !important;
-    overflow-y: auto !important;
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
+    overflow-y: auto !important;${THIN_SCROLLBAR_STYLE}
   }
 
   html[data-zb-theme]
@@ -10099,8 +4949,7 @@ ${createPaletteVariables("mocha")}
     > div
     > div
     > div:has(> svg[width="26"][height="10"] + div) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text-muted) !important;
@@ -10137,8 +4986,7 @@ ${createPaletteVariables("mocha")}
     > div:has(> svg[width="26"][height="10"] + div)
     > svg
     + div {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
     opacity: 1 !important;
   }
 
@@ -10196,9 +5044,7 @@ ${createPaletteVariables("mocha")}
       :has(a[href*="/certificates"]),
       :has(a[href="/question/19581624"])
     )
-    > :where(a, div):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    > :where(a, div):hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -10223,8 +5069,9 @@ ${createPaletteVariables("mocha")}
     > div:last-child {
     color: var(--zb-text-subtle) !important;
   }
+`;
 
-  html[data-zb-theme] blockquote {
+  const LOADING_FEEDBACK_COMPONENT_STYLE = `  html[data-zb-theme] blockquote {
     border-color: var(--ctp-lavender) !important;
     color: var(--zb-text-muted) !important;
   }
@@ -10249,9 +5096,7 @@ ${createPaletteVariables("mocha")}
     div:has(
       > .BounceLoading[style*="width: 60px"][style*="height: 18px"]
     ) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -10270,6 +5115,9 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-surface-raised) !important;
   }
 
+  html[data-zb-theme] .PlaceHolder-bg {${SKELETON_SHIMMER_STYLE}
+  }
+
   html[data-zb-theme] .QuestionPage .PlaceHolder,
   html[data-zb-theme] .QuestionPage .PlaceHolder-inner {
     background-color: var(--zb-surface) !important;
@@ -10278,22 +5126,6 @@ ${createPaletteVariables("mocha")}
   html[data-zb-theme] .QuestionPage .PlaceHolder {
     border-radius: 12px !important;
     overflow: hidden !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme] .QuestionPage .PlaceHolder-mask,
-  html[data-zb-theme] .QuestionPage .PlaceHolder-mask path {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme]
@@ -10332,7 +5164,4579 @@ ${createPaletteVariables("mocha")}
     background-color: var(--zb-page) !important;
     box-shadow: none !important;
   }
+`;
 
+  const MESSAGING_COMPONENT_STYLE = `  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    .Popover-arrow::after,
+  html[data-zb-theme] .Popover-content > .Popover-arrow::after {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .TooltipContent,
+  html[data-zb-theme] .TooltipContent.TooltipContent--white {
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .TooltipContent
+    :where(.TooltipContent-children, div, span, p, strong) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme] body .TooltipContent.TooltipContent--white,
+  html[data-zb-theme] body .TooltipContent.TooltipContent--white * {
+    ${TEXT_PAINT_STYLE}
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme] .TooltipContent .TooltipContent-arrow::after,
+  html[data-zb-theme]
+    .TooltipContent.TooltipContent--white
+    .TooltipContent-arrow::after {
+    background: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    :is(
+      .PushNotifications-menu,
+      .PushNotifications-content,
+      .PushNotifications-header,
+      .PushNotifications-list,
+      .PushNotifications-footer,
+      .Notifications-footer,
+      .Messages-menu,
+      .Messages-content,
+      .Messages-header,
+      .Messages-list,
+      .Messages-footer
+    ) {
+    ${SURFACE_TEXT_STYLE}
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-header, .Messages-header) {
+    border-bottom: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer) {
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-list, .Messages-list) {${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme] .PushNotifications-tab,
+  html[data-zb-theme] .Messages-tab {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-tab:hover,
+  html[data-zb-theme] .PushNotifications-tab:focus-visible,
+  html[data-zb-theme] .Messages-tab:hover,
+  html[data-zb-theme] .Messages-tab:focus-visible {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .PushNotifications-selectedTabIcon {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item,
+  html[data-zb-theme] .Messages-item {
+    background-color: transparent !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item::after,
+  html[data-zb-theme] .Messages-item::after {
+    background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item:hover,
+  html[data-zb-theme] .PushNotifications-item:focus-visible,
+  html[data-zb-theme] .Messages-item:hover,
+  html[data-zb-theme] .Messages-item:focus-visible {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .Messages-newItem {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-actor,
+  html[data-zb-theme] .Messages-userName,
+  html[data-zb-theme] .Messages-userName a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item a {
+    color: var(--zb-primary) !important;
+    text-decoration-color: transparent !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme] .PushNotifications-item a:hover,
+  html[data-zb-theme] .PushNotifications-item a:focus-visible {
+    color: var(--zb-primary-hover) !important;
+    text-decoration-color: currentColor !important;
+  }
+
+  html[data-zb-theme] .Messages-itemContent {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
+    :is(a.Button, button.Button) {
+    background-color: transparent !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    :is(.PushNotifications-menuContainer, .Messages-menuContainer)
+    :is(.PushNotifications-footer, .Notifications-footer, .Messages-footer)
+    :is(a.Button, button.Button):hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme] .Messages-menuContainer .Messages-footer {
+    box-sizing: border-box !important;
+    min-height: 52px !important;
+    height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    flex: 1 1 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 6px !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:first-child:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-primary) 20%,
+      var(--zb-surface)
+    ) !important;
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:last-child:hover {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Messages-menuContainer
+    .Messages-footer
+    > button.Button:focus-visible {
+    border-color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .ChatWrapper > .Chat {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatSideBar {
+    background-color: var(--zb-surface) !important;
+    border-right: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(.ChatSideBar-Search, .ChatListGroup, .ChatListGroup-Section) {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-Input
+    input {
+    box-sizing: border-box !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-Input:focus-within
+    input {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatSideBar-SearchIcon {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionTitle {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatListGroup-SectionContent {${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatUserListItem {
+    box-sizing: border-box !important;
+    width: calc(100% - 16px) !important;
+    margin: 4px 8px !important;
+    padding: 11px 12px !important;
+    background-color: transparent !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatUserListItem::after,
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatListGroup-SectionTitle--bottomBorder::after,
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatListGroup-SectionTitle--topBorder::before {
+    display: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:focus-within {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(
+      .is-active,
+      .ChatUserListItem--active,
+      [aria-selected="true"]
+    ) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .ChatUserListItem-Content {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding-right: 34px !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .Chat-ActionMenuPopover-Button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 30px !important;
+    width: 30px !important;
+    height: 30px !important;
+    right: 6px !important;
+    padding: 0 !important;
+    background-image: none !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem:is(
+      :hover,
+      :focus-within,
+      .is-active,
+      .ChatUserListItem--active,
+      [aria-selected="true"]
+    )
+    .Chat-ActionMenuPopover-Button {
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    background-image: none !important;
+    color: var(--zb-text) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    :is(.userName, .userName-nameArea) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatUserListItem
+    :is(time, .ChatUserListItem-Snippet) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatBox-empty {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .ChatBox-emptyImage path {
+    fill: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search--active {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap
+    .ChatUserListItem {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .ChatSideBar-Search-ResultListWrap
+    .ChatUserListItem:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu {
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:first-child {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      transparent
+    ) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme][data-zb-messages-page="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 20%,
+      transparent
+    ) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(.Chat-ChatBox, .MessagesBox, .InputBox) {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .Chat .Chat-ChatBox > header {
+    ${SECTION_HEADER_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .Chat .MessagesBox {${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button {
+    background-image: none !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible, :active) {
+    background-color: var(--zb-surface-hover) !important;
+    background-image: none !important;
+    color: var(--zb-text) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    .Chat-ActionMenuPopover-Button
+    :where(svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert.ChatBox-alert {
+    box-sizing: border-box !important;
+    width: min(488px, calc(100% - 32px)) !important;
+    min-height: 50px !important;
+    padding: 10px 12px 10px 16px !important;
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      var(--zb-surface-raised)
+    ) !important;
+    border: 1px solid var(--zb-danger) !important;
+    border-radius: 8px !important;
+    color: var(--zb-danger) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-message {
+    min-width: 0 !important;
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-icon {
+    box-sizing: border-box !important;
+    flex: 0 0 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+    padding: 5px !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+    cursor: pointer !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .AbnormalAlert
+    .AbnormalAlert-icon:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    color: var(--zb-danger) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage::before {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage > :first-child {
+    background-color: var(--zb-surface) !important;
+    border-bottom: 1px solid var(--zb-border-strong) !important;
+    box-shadow: none !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    svg {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    > :last-child {
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :first-child
+    > :last-child:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .CardMessage > :last-child {
+    display: grid !important;
+    gap: 2px !important;
+    padding: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div,
+  html[data-zb-theme] .App-main .Chat .IconListMessage > div {
+    background-color: transparent !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div {
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div
+    :where(div, span),
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .CardMessage
+    > :last-child
+    > div:focus-visible,
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .IconListMessage > div {
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .IconListMessage > div > img {
+    clip-path: inset(0 -32px 0 100%) !important;
+    filter: drop-shadow(32px 0 0 var(--zb-primary)) !important;
+    transform: translateX(-32px) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div:is(:hover, :focus-visible)
+    > img {
+    filter: drop-shadow(32px 0 0 var(--zb-primary-hover)) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .IconListMessage
+    > div
+    :where(svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24) {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div {
+    background-color: transparent !important;
+    border: 0 !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div
+    > div {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 999px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    > div
+    > div
+    :where(div, span, svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .Chat-ChatBox
+    > div:has(.ZDI--ChatBubbleTwo24)
+    .ZDI--ChatBubbleTwo24 {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox-input {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    padding: 0 14px !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox > .ToolBar {
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .InputBox-footer {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 51px !important;
+    padding: 9px 16px 10px !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .InputBox
+    :is(textarea, input, [contenteditable="true"]) {
+    box-sizing: border-box !important;
+    padding: 10px 12px !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .InputBox
+    :is(textarea, input, [contenteditable="true"]):focus {
+    border-color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .App-main .Chat .TextMessage {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 10px !important;
+    ${TEXT_PAINT_STYLE}
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    .TextMessage.TextMessage-receiver {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+  }
+
+  html[data-zb-theme] .App-main .Chat .MessagesBox .css-1oxfz4p {
+    box-sizing: border-box !important;
+    max-width: calc(100% - 32px) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    ${MUTED_TEXT_PAINT_STYLE}
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .App-main
+    .Chat
+    :is(time, .Message-status, .InputBox-footerDesc) {
+    ${MUTED_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme] .ChatBoxModal > div:has(> .Modal-content) {
+    box-sizing: border-box !important;
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(.Modal-content, .Chat-ChatBox, .MessagesBox, .InputBox) {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox > header {
+    ${SECTION_HEADER_STYLE}
+  }
+
+  html[data-zb-theme] .ChatBoxModal .MessagesBox {${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme] .ChatBoxModal .TextMessage {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 10px !important;
+    ${TEXT_PAINT_STYLE}
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage.TextMessage-receiver {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--zb-primary) 38%,
+      var(--zb-border)
+    ) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage
+    :where(div, span, p, strong, em) {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .TextMessage a {
+    ${PRIMARY_TEXT_PAINT_STYLE}
+    text-decoration-color: transparent !important;
+    text-underline-offset: 2px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .TextMessage
+    a:is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+    -webkit-text-fill-color: var(--zb-primary-hover) !important;
+    text-decoration-color: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(time, .Message-status, .InputBox-footerDesc) {
+    ${MUTED_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme] .ChatBoxModal .InputBox-input {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(textarea, input, [contenteditable="true"]) {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(textarea, input, [contenteditable="true"]):focus {
+    border-color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .Emoticons.EmoticonTool-panel {
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    :is(.Emoticons-panelContainer, .EmoticonPanel) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPanel-item {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPanel-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Emoticons.EmoticonTool-panel .EmoticonsFooter {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item--selected {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonsFooter-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPagination-bullet {
+    background-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .Emoticons.EmoticonTool-panel
+    .EmoticonPagination-bullet--active {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ActionMenuPopover-Button {
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ActionMenuPopover-Button:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu {
+    background-color: var(--zb-surface) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    background-color: transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:first-child {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 12%,
+      transparent
+    ) !important;
+    color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    body[data-zb-chat-modal-open="true"]
+    [data-zb-action-menu-popover]
+    > .ActionMenu
+    > .ActionMenu-item:first-child:is(:hover, :focus-visible) {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-danger) 20%,
+      transparent
+    ) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal .Chat-ChatBox:has(.Checkbox-input) {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > header {
+    flex: 0 0 50px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > div:has(.MessagesBox) {
+    min-height: 0 !important;
+    height: auto !important;
+    flex: 1 1 auto !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .MessagesBox {
+    height: 100% !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child {
+    box-sizing: border-box !important;
+    min-height: 88px !important;
+    height: 88px !important;
+    flex: 0 0 88px !important;
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24) {
+    width: 72px !important;
+    height: 72px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24)
+    > div:first-child {
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24)
+    > div:last-child {
+    height: 20px !important;
+    line-height: 20px !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--ExclamationTriangle24):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--Xmark24) {
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    > :last-child
+    > button:has(.ZDI--Xmark24):is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .Checkbox {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    .Chat-ChatBox:has(.Checkbox-input)
+    .Checkbox:has(.Checkbox-input:checked) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .ChatBoxModal-closeButton {
+    border-radius: 8px !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal-closeButton:is(:hover, :focus-visible) {${RAISED_TEXT_STYLE}
+    ${PRIMARY_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .ChatBoxModal
+    :is(.ChatBoxModal-closeButton, .Chat-ActionMenuPopover-Button)
+    :where(svg, path),
+  html[data-zb-theme]
+    .ChatBoxModal-closeButton
+    :where(svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+`;
+
+  const OVERLAYS_COMPONENT_STYLE = `  html[data-zb-theme] div:has(> .Modal-content) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    border-radius: 10px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Modal .Topbar {
+    background-color: var(--zb-surface) !important;
+    border-bottom-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    div:has(> .Modal-content > .VoterList) {
+    box-sizing: border-box !important;
+    ${CARD_FRAME_STYLE}
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Modal-content:has(> .VoterList) {
+    background-color: var(--zb-surface) !important;
+    border-radius: inherit !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .VoterList > .Topbar {
+    ${SECTION_HEADER_STYLE}
+  }
+
+  html[data-zb-theme] .VoterList-content {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(
+      .Skeleton,
+      [class*="skeleton" i],
+      .PlaceHolder,
+      .PlaceHolder-inner,
+      [class*="placeholder" i],
+      [class*="loading" i],
+      [aria-busy="true"]
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    img.Avatar:is(:not([src]), [src=""]) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content .List-item {
+    background-color: transparent !important;
+    transition: background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .List-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content .List-item::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.ContentItem-title, .UserItem-title, .UserLink-link) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    :is(.ContentItem-meta, .ContentItem-statusItem) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .VoterList-content img.Avatar {
+    background-color: var(--zb-surface-raised) !important;
+    border-radius: 50% !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey {
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .VoterList-content
+    .FollowButton.Button--grey:is(:hover, :focus-visible)
+    :where(span, svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div + div > .SendGiftModal-GiftListWrapper),
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper) {
+    ${TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
+    > button {
+    ${MUTED_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-RedpacketListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-RedpacketListWrapper)
+    > button:is(:hover, :focus-visible) {
+    ${PRIMARY_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .Modal-content
+    > div
+    > div:has(+ div > .SendGiftModal-GiftListWrapper),
+  html[data-zb-theme]
+    .Modal:has(.SendGiftModal-GiftListWrapper)
+    .SendGiftModal-GiftListWrapper
+    > div
+    > div:last-child {
+    ${MUTED_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-GiftListWrapper
+    > div
+    > div:not(:last-child),
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-RedpacketListWrapper
+    > div
+    > div,
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:not(:last-child)
+    :where(div, span) {
+    ${TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal
+    .SendGiftModal-RedpacketListWrapper
+    > div:not(:empty) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:not(:last-child) {
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:first-child
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:nth-child(2)
+    span,
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:last-child {
+    ${MUTED_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(> button):last-child
+    > div:first-child {
+    ${TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    a[href*="/grapp/protocol/payment"] {
+    ${PRIMARY_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(> button):last-child
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    ):has(a[href*="/grapp/protocol/payment"])
+    .Modal-content
+    > div
+    > div:has(a[href*="/grapp/protocol/payment"])
+    > div:first-child
+    > div:last-child {
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(
+      :is(
+        .SendGiftModal-GiftListWrapper,
+        .SendGiftModal-RedpacketListWrapper
+      )
+    )
+    .Modal-closeIcon {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    .Modal-content
+    > div
+    > div:nth-child(2),
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    input[placeholder="0"] {
+    ${TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder="0"])
+    input[placeholder="0"]::placeholder {
+    color: var(--zb-text-subtle) !important;
+    -webkit-text-fill-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Modal-inner {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal :is(.Modal-title, .Favlists-itemNameText) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    :is(.Modal-subtitle, .Favlists-itemContent, .Favlists-itemIcon) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-items {${THIN_SCROLLBAR_STYLE}
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-item {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px 10px !important;
+    background-color: transparent !important;
+    border-bottom-color: var(--zb-border) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-item:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemInner {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemName {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-itemNameText {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-updateButton {
+    flex: 0 0 76px !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-updateButton.Button--blue,
+  html[data-zb-theme] .FavlistsModal .Favlists-addButton {
+    background-color: var(--zb-primary) !important;
+    border-color: var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    :is(.Favlists-updateButton.Button--blue, .Favlists-addButton):hover {
+    ${PRIMARY_BUTTON_HOVER_STYLE}
+  }
+
+  html[data-zb-theme] .FavlistsModal .Favlists-actions {
+    background-color: var(--zb-surface) !important;
+    border-top-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .FavlistsModal .Modal-closeButton {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Modal-closeButton:is(:hover, :focus-visible) {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey {
+    position: relative !important;
+    border-radius: 6px !important;
+    ${RAISED_MUTED_CONTROL_STYLE}
+  }
+
+  html[data-zb-theme]
+    body
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:is(:hover, :focus-visible)::after {
+    content: "取消收藏" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-danger) !important;
+    -webkit-text-fill-color: var(--zb-danger) !important;
+    font-size: 14px !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .FavlistsModal
+    .Favlists-updateButton.Button--grey:focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
+  }
+
+  html[data-zb-theme] [data-zb-arrow-action-panel-wrapper] {
+    background-color: transparent !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme] [data-zb-arrow-action-panel] {
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    > div:nth-child(2) {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    > div:first-child
+    span {
+    ${TEXT_PAINT_STYLE}
+    font-weight: 600 !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    > div:nth-child(3)
+    button {
+    ${PRIMARY_TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    button {
+    box-sizing: border-box !important;
+    min-width: max-content !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-arrow-action-panel]
+    :is(svg, path) {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .WriteArea,
+  html[data-zb-theme] .Topstory-mainColumnCard {
+    background-clip: padding-box !important;
+    border-radius: 12px !important;
+  }
+
+${MESSAGING_COMPONENT_STYLE}
+  html[data-zb-theme] .Topstory-mainColumnCard {
+    overflow: hidden !important;
+    overflow: clip !important;
+  }
+
+  html[data-zb-theme] .TopstoryItem,
+  html[data-zb-theme] .ContentItem,
+  html[data-zb-theme] .List-item,
+  html[data-zb-theme] .Menu-item,
+  html[data-zb-theme] .Menu-divider {
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] h1,
+  html[data-zb-theme] h2,
+  html[data-zb-theme] h3,
+  html[data-zb-theme] h4,
+  html[data-zb-theme] h5,
+  html[data-zb-theme] h6,
+  html[data-zb-theme] .ContentItem-title,
+  html[data-zb-theme] .AuthorInfo-name,
+  html[data-zb-theme] .RichContent,
+  html[data-zb-theme] .RichText {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .TopstoryItem .RichContent-inner,
+  html[data-zb-theme] .TopstoryItem .RichContent-inner .RichText {
+    color: var(--zb-text-secondary) !important;
+  }
+
+  html[data-zb-theme] .ContentItem-meta,
+  html[data-zb-theme] .ContentItem-time,
+  html[data-zb-theme] .AuthorInfo-badgeText,
+  html[data-zb-theme] .RichContent-actions,
+  html[data-zb-theme] .Button:not(.Button--blue):not(.VoteButton) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] a:hover,
+  html[data-zb-theme] .ContentItem-title a:hover,
+  html[data-zb-theme] .RichText a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Button:not(.Button--blue):not(.VoteButton):hover,
+  html[data-zb-theme] .Menu-item:hover {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .Popover-content .Menu > .Menu-item {
+    box-sizing: border-box !important;
+    width: calc(100% - 12px) !important;
+    margin-right: 6px !important;
+    margin-left: 6px !important;
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content
+    .Menu
+    > .Menu-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .Editable-languageSuggestions,
+  html[data-zb-theme] .Editable-languageSuggestions .Popover-content,
+  html[data-zb-theme] .Editable-languageSuggestionsMenu,
+  html[data-zb-theme] .TopicSuggestion-Popover,
+  html[data-zb-theme] .TopicSuggestion-Popover-container {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .Editable-languageSuggestions .Menu-item,
+  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme] .TopicSuggestion-TopicItem,
+  html[data-zb-theme] .TopicSuggestion-TopicItem .topic-name {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .TopicSuggestion-TopicItem .pin-count {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .TopicSuggestion-TopicItem .new-topic {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer,
+  html[data-zb-theme] .MentionSuggestions-menu {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .AutoComplete-DefaultItem,
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserItem,
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserDetail {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:hover,
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item:focus,
+  html[data-zb-theme] .TopicInputAlias-suggestionContainer .Menu-item.is-active,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:hover,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item:focus,
+  html[data-zb-theme] .MentionSuggestions-menu .Menu-item.is-active {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserName {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserHeadline {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .MentionSuggestions-menu .AutoComplete-UserSocialTag {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-languageSuggestions .Menu-item:hover,
+  html[data-zb-theme] .Editable-languageSuggestions .Menu-item.is-active,
+  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item:hover,
+  html[data-zb-theme] .TopicSuggestion-Popover .Menu-item.is-active {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .EmoticonPopover {
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 8px !important;
+    color: var(--zb-text) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .EmoticonPopover > svg {
+    fill: var(--zb-surface) !important;
+    color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:first-child
+    li {
+    padding-block: 2px !important;
+    padding-inline: 3px !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul
+    > li {
+    background-color: transparent !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .EmoticonPopover
+    > div:last-child
+    > div:last-child
+    > ul
+    > .css-1c21y8s {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme] .EmoticonPopover li:hover,
+  html[data-zb-theme] .EmoticonPopover li:focus-visible {
+    background-color: var(--zb-surface-hover) !important;
+    outline-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> button.Button--primary) {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> button.Button--primary)
+    :where(div, label, svg) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> button.Button--primary)
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    .Modal-content
+    > div
+    > div:last-child
+    > div:last-child:has(> button) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    .Modal-content
+    > div
+    > div:last-child
+    > div:last-child:has(> button)
+    > div,
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    .Modal-content
+    > div
+    > div:last-child
+    > div:last-child:has(> button)
+    > div
+    :where(div, span) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> input[placeholder="输入关键字查找图片"]) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> input[placeholder="输入关键字查找图片"]):focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    input[placeholder="输入关键字查找图片"] {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    input[placeholder="输入关键字查找图片"]
+    + button {
+    background-color: transparent !important;
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    input[placeholder="输入关键字查找图片"]
+    + button:hover {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.MaterialLibrary-SearchInputContainer)
+    div:has(> div > input[type="file"][multiple])
+    > div
+    > div:last-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder):is(
+      :hover,
+      :focus-within
+    ) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active {
+    ${SOFT_PRIMARY_STATE_STYLE}
+  }
+
+  html[data-zb-theme] .Modal .MaterialLibraryNav-Folder .nav-name {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder)
+    .nav-num {
+    min-width: 20px !important;
+    padding-inline: 6px !important;
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal
+    :is(.MaterialLibraryNav-Mine, .MaterialLibraryNav-Folder).active
+    .nav-num {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .ReferenceModal :is(.InputLike, .Select-button) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .ReferenceModal
+    :is(.InputLike, .Select-button):is(:hover, :focus, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    ) {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:first-child
+    :where(h1, h2, h3, p, div, span, label) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:first-child
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    > div:first-child,
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    > div:first-child
+    :where(div, span, label) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> div:first-child > h1):has(
+      > div:last-child button.Button--primary
+    )
+    > div:last-child
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    > div:first-child {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [dir="auto"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"] {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.Modal-content > div[class*="r-"])
+    .Modal-content
+    [tabindex="0"]
+    [dir="auto"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Modal:has(canvas[alt="二维码"]) .Modal-content div {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(canvas[alt="二维码"])
+    .Modal-content
+    > div
+    > div
+    > div
+    > div:first-child
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(canvas[alt="二维码"])
+    .Modal-content
+    > div
+    > div
+    > div
+    > div:first-child
+    > div:first-child
+    > div:last-child,
+  html[data-zb-theme]
+    .Modal:has(canvas[alt="二维码"])
+    .Modal-content
+    > div
+    > div
+    > div
+    > div:nth-last-child(2),
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:first-child,
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:has(> svg + div)
+    > svg
+    + div {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:has(> svg + div) {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:has(> svg + div)
+    > svg {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:last-child,
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:last-child
+    div {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(.VideoUploadButton-fileInput)
+    .Modal-content
+    > div:last-child
+    a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-inner,
+  html[data-zb-theme] .Editable-videoModal .Modal-content {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .Editable-videoModal-title,
+  html[data-zb-theme] .Editable-videoModal-uploader-text {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader:hover {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader-icon {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal-uploader-tip,
+  html[data-zb-theme] .Editable-videoModal .Modal-footer,
+  html[data-zb-theme] .Editable-videoModal .Modal-footer p {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-footer {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-footer a {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Editable-videoModal .Modal-closeButton {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .VoteTypeSelectorPopover,
+  html[data-zb-theme] .VoteTypeSelectorPopover > div > div {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:hover,
+  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:focus,
+  html[data-zb-theme] .VoteTypeSelectorPopover > div > div:focus-within {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .CommentSetting-submenuBox,
+  html[data-zb-theme] .RingSetting-submenuBox {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .CommentSetting-submenuBox > div {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme] .CommentSetting-submenuBox > div:hover,
+  html[data-zb-theme] .CommentSetting-submenuBox > div:focus,
+  html[data-zb-theme] .CommentSetting-submenuBox > div:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .CommentSetting-submenuBox .ZDI--Check24 {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox > div:first-child,
+  html[data-zb-theme] .RingSetting-submenuBox > div:nth-child(3) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox > div:first-child div {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox > div:first-child > div:first-child,
+  html[data-zb-theme] .RingSetting-submenuBox > div:nth-child(3) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox > div:first-child svg {
+    color: var(--zb-text-muted) !important;
+    fill: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme] .RingSetting-submenuBox .Input-wrapper input {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img) {
+    background-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img):hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img)
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img)
+    > div:nth-child(2)
+    > div:last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img)
+    > div:nth-child(2)
+    > div:first-child
+    > div:last-child {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .RingSetting-submenuBox
+    > div:last-child
+    > div
+    > div:has(> img)
+    > div:last-child {
+    ${SOFT_PRIMARY_STATE_STYLE}
+  }
+
+  html[data-zb-theme]
+    .VoteTypeSelectorPopover
+    > div
+    > div
+    > div:first-child
+    > div:last-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .VoteTypeSelectorPopover
+    > div
+    > div
+    > div:last-child:not(:first-child) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    .Modal-content
+    > div
+    > div:first-child {
+    background-color: transparent !important;
+    border: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    div:has(> input[type="text"]) {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding: 0 10px !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 4px !important;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    div:has(> input[type="text"]):focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    input[type="text"] {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    outline: 0 !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    input[type="text"]::placeholder {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    .Modal-content
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    div {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="PK 标题"], input[placeholder*="投票 标题"])
+    .Modal-content
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    svg {
+    color: var(--zb-text-muted) !important;
+    fill: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="投票 标题"])
+    div:has(> div > input[placeholder^="请填写选项"])
+    > div:first-child {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="投票 标题"])
+    div:has(> div > input[placeholder^="请填写选项"])
+    > div:first-child
+    div {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="投票 标题"])
+    .Modal-content
+    div:has(> svg.ZDI--Plus24 + div) {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="投票 标题"])
+    .Modal-content
+    div:has(> svg.ZDI--Plus24 + div):hover {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .Modal:has(input[placeholder*="投票 标题"])
+    .Modal-content
+    div:has(> svg.ZDI--Plus24 + div)
+    :where(svg, div) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover] {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+    scrollbar-color: var(--ctp-overlay0) transparent;
+  }
+
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
+    > svg {
+    color: var(--zb-surface) !important;
+    fill: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
+    > svg
+    + div
+    > div {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme][data-zb-poll-modal-open="true"]
+    [data-zb-poll-option-popover]
+    > svg
+    + div
+    > div:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+`;
+
+  const PIN_DETAIL_COMPONENT_STYLE = `  html[data-zb-theme] .PinItem .PinToolbar-actions {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a.LinkCard
+    :is(.LinkCard-title.loading, .LinkCard-desc.loading) {
+    background-color: var(--zb-surface-hover) !important;
+    border-radius: 4px !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    .ContentItem-actions
+    > .PinToolbar-actions {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: -10px 0 !important;
+    padding: 10px 0 !important;
+    background-color: transparent !important;
+    border-top: 0 !important;
+  }
+
+  html[data-zb-theme]
+    body
+    main
+    .PinDetail
+    .PinItem
+    .Comments-container
+    > div
+    > div:has(.InputLike.Editable) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding: 10px 0 !important;
+    padding-inline: 0 !important;
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .Comments-container
+    .InputLike.Editable {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme] .PinDetail .FollowButton.Button--grey {
+    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible) {
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .FollowButton.Button--grey:is(:hover, :focus-visible)
+    :where(span, svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+    -webkit-text-fill-color: var(--zb-danger) !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"] {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    color: var(--zb-primary) !important;
+    text-decoration: none !important;
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]
+    :where(div, span, svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme]
+    .PinDetail
+    .PinItem
+    a[href*="/ring/host/"]:is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
+  }
+`;
+
+  const QUESTION_CONTENT_COMPONENT_STYLE = `  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
+  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue):hover,
+  html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue):hover {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton),
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    :is(.FollowButton, .WriteAnswerButton) {
+    min-height: 34px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader .WriteAnswerButton,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    .WriteAnswerButton {${OUTLINED_PRIMARY_BUTTON_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    :is(.FollowButton, .WriteAnswerButton)
+    svg,
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    :is(.FollowButton, .WriteAnswerButton)
+    svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer-main {
+    column-gap: 12px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionButtonGroup .Button {
+    min-height: 34px !important;
+    margin: 0 !important;
+    font-size: 14px !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions {
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  html[data-zb-theme] .QuestionHeader-footer .QuestionHeaderActions > * {
+    margin: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button
+    svg,
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button
+    svg {
+    width: 16px !important;
+    height: 16px !important;
+    ${CURRENT_COLOR_ICON_STYLE}
+    flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeader-actions
+    > .Button
+    svg {
+    margin-left: 4px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button--iconOnly {
+    width: 34px !important;
+    padding: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button
+    svg {
+    margin-right: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader-footer
+    .QuestionHeaderActions
+    .Button--iconOnly
+    svg {
+    margin-right: 0 !important;
+  }
+
+  html[data-zb-theme] .PageHeader .QuestionHeader-title {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 32px !important;
+  }
+
+  html[data-zb-theme][data-zb-question-content-under-header="true"]
+    .AppHeader {
+    box-shadow:
+      0 10px 0 var(--zb-page),
+      var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme]
+    .PageHeader
+    .QuestionButtonGroup
+    :is(.FollowButton, .WriteAnswerButton)
+    svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-title,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item > a,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemText a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard {
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-heat {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item,
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-item {
+    box-sizing: border-box !important;
+    margin: 6px -8px !important;
+    padding: 6px 8px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .HotSearchCard-itemLink {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-itemLink:focus-visible {
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:hover
+    .HotSearchCard-itemText,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:hover
+    .HotSearchCard-itemText
+    :where(a, span),
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within
+    .HotSearchCard-itemText,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .HotSearchCard-item:focus-within
+    .HotSearchCard-itemText
+    :where(a, span) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 4px -8px !important;
+    padding: 6px 8px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 13px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    transition: background-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"] {
+    display: block !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: var(--zb-text) !important;
+    font-size: 14px !important;
+    line-height: 21px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    text-align: left !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
+    a[href^="/question/"] {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    [data-za-detail-view-path-module="RelatedQuestions"]
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within),
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    ):is(:hover, :focus-within)
+    > a[href^="/question/"],
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.RelatedQuestions, .SimilarQuestions-list)
+    a[href^="/question/"]:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(
+      .RelatedQuestions-item,
+      .RelatedQuestions-listItem,
+      .SimilarQuestions-item
+    )
+    > a[href^="/question/"]:focus-visible {
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.AnswerAuthor, .NumberBoard)
+    .NumberBoard-item {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-itemName {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor
+    .NumberBoard-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    :is(.AnswerAuthor, .NumberBoard)
+    .NumberBoard-item:hover
+    .NumberBoard-itemValue {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] {
+    background-color: var(--zb-surface) !important;
+    background-clip: padding-box !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] .Avatar {
+    top: -8px !important;
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-surface) !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-avatar-row] {
+    padding-bottom: 21px !important;
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-description {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] .UserLink-link {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .UserLink-link:is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-itemName {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-itemValue {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] .HoverCard-buttons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .HoverCard-buttons
+    .Button {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    border-radius: 6px !important;
+    flex: 1 1 0 !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme] [data-zb-hover-card] .NumberBoard-item {
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-item:hover {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .NumberBoard-item:focus-visible {
+    background-color: var(--zb-surface-raised) !important;
+    box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    .HoverCard-buttons
+    .Button:not(.FollowButton) {${OUTLINED_PRIMARY_BUTTON_STYLE}
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
+    > .Button.Button--grey {
+    position: relative !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
+    > .Button.Button--grey:is(:hover, :focus-visible) {
+    background-color: var(--zb-danger-soft) !important;
+    border-color: var(--zb-danger) !important;
+    color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    [data-zb-hover-card]
+    [data-zb-hover-card-single-action]
+    > .Button.Button--grey:is(:hover, :focus-visible)::after {
+    content: "取消关注" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--zb-danger) !important;
+    font-size: 14px !important;
+    line-height: normal !important;
+  }
+
+  html[data-zb-theme] .AnswerList .List-headerOptions .Button,
+  html[data-zb-theme] .AnswerList .Select-button {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .AnswerList .List-headerOptions .Button:hover,
+  html[data-zb-theme] .AnswerList .Select-button:hover {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    padding-inline: 12px !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    border-radius: 6px !important;
+    color: var(--zb-text-muted) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 32px !important;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button:hover,
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button:focus-visible,
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button[aria-expanded="true"] {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .AnswersNavWrapper
+    .List-headerOptions
+    .Select-button
+    svg {
+    width: 14px !important;
+    height: 14px !important;
+    margin-left: 6px !important;
+    ${CURRENT_COLOR_ICON_STYLE}
+    flex: 0 0 14px !important;
+  }
+
+  html[data-zb-theme] .Select-option {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .Select-option:hover,
+  html[data-zb-theme] .Select-option.is-selected,
+  html[data-zb-theme] .Select-option[aria-selected="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn {
+    min-width: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    :is(.AnswerCard, .ViewAll, .MoreAnswers) {
+    background-clip: padding-box !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .ViewAll
+    :is(a, .Button) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .ViewAll
+    :is(a, .Button):is(:hover, :focus-visible) {
+    color: var(--zb-primary-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button,
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
+    box-sizing: border-box !important;
+    min-height: 28px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
+    font-size: 14px !important;
+    line-height: 22px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button {
+    display: block !important;
+    width: max-content !important;
+    margin: 8px auto 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button:is(:hover, :focus-visible),
+  html[data-zb-theme]
+    body
+    .QuestionPage
+    .AnswerItem
+    .ContentItem-expandButton.Button:is(:hover, :focus-visible) {
+    ${SOFT_PRIMARY_STATE_STYLE}
+    -webkit-text-fill-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText--collapsed:is(:hover, :focus-within) {
+    ${TEXT_PAINT_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionHeader
+    .QuestionRichText-more.Button
+    svg {
+    width: 16px !important;
+    height: 16px !important;
+    margin-left: 4px !important;
+    ${CURRENT_COLOR_ICON_STYLE}
+    flex: 0 0 16px !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .VoteButton {
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
+  html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-header {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 50px !important;
+    margin: 0 0 10px !important;
+    padding: 0 20px !important;
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item {
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+    ${CARD_FRAME_STYLE}
+    box-shadow: var(--zb-shadow) !important;
+    overflow: hidden !important;
+    overflow: clip !important;
+    transition: border-color 0.16s ease !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item:hover {
+    border-color: var(--zb-border-strong) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .AnswersNavWrapper
+    .List-item::after {
+    display: none !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-header {
+    margin-bottom: 8px !important;
+  }
+
+  html[data-zb-theme] .Question-mainColumn .MoreAnswers .List-headerText {
+    background-color: var(--zb-surface) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-mainColumn
+    .MoreAnswers
+    :is(.List-header, .List-item)::after,
+  html[data-zb-theme] .Question-sideColumn .AnswerAuthor .Card-section::after {
+    border-bottom-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerItem-authorInfo, .AnswerAuthor-buttons)
+    .FollowButton {
+    min-height: 34px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    .AnswerAuthor-buttons
+    .Button:not(.FollowButton) {
+    min-height: 34px !important;
+    background-color: transparent !important;
+    border-color: var(--zb-primary) !important;
+    border-radius: 6px !important;
+    color: var(--zb-primary) !important;
+    font-weight: 500 !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    > div[style*="position: sticky"][style*="overflow: auto"] {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    > div[style*="position: sticky"][style*="overflow: auto"]::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn :is(.Footer, footer) {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    color: var(--zb-text-muted) !important;
+    overflow-x: hidden !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .Footer a,
+  html[data-zb-theme] .Question-sideColumn .Footer-item,
+  html[data-zb-theme] .Question-sideColumn .Footer-copyright,
+  html[data-zb-theme] .Question-sideColumn .Footer-certificate,
+  html[data-zb-theme] .Question-sideColumn .Footer-zhihuIntegrity {
+    max-width: 100% !important;
+    color: var(--zb-text-muted) !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn .Footer a:hover,
+  html[data-zb-theme] .Question-sideColumn .Footer a:focus-visible,
+  html[data-zb-theme]
+    .Question-sideColumn
+    .Footer
+    a:is(:hover, :focus-visible)
+    :where(span, svg),
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    a:is(:hover, :focus-visible)
+    :where(span, svg) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button, div, span, p, svg) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .Question-sideColumn footer :where(a, button):hover {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button):is(:hover, :focus-visible),
+  html[data-zb-theme]
+    .Question-sideColumn
+    footer
+    :where(a, button):is(:hover, :focus-visible)
+    :where(span, div, svg) {
+    color: var(--zb-primary) !important;
+  }
+`;
+
+  const QUESTION_EDITOR_COMPONENT_STYLE = `  html[data-zb-theme] .QuestionPage .AnswerFormPortalContainer,
+  html[data-zb-theme] .QuestionPage .QuestionAnswers-statusWrapper,
+  html[data-zb-theme] .QuestionPage .AnswerAdd,
+  html[data-zb-theme] .QuestionPage .AnswerForm,
+  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer,
+  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .QuestionPage .AnswerFormEditorContainer {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    > div:first-child
+    > div:first-child {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    > div:first-child
+    > div:first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title {
+    color: var(--zb-text-subtle) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title
+    > div {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-radius: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title:is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title::before {
+    background-color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer
+    .Catalog
+    .Catalog-Title:is(:hover, :focus-within)::before {
+    background-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer:has(.Catalog)
+    .toolbarV3
+    .ToolbarButton:has(.ZDI--Catalog24) {
+    ${SOFT_PRIMARY_STATE_STYLE}
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormPortalContainer:has(.Catalog)
+    .toolbarV3
+    .ToolbarButton:has(.ZDI--Catalog24)
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:first-child {
+    ${SECTION_HEADER_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:first-child
+    :where(div, span, button, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .QuestionAnswers-answerAdd
+    > .AnswerAdd
+    > div:nth-child(2) {${SURFACE_TEXT_ONLY_STYLE}
+  }
+
+  html[data-zb-theme] .QuestionPage .toolbarV3,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Sticky, .Editable-toolbar) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarButton,
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Editable-control, .Button:not(.Button--blue)) {
+    background-color: transparent !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarButton:hover,
+  html[data-zb-theme] .QuestionPage .ToolbarButton:focus-visible,
+  html[data-zb-theme] .QuestionPage .ToolbarButton.is-active,
+  html[data-zb-theme] .QuestionPage .ToolbarButton[aria-pressed="true"],
+  html[data-zb-theme]
+    .QuestionPage
+    :is(.AnswerFormPortalContainer, .AnswerForm)
+    :is(.Editable-control, .Button:not(.Button--blue)):hover {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .QuestionPage .ToolbarDivider {
+    background-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .ToolbarV3Menu-container
+    .Button
+    > span:last-child {
+    padding: 2px 6px !important;
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor.InputLike.Editable,
+  html[data-zb-theme] .QuestionPage .AnswerForm-editor {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {${TRANSPARENT_TEXT_STYLE}
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerForm-editor
+    :is(.public-DraftEditorPlaceholder-root, .public-DraftEditorPlaceholder-inner) {
+    color: var(--zb-text-subtle) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AnswerFormEditorContainer
+    > div:has([role="combobox"]) {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container,
+  html[data-zb-theme] .QuestionPage .AIAssistantPanelV2-container > div {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div
+    > div:first-child
+    :where(div, span, svg) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div
+    > :last-child {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:first-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:first-child
+    :where(div, span, button, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2) {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    color: var(--zb-text) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    :where(div, span, svg, button) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    button {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:first-child
+    button:is(:hover, :focus-visible) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(2) {
+    padding: 8px 10px !important;
+    background-color: var(--zb-surface) !important;
+    border-left: 3px solid var(--zb-primary) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    > div {
+    background-color: var(--zb-surface-hover) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    > div:is(:hover, :focus-within) {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(3)
+    img {
+    border-radius: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:has(
+      :is(
+        .CircleLoadingBar,
+        img[src*="editor_ai_image"],
+        .ZDI--ExclamationCircle24
+      )
+    )
+    > div:nth-child(2)
+    > div:first-child
+    > div:nth-child(4)
+    > div {
+    padding: 2px 6px !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    .CircleLoadingBar
+    .path {
+    stroke: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:nth-child(2) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    > div
+    > div:first-child
+    > div:last-child
+    > div:is(:hover, :focus-within) {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> div > textarea[placeholder="请描述你想要配图的内容"])
+    > div:first-child {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-primary) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"]) {
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
+    color: var(--zb-text) !important;
+    border-radius: 10px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(
+      > textarea[placeholder="请描述你想要配图的内容"]
+    ):focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    textarea[placeholder="请描述你想要配图的内容"] {${TRANSPARENT_TEXT_STYLE}
+    caret-color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    textarea[placeholder="请描述你想要配图的内容"]::placeholder {
+    color: var(--zb-text-subtle) !important;
+    opacity: 1 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    [role="button"][aria-label^="选择"] {
+    background-color: var(--zb-primary-soft) !important;
+    border: 1px solid transparent !important;
+    color: var(--zb-primary) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    [role="button"][aria-label^="选择"]:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    border-color: var(--zb-primary) !important;
+    color: var(--zb-primary-hover) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"])
+    > div:last-child
+    > div:last-child
+    > div {${PRIMARY_BUTTON_STYLE}
+    border-radius: 6px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .AIAssistantPanelV2-container
+    div:has(> textarea[placeholder="请描述你想要配图的内容"])
+    > div:last-child
+    > div:last-child
+    > div
+    > div {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content:has(.Menu-item > div > div:first-child:empty)
+    .Menu-item
+    > div
+    > div:last-child {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .Popover-content:has(.Menu-item > div > div:first-child:empty)
+    .Menu-item:is(:hover, :focus-visible)
+    > div
+    > div:last-child {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-main {
+    ${SURFACE_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-side {
+    border-right: 1px solid var(--zb-border) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-title,
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-versionDate {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .DraftHistory-history
+    > div:not(:empty):is(:hover, :focus-within) {
+    background-color: var(--zb-surface-hover) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .DraftHistory-history
+    .DraftHistory-versionDate[style*="rgb(23, 114, 246)"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-draft {
+    background-color: var(--zb-page) !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .PreviewEditableInstance.InputLike.Editable {
+    ${RAISED_CONTROL_SURFACE_STYLE}
+    color: var(--zb-text) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme]
+    .DraftHistoryModal
+    .PreviewEditableInstance
+    :is(.Editable-content, .DraftEditor-root, .DraftEditor-editorContainer, .public-DraftEditor-content) {${TRANSPARENT_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .DraftHistoryModal .DraftHistory-actions {
+    background-color: var(--zb-surface) !important;
+    border-top: 1px solid var(--zb-border) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc {
+    background-color: var(--zb-surface) !important;
+    border: 1px solid var(--zb-border) !important;
+    color: var(--zb-text) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc > div {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    :where(div, h1, h2, h3, p, span) {
+    background-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    :where(h1, h2, h3, p, div, span, svg) {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] .QuestionPage .EditorHelpDoc button {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 999px !important;
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    button:is(:hover, :focus, :focus-visible) {
+    ${SOFT_PRIMARY_STATE_STYLE}
+  }
+
+  html[data-zb-theme]
+    .QuestionPage
+    .EditorHelpDoc
+    div:has(> svg.ZDI)
+    > div:nth-child(n + 3) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+    border-radius: 4px !important;
+  }
+`;
+
+  const paletteVariables = Object.fromEntries(
+    Object.entries(PALETTE_HEX).map(([flavor, colors]) => [
+      flavor,
+      colors
+        .split(",")
+        .map((color) => color.split(":"))
+        .map(([name, hex]) => `    --ctp-${name}: ${hex};`)
+        .join("\n"),
+    ]),
+  );
+
+  const createPaletteVariables = (name) => paletteVariables[name];
+
+  const createFlavorRule = (name) => `
+  html[data-zb-theme="${name}"] {
+${createPaletteVariables(name)}
+    color-scheme: ${name === "latte" ? "light" : "dark"};
+  }`;
+
+  const flavorRules$1 = FLAVOR_NAMES.map(createFlavorRule).join("\n");
+
+  const CATPPUCCIN_THEME_STYLE = `
+${flavorRules$1}
+
+  html[data-zb-theme="system"] {
+${createPaletteVariables("latte")}
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html[data-zb-theme="system"] {
+${createPaletteVariables("mocha")}
+      color-scheme: dark;
+    }
+  }
+
+  html[data-zb-theme] {
+    --zb-page: var(--ctp-mantle);
+    --zb-surface: var(--ctp-base);
+    --zb-surface-raised: var(--ctp-surface0);
+    --zb-surface-hover: var(--ctp-surface1);
+    --zb-border: var(--ctp-surface0);
+    --zb-border-strong: var(--ctp-surface1);
+    --zb-text: var(--ctp-text);
+    --zb-text-secondary: var(--ctp-subtext1);
+    --zb-text-muted: var(--ctp-subtext0);
+    --zb-text-subtle: var(--ctp-overlay0);
+    --zb-primary: var(--ctp-blue);
+    --zb-primary-hover: var(--ctp-sapphire);
+    --zb-primary-soft: color-mix(in srgb, var(--ctp-blue) 16%, transparent);
+    --zb-danger: var(--ctp-red);
+    --zb-danger-soft: color-mix(in srgb, var(--ctp-red) 14%, transparent);
+    --zb-success: var(--ctp-green);
+    --zb-warning: var(--ctp-peach);
+    --zb-shadow: 0 1px 3px color-mix(in srgb, var(--ctp-crust) 28%, transparent);
+    background: var(--zb-page) !important;
+    scrollbar-color: var(--ctp-overlay0) var(--zb-page);
+  }
+
+  html[data-zb-theme] body,
+  html[data-zb-theme] #root,
+  html[data-zb-theme] .App-main,
+  html[data-zb-theme] .Topstory-body {
+    background-color: var(--zb-page) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme] ::selection {
+    background: var(--ctp-lavender) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+  html[data-zb-theme] :focus-visible {
+    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme] .AppHeader,
+  html[data-zb-theme] .AppHeader-inner,
+  html[data-zb-theme] .Sticky.is-fixed {${SURFACE_TEXT_ONLY_STYLE}
+    border-color: var(--zb-border) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .AppHeader a,
+  html[data-zb-theme] .AppHeader button,
+  html[data-zb-theme] .AppHeader svg,
+  html[data-zb-theme] .AppHeader-Tabs a {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme] .AppHeader a:hover,
+  html[data-zb-theme] .AppHeader button:hover,
+  html[data-zb-theme] .AppHeader-Tab--active a,
+  html[data-zb-theme] .AppHeader-Tabs a[aria-current="page"] {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-searchButton
+    .SearchBar-searchIcon {
+    color: var(--zb-text-muted) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-searchButton
+    .SearchBar-searchIcon.isFocus {
+    color: var(--zb-primary) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-input--focus
+    .SearchBar-searchButton {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  html[data-zb-theme]
+    .AppHeader
+    .SearchBar-askDropdownButton
+    .ZDI--PlusFill24 {
+    color: var(--ctp-crust) !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme] .SearchBar-menu .Menu-item:hover,
+  html[data-zb-theme] .SearchBar-menu .Menu-item.is-active,
+  html[data-zb-theme] .SearchBar-menu .Menu-item:focus,
+  html[data-zb-theme] .SearchBar-menu .Menu-item:focus-within {${RAISED_TEXT_STYLE}
+  }
+
+  html[data-zb-theme] .SearchBar-input,
+  html[data-zb-theme] .Input-wrapper,
+  html[data-zb-theme] input,
+  html[data-zb-theme] textarea,
+  html[data-zb-theme] select,
+  html[data-zb-theme] [contenteditable="true"] {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text) !important;
+    caret-color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] input::placeholder,
+  html[data-zb-theme] textarea::placeholder,
+  html[data-zb-theme] [contenteditable="true"]:empty::before {
+    color: var(--zb-text-subtle) !important;
+  }
+
+${EDITOR_FOUNDATION_COMPONENT_STYLE}
+  html[data-zb-theme] .Card,
+  html[data-zb-theme] .TopstoryItem,
+  html[data-zb-theme] .Topstory-mainColumnCard,
+  html[data-zb-theme] .Topstory-mainColumnCard > div,
+  html[data-zb-theme] .WriteArea,
+  html[data-zb-theme] .HotSearchCard,
+  html[data-zb-theme] .CreatorEntrance,
+  html[data-zb-theme] .KfeCollection-CreateSaltCard,
+  html[data-zb-theme] .Modal-inner,
+  html[data-zb-theme] .Popover-content,
+  html[data-zb-theme] .Menu,
+  html[data-zb-theme] .Dropdown-menu,
+  html[data-zb-theme] .Select-list,
+  html[data-zb-theme] .AutoComplete-menu {
+    ${SURFACE_TEXT_STYLE}
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] :is(.Card, .HotSearchCard) {
+    box-sizing: border-box !important;
+    border: 1px solid var(--zb-border) !important;
+    border-radius: 12px !important;
+  }
+
+
+${OVERLAYS_COMPONENT_STYLE}
+  html[data-zb-theme] .Button--blue {${PRIMARY_BUTTON_STYLE}
+  }
+
+  html[data-zb-theme] .Button--blue:hover {${PRIMARY_BUTTON_HOVER_STYLE}
+  }
+
+  html[data-zb-theme] :is(.Button, button) :where(svg, path) {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    + div,
+  html[data-zb-theme]
+    body
+    > div
+    > div
+    > div:has(> svg[viewBox="0 0 26 10"]):has(
+      div[style*="cursor: default"]
+    )
+    div[style*="cursor: default"]
+    + div
+    * {
+    color: var(--zb-text-secondary) !important;
+    font-weight: 400 !important;
+  }
+
+${QUESTION_CONTENT_COMPONENT_STYLE}
+${CROSS_PAGE_CONTROLS_STYLE}
+  html[data-zb-theme] .CornerButton {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border-strong) !important;
+    color: var(--zb-text-muted) !important;
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme] .CornerButton:hover {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .CornerButton svg {
+    ${CURRENT_COLOR_ICON_STYLE}
+  }
+
+${COMMENTS_COMPONENT_STYLE}
+${QUESTION_EDITOR_COMPONENT_STYLE}
+${CONTENT_MENUS_COMPONENT_STYLE}
+${DISCOVERY_COMPONENT_STYLE}
+${FOLLOWING_FEED_COMPONENT_STYLE}
+  html[data-zb-theme] .VoteButton {
+    background-color: var(--zb-primary-soft) !important;
+    border-color: transparent !important;
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme] .VoteButton:hover,
+  html[data-zb-theme] .VoteButton[aria-pressed="true"],
+  html[data-zb-theme] .VoteButton.is-active {
+    background-color: var(--zb-primary) !important;
+    color: var(--ctp-crust) !important;
+  }
+
+${PIN_DETAIL_COMPONENT_STYLE}
+  html[data-zb-theme] .ProfileSideCreator-analytics,
+  html[data-zb-theme] .KfeCollection-CreateSaltCard-content {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-text-muted) !important;
+  }
+
+${HOME_SIDEBAR_COMPONENT_STYLE}
+${LOADING_FEEDBACK_COMPONENT_STYLE}
+${CROSS_PAGE_SURFACES_STYLE}
 `;
 
   const createEarlyFlavorRule = (name) => {
@@ -10759,9 +10163,7 @@ ${flavorRules}
       )
     )
     > div
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -10771,13 +10173,11 @@ ${flavorRules}
       [data-testid="Block:zhida_answer_result_block"]
     )
     :is(.Render-markdown, div[dir="auto"]) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain .Render-markdown :is(a, sup) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -10787,8 +10187,7 @@ ${flavorRules}
       [data-testid="Button:reference_card_block_more_btn"],
       [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -10825,8 +10224,7 @@ ${flavorRules}
     .SearchMain
     [data-testid="Button:zhida_message_corner_mark_btn"][tabindex="0"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -10847,23 +10245,19 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
     > div:nth-child(3) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
-    > div:nth-child(4) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    > div:nth-child(4) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-testid="Button:zhida_message_corner_mark_float_window_btn"]
     > div:last-child
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -10902,8 +10296,7 @@ ${flavorRules}
     .SearchResult-Card:has(> .List-item[tabindex="0"] h1)
     h1
     + div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
   }
@@ -10949,16 +10342,13 @@ ${flavorRules}
       .KfeCollection-PcCollegeCard-wrapper,
       .KfeCollection-PcCollegeCard-root,
       .KfeCollection-PcCollegeCard
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     :is(.KfeCollection-PcCollegeCard-title, .KfeCollection-PcCollegeCard-link) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -10972,18 +10362,14 @@ ${flavorRules}
   html[data-zb-theme]
     .SearchMain
     :is(.KfeCollection-PcCollegeCard-meta, .KfeCollection-PcCollegeCard-status) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
-  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+  html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-description {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain .KfeCollection-PcCollegeCard-point {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -10996,9 +10382,7 @@ ${flavorRules}
         [data-testid="Block:zhida_answer_result_block"],
         [data-testid="Block:zhida_input_box"]
       )
-    ) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11007,8 +10391,7 @@ ${flavorRules}
       [data-testid="Block:zhida_answer_result_block"],
       [data-testid="Block:zhida_answer_result_block"] :where(div, span, p, h1, h2, h3, strong)
     ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11027,10 +10410,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Button:expand_btn"]
-    :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11043,8 +10423,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-content-discovery-heading] {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11070,15 +10449,13 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="answer-thinking-text"] {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-scroll-to-bottom] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     outline: 0 !important;
@@ -11093,59 +10470,19 @@ ${flavorRules}
     .SearchMain
     [data-zb-ai-scroll-to-bottom]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
-    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    [data-zb-ai-scroll-to-bottom]:is(:hover, :focus-visible) {${SOFT_PRIMARY_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-answer-actions]
     > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ai-search-page="true"]
-    .SearchMain
-    [data-zb-ai-answer-actions]
-    > div
-    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
+    > [tabindex="0"],
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -11154,20 +10491,15 @@ ${flavorRules}
     .SearchMain
     [data-zb-ai-share-actions]
     > div
-    > [tabindex="0"] {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    color: var(--zb-text-muted) !important;
-    box-shadow: none !important;
-    outline: 0 !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
+    > [tabindex="0"] {${RAISED_ACTION_CONTROL_STYLE}
   }
 
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]
+    :where(div, span, svg, path),
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -11178,12 +10510,14 @@ ${flavorRules}
     [data-zb-ai-share-actions]
     > div
     > [tabindex="0"]
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(div, span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
+  html[data-zb-theme][data-zb-ai-search-page="true"]
+    .SearchMain
+    [data-zb-ai-answer-actions]
+    > div
+    > [tabindex="0"]:is(:hover, :focus-visible, [aria-pressed="true"]),
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-actions]
@@ -11192,11 +10526,7 @@ ${flavorRules}
     .SearchMain
     [data-zb-ai-share-actions]
     > div
-    > [tabindex="0"]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > [tabindex="0"]:is(:hover, :focus-visible) {${SOFT_PRIMARY_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11223,15 +10553,13 @@ ${flavorRules}
     .SearchMain
     [data-zb-ai-share-checkbox]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-zb-ai-share-checkbox]:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -11249,8 +10577,7 @@ ${flavorRules}
     .SearchMain
     [data-zb-ai-user-question]
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11279,8 +10606,7 @@ ${flavorRules}
     width: auto !important;
     min-height: 44px !important;
     padding: 4px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -11343,8 +10669,7 @@ ${flavorRules}
       [data-testid="Button:thinking_node"],
       [data-testid="Button:reference_card_block_more_btn"]
     ):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -11358,9 +10683,7 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :where(div, span) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11374,16 +10697,14 @@ ${flavorRules}
     [data-zb-ai-source-panel]
     > div:first-child
     > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:first-child
     > div:last-child {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -11395,12 +10716,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:first-child
-    > div:last-child:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div:last-child:is(:hover, :focus-visible) {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11417,17 +10733,14 @@ ${flavorRules}
     > div:first-child
     > div:last-child
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     > div:last-child
     > div
-    > div {
-    scrollbar-color: var(--zb-text-subtle) transparent !important;
-    scrollbar-width: thin !important;
+    > div {${THIN_SCROLLBAR_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11464,8 +10777,7 @@ ${flavorRules}
     > div
     > div:first-child
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11474,8 +10786,7 @@ ${flavorRules}
     > div
     > div:first-child
     span:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11484,8 +10795,7 @@ ${flavorRules}
     > div
     > div:last-child
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11506,8 +10816,7 @@ ${flavorRules}
     [data-testid="Card:reference_card"]
     div[style*="cursor: pointer"]:is(:hover, :focus-visible)
     div[style*="width: 24px"][style*="height: 24px"] {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     outline: 0 !important;
     box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
   }
@@ -11517,15 +10826,13 @@ ${flavorRules}
     [data-testid="Card:reference_card"]
     div[style*="cursor: pointer"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     [data-zb-ai-source-panel]
     [style*="color: rgb(23, 114, 246)"] {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11537,8 +10844,7 @@ ${flavorRules}
         > [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
     )
     :where(div, span) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11556,8 +10862,7 @@ ${flavorRules}
     .SearchMain
     [data-testid^="Button:ai_search_content_discovery_navigation_tab:"]
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
     transition:
       background-color 0.16s ease,
@@ -11581,12 +10886,7 @@ ${flavorRules}
       :hover,
       :focus-visible
     )
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11607,8 +10907,7 @@ ${flavorRules}
           + [data-testid="Card:OpenUrl:ai_search_content_card"]
       )
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 12px !important;
     overflow: hidden !important;
   }
@@ -11663,9 +10962,7 @@ ${flavorRules}
         > [data-testid="Card:OpenUrl:ai_search_content_card"]
           + [data-testid="Card:OpenUrl:ai_search_content_card"]
       )
-    ) {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ) {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11678,8 +10975,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Card:OpenUrl:ai_search_content_card"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
@@ -11695,9 +10991,7 @@ ${flavorRules}
         + [data-testid="Card:OpenUrl:ai_search_content_card"]
     ) {
     padding: 0 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     overflow: hidden !important;
   }
 
@@ -11747,8 +11041,7 @@ ${flavorRules}
     .SearchMain
     [data-testid="Card:OpenUrl:ai_search_content_card"]
     :where(div, span, p, h1, h2, h3, strong) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11760,8 +11053,7 @@ ${flavorRules}
     > [data-testid="Card:OpenUrl:ai_search_content_card"]
     > div:first-child
     > :is(div:nth-child(2), div:nth-child(4)) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11772,9 +11064,7 @@ ${flavorRules}
     )
     > [data-testid="Card:OpenUrl:ai_search_content_card"]
     > div:first-child
-    > div:nth-child(3) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    > div:nth-child(3) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11815,21 +11105,13 @@ ${flavorRules}
     .SearchMain
     [data-testid="Button:ai_search_input_field_button"]
     > div
-    :where(div, span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-    -webkit-text-fill-color: currentColor !important;
+    :where(div, span, svg, path) {${INHERITED_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Button:ai_search_input_field_button"]:is(:hover, :focus-visible)
-    > div {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > div {${SOFT_PRIMARY_FOCUS_ACTION_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11845,9 +11127,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ai-search-page="true"]
     .SearchMain
     [data-testid="Block:zhida_input_box"]
-    .InputLike.Editable {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    .InputLike.Editable {${TRANSPARENT_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11856,9 +11136,7 @@ ${flavorRules}
       [data-testid="SearchExpansionWord:Button:related_question_word"],
       [data-testid="Block:zhida_input_box"]
     )
-    :where(div, span) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :where(div, span) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11868,8 +11146,7 @@ ${flavorRules}
       [data-testid="Block:zhida_input_box"]
     ):is(:hover, :focus-visible, :focus-within) {
     border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ai-search-page="true"]
@@ -11885,8 +11162,7 @@ ${flavorRules}
     [data-testid="Block:zhida_input_box"]
     div[style*="background-color: rgb(173, 176, 183)"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
 `;
@@ -12000,8 +11276,7 @@ ${flavorRules}
     box-sizing: border-box !important;
     margin-top: 16px !important;
     padding: 16px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 10px !important;
   }
 
@@ -12096,9 +11371,7 @@ ${flavorRules}
     > section
     > div:last-of-type
     > div:last-child {
-    min-width: 0 !important;
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    min-width: 0 !important;${SECONDARY_TEXT_PAINT_STYLE}
     font-weight: 500 !important;
   }
 
@@ -12141,8 +11414,7 @@ ${flavorRules}
     + div
     > div:first-child
     :where(a, div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12161,8 +11433,7 @@ ${flavorRules}
     + div
     > div:first-child
     .UserLink-link {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12216,8 +11487,7 @@ ${flavorRules}
     + div
     > div:first-child
     .FollowButton.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
     -webkit-text-fill-color: var(--ctp-crust) !important;
   }
@@ -12234,18 +11504,6 @@ ${flavorRules}
     color: var(--ctp-crust) !important;
     fill: currentColor !important;
     -webkit-text-fill-color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    + div
-    + div
-    > div:first-child
-    .FollowButton.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12274,8 +11532,7 @@ ${flavorRules}
     .AuthorInfo
     + div
     :where(div, span) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12312,10 +11569,7 @@ ${flavorRules}
     > div
     > .Card
     .FollowButton
-    + .Button.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
+    + .Button.Button--blue {${PRIMARY_BUTTON_STYLE}
     -webkit-text-fill-color: var(--ctp-crust) !important;
   }
 
@@ -12330,8 +11584,7 @@ ${flavorRules}
     > .Card
     .FollowButton
     + .Button.Button--blue:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12339,9 +11592,6 @@ ${flavorRules}
     > div
     > .Card
     .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
     -webkit-text-fill-color: var(--zb-text-muted) !important;
   }
 
@@ -12350,33 +11600,7 @@ ${flavorRules}
     > div
     > .Card
     .FollowButton.Button--grey:hover {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
     -webkit-text-fill-color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton:focus-visible,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton
-    + .Button.Button--blue:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .FollowButton.Button--grey:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12402,9 +11626,7 @@ ${flavorRules}
     .App-main
     > div
     > .Card
-    .Button--plain:has(.Zi--Dots):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    .Button--plain:has(.Zi--Dots):hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12414,27 +11636,7 @@ ${flavorRules}
     .Button--plain:has(.Zi--Dots):focus-visible {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .App-main
-    > div
-    > .Card
-    .Button--plain:has(.Zi--Dots)
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-column-page="true"]
@@ -12446,76 +11648,10 @@ ${flavorRules}
     border-radius: 3px !important;
   }
 
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"] .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-column-page="true"]
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
   html[data-zb-theme][data-zb-column-page="true"] .Column-EmptyCard {
     box-sizing: border-box !important;
     margin-top: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
@@ -12567,8 +11703,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-creator-page="true"]
     .CreatorIndex-BottomBox-Item
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -12621,8 +11756,7 @@ ${flavorRules}
     > div:first-child
     :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -12645,10 +11779,7 @@ ${flavorRules}
     :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
       :hover,
       :focus-visible
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    ) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -12722,10 +11853,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-creator-page="true"]
     .Creator-mainColumn
     > .Card
-    .Tabs {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    .Tabs {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -12802,10 +11930,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-creator-page="true"]
     .Creator-mainColumn
     > .Card
-    .Tabs-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    .Tabs-link:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -12819,8 +11944,7 @@ ${flavorRules}
     .Creator-mainColumn
     > .Card
     .Tabs-link.is-active {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     font-weight: 500 !important;
     box-shadow: inset 0 0 0 1px
       color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
@@ -12829,9 +11953,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
     .Creator-mainColumn
     > .Card
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
@@ -12841,8 +11963,7 @@ ${flavorRules}
     > .Tabs
     + div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -12873,9 +11994,7 @@ ${flavorRules}
     > div
     > .Tabs
     + div
-    + div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    + div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
@@ -12986,8 +12105,7 @@ ${flavorRules}
     box-sizing: border-box !important;
     height: 34px !important;
     padding: 0 10px 0 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
     transition:
@@ -13028,15 +12146,6 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
     .Popover-content:has(> .Select-list) {
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
@@ -13070,10 +12179,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-creator-page="true"]
     .Popover-content
     > .Select-list
-    > .Select-option:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    > .Select-option:is(:hover, :focus, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13093,8 +12199,7 @@ ${flavorRules}
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13175,8 +12280,7 @@ ${flavorRules}
     .CreationCardTitle-wrapper
     > div
     > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13280,10 +12384,7 @@ ${flavorRules}
       .WriteArea + div + div + div > div,
       [role="complementary"] > div:not(.Card),
       [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13368,10 +12469,7 @@ ${flavorRules}
     + div
     + div
     > div
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    > div:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13410,8 +12508,7 @@ ${flavorRules}
     > div
     > div:has(> .ZDI--Broadcast16)
     > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -13529,36 +12626,6 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem {
-    box-sizing: border-box !important;
-    margin-bottom: 10px !important;
-    background-clip: padding-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    box-shadow: var(--zb-shadow) !important;
-    overflow: hidden !important;
-    overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:hover {
-    border-color: var(--zb-border-strong) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .Topstory-recommend
-    > .TopstoryItem:focus-visible {
-    border-color: var(--zb-primary) !important;
-    box-shadow:
-      var(--zb-shadow),
-      0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
     .TopstoryItem
     .ContentItem-title,
   html[data-zb-theme][data-zb-home-page="true"]
@@ -13604,89 +12671,6 @@ ${flavorRules}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 3px 8px !important;
-    border-radius: 6px !important;
-    color: var(--zb-primary) !important;
-    font-size: 14px !important;
-    line-height: 22px !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-more:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):not(.Button--blue):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-home-page="true"]
-    .TopstoryItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(
-      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)
-    )
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
-  }
 `;
 
   const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"],
@@ -13728,9 +12712,7 @@ ${flavorRules}
     > div:first-child
     > div:last-child {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -13739,13 +12721,7 @@ ${flavorRules}
     div:has(> section + section)
     > div:first-child
     > div
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    > div:last-child {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13756,8 +12732,7 @@ ${flavorRules}
     > div:last-child
     > div:last-child
     > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13768,8 +12743,7 @@ ${flavorRules}
     > div:last-child
     > div:last-child
     > div:nth-child(2) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13781,8 +12755,7 @@ ${flavorRules}
     > div:last-child
     > div:last-child
     > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13813,8 +12786,7 @@ ${flavorRules}
     div:has(> section + section)
     > section
     h2 {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13899,8 +12871,7 @@ ${flavorRules}
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:has(.ZDI--BookOpen24) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -13930,8 +12901,7 @@ ${flavorRules}
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:is(:hover, :focus-visible) {
     border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -13997,8 +12967,7 @@ ${flavorRules}
     > div:has(input[size="1"])
     input {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 6px !important;
     color: var(--zb-text) !important;
     caret-color: var(--zb-primary) !important;
@@ -14012,8 +12981,7 @@ ${flavorRules}
     > div:has(input[size="1"])
     input:focus-visible {
     border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-preview-page="true"]
@@ -14066,8 +13034,7 @@ ${flavorRules}
     #app
     button[aria-label="下载"] {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     transition:
@@ -14089,16 +13056,7 @@ ${flavorRules}
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {
@@ -14109,10 +13067,7 @@ ${flavorRules}
 
   const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card {
@@ -14140,38 +13095,32 @@ ${flavorRules}
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     :is(.ProfileHeader-name, .ProfileHeader-detailValue) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
-    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     :is(.ProfileHeader-detailLabel, .ProfileHeader-expandButton) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     .ProfileHeader-expandButton:hover {
     background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     .ProfileHeader-expandButton:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14184,8 +13133,7 @@ ${flavorRules}
     .ProfileHeader
     .ProfileHeader-iconWrapper
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-divider {
@@ -14228,42 +13176,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader-buttons
     .FollowButton
-    + .Button {
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    + .Button {${OUTLINED_PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain {
@@ -14279,10 +13192,7 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
-    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain-header {
@@ -14313,8 +13223,7 @@ ${flavorRules}
     .ProfileMain-tabs
     .Tabs-link:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14336,10 +13245,7 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
+    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {${RAISED_MUTED_CONTROL_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14347,21 +13253,6 @@ ${flavorRules}
     button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):hover {
     background-color: var(--zb-surface-hover) !important;
     color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-header {
@@ -14438,20 +13329,9 @@ ${flavorRules}
     .ProfileMain
     .ContentItem-actions
     .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14459,60 +13339,6 @@ ${flavorRules}
     .ContentItem-actions
     .Button--iconOnly:not(.VoteButton) {
     min-width: 28px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14575,28 +13401,9 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
     :is(a[href="/creator"], a[href="/question/waiting"])
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14608,8 +13415,7 @@ ${flavorRules}
       .NumberBoard-itemValue,
       .ProfileSideCreator-readCountNumber
     ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14620,8 +13426,7 @@ ${flavorRules}
       .NumberBoard-itemName,
       .ProfileSideCreator-readCountTitle
     ) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14630,10 +13435,7 @@ ${flavorRules}
       .NumberBoard-itemInner,
       .Profile-sideColumnItem,
       .Profile-lightItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
+    ),
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
     :is(
@@ -14659,17 +13461,14 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
     :is(.NumberBoard-item.Button, .Profile-lightItem):focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -14694,10 +13493,7 @@ ${flavorRules}
   html[data-zb-theme] .QuestionHeader-side,
   html[data-zb-theme] .QuestionHeader-footer,
   html[data-zb-theme] .QuestionHeader-footer-inner,
-  html[data-zb-theme] .QuestionHeader-footer-main {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionHeader-footer-main {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme] .QuestionHeader {
@@ -14742,8 +13538,7 @@ ${flavorRules}
     .QuestionHeader
     .NumberBoard-item.Button:focus-visible {
     background-color: var(--zb-surface-raised) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
@@ -14752,9 +13547,7 @@ ${flavorRules}
     border-radius: 8px !important;
   }
 
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -14762,8 +13555,7 @@ ${flavorRules}
     .QuestionFollowStatus-people:focus-visible {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   /* Topic entity cards use generated class names. Target the semantic label
@@ -14785,8 +13577,7 @@ ${flavorRules}
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-text) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -14996,9 +13787,7 @@ ${flavorRules}
     > div
     > div
     > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    a:is(:hover, :focus-visible) {${RAISED_TEXT_STYLE}
     text-decoration: none !important;
   }
 
@@ -15121,8 +13910,7 @@ ${flavorRules}
   }
 
   html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 10px !important;
     color: var(--zb-text) !important;
     text-decoration: none !important;
@@ -15175,9 +13963,7 @@ ${flavorRules}
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme] .QuestionPage .RichText th {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionPage .RichText th {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
@@ -15233,13 +14019,6 @@ ${flavorRules}
 
   html[data-zb-theme]
     .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
     a[href*="zhida_source=below_banner_question"]
     :is(svg, path) {
     color: var(--zb-primary) !important;
@@ -15288,8 +14067,7 @@ ${flavorRules}
     .AuthorInfo
     .UserLink:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -15311,8 +14089,7 @@ ${flavorRules}
       > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
     )
     :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -15347,8 +14124,7 @@ ${flavorRules}
       a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
     )
     :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -15383,8 +14159,7 @@ ${flavorRules}
     > div:has(> svg[viewBox="0 0 26 10"]):has(
       div[style*="cursor: default"]
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
   }
@@ -15432,8 +14207,7 @@ ${flavorRules}
         > .QuestionStatus-notification-inner
     ) {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
     box-shadow: var(--zb-shadow) !important;
@@ -15477,8 +14251,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionStatus-notification-actions
     .Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -15499,8 +14272,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionStatus-notification-closeButton
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
@@ -15541,30 +14313,19 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .QuestionInvitation-input:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionInvitation-input
     :is(.Input, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionInvitation-content
     .AutoInviteItem-wrapper--desktop {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -15648,19 +14409,6 @@ ${flavorRules}
     .QuestionInvitation
     .AutoInviteItem-wrapper--desktop
     .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
     .AutoInviteItem-button--closed.Button.Button--link:focus-visible {
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
@@ -15734,9 +14482,7 @@ ${flavorRules}
     min-height: 50px !important;
     padding: 12px 16px !important;
     gap: 16px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -15764,8 +14510,7 @@ ${flavorRules}
     div:has(> div > .css-f1fy25)
     > div:nth-of-type(2)
     > :is(.css-f1fy25, :hover) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-index-page="true"]
@@ -15798,9 +14543,7 @@ ${flavorRules}
     min-height: 64px !important;
     padding: 10px 12px !important;
     overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     transition:
@@ -15845,8 +14588,7 @@ ${flavorRules}
     a[href*="/ring/host/"][href*="tab_id"]
     img {
     flex: 0 0 auto !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -15880,9 +14622,7 @@ ${flavorRules}
     a[href^="/ring/host/"] {
     box-sizing: border-box !important;
     overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     transition:
@@ -15908,9 +14648,7 @@ ${flavorRules}
     .App-main
     a[href^="/ring/host/"]:focus-visible {
     outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline-offset: 2px !important;${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-index-page="true"]
@@ -16003,18 +14741,8 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ring-index-page="true"]
     .App-main
     a[href^="/ring/host/"]
-    button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
     button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
   }
 
@@ -16055,8 +14783,7 @@ ${flavorRules}
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
     content: "已加入" !important;
   }
 
@@ -16169,8 +14896,7 @@ ${flavorRules}
     padding: 6px 16px !important;
     align-items: center !important;
     justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -16221,8 +14947,7 @@ ${flavorRules}
     > div:nth-child(2)
     > button
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
     white-space: inherit !important;
   }
 
@@ -16234,20 +14959,7 @@ ${flavorRules}
     > :nth-child(2)
     > div:nth-child(2)
     > button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :is(:first-child, button):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16291,8 +15003,7 @@ ${flavorRules}
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
     content: "已加入" !important;
   }
 
@@ -16407,8 +15118,7 @@ ${flavorRules}
     > :nth-child(4)
     :focus-visible {
     border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16428,9 +15138,7 @@ ${flavorRules}
     > .List-item {
     box-sizing: border-box !important;
     margin-bottom: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
     overflow: clip !important;
@@ -16478,9 +15186,7 @@ ${flavorRules}
     > div:nth-child(2)
     > div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
@@ -16585,8 +15291,7 @@ ${flavorRules}
     > div:first-child
     > div:nth-child(2)
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16596,19 +15301,7 @@ ${flavorRules}
     > div
     > div:first-child
     > div:nth-child(2):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
@@ -16675,8 +15368,7 @@ ${flavorRules}
     > :nth-child(2) {
     margin-top: 0 !important;
     padding: 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -16753,8 +15445,7 @@ ${flavorRules}
     > :nth-child(2)
     > :nth-child(2)
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16765,23 +15456,7 @@ ${flavorRules}
     > div:nth-child(2)
     > div:first-child
     > :nth-child(2)
-    > :nth-child(2):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > :nth-child(2):is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16849,23 +15524,7 @@ ${flavorRules}
     > div:nth-child(2)
     > div:nth-child(3)
     > :nth-child(2)
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    button:is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16892,9 +15551,7 @@ ${flavorRules}
     > div:nth-child(3)
     > :nth-child(3)
     a:is(:hover, :focus-visible)
-    img {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    img {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -16917,81 +15574,7 @@ ${flavorRules}
     > div
     a:focus-visible {
     border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-wrapper {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-excerpt, .LinkCard-desc) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:is(:hover, :focus-visible) {
-    background: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -17007,97 +15590,19 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
     div:has(> .Modal-content input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
-    > :first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    > :first-child {${SECTION_HEADER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -17113,8 +15618,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     .Input-wrapper {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     transition:
       border-color 0.16s ease,
@@ -17123,16 +15627,12 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    .Input-wrapper:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .Input-wrapper:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    input[placeholder="搜索你想邀请的人"] {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    input[placeholder="搜索你想邀请的人"] {${TRANSPARENT_TEXT_STYLE}
     caret-color: var(--zb-primary) !important;
   }
 
@@ -17146,9 +15646,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
-    > :nth-child(2) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > :nth-child(2) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -17159,8 +15657,7 @@ ${flavorRules}
     > div
     > div
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -17209,9 +15706,7 @@ ${flavorRules}
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
     > :nth-child(2)
-    > :nth-child(3) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > :nth-child(3) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -17260,17 +15755,7 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    button:is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -17285,8 +15770,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-ring-host-page="true"]
     div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
     > button[aria-label="关闭"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -17314,9 +15798,7 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -17338,16 +15820,14 @@ ${flavorRules}
     #TopstoryContent
     :is(a[href="/ring"], a[href*="/ring/host/"]):focus-visible {
     border-radius: 8px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
     a[href^="https://www.zhihu.com/pin/"]
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
   }
 
@@ -17427,8 +15907,7 @@ ${flavorRules}
     + div
     > div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
     transition:
       background-color 0.16s ease,
@@ -17447,8 +15926,7 @@ ${flavorRules}
     + div
     > div
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -17494,17 +15972,6 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar
-    .Button--plain:focus-visible,
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-closeButton:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
     .Modal-closeButton {
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
@@ -17528,8 +15995,7 @@ ${flavorRules}
     > div
     > div
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -17555,9 +16021,7 @@ ${flavorRules}
     .List
     > .List-item {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     margin-bottom: 10px !important;
     overflow: hidden !important;
@@ -17605,16 +16069,7 @@ ${flavorRules}
     #TopstoryContent
     .PinItem
     button:not(.Button):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .PinItem
-    button:not(.Button):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -17642,16 +16097,6 @@ ${flavorRules}
     #TopstoryContent
     .List
     > .List-item
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
     :is(.ContentItem-more, .RichContent-inner a) {
     color: var(--zb-primary) !important;
   }
@@ -17664,46 +16109,6 @@ ${flavorRules}
     color: var(--zb-primary-hover) !important;
   }
 
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="已收藏"],
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible) {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(.Button--red, .Button[aria-label="取消喜欢"]),
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(
-      .Button[aria-label="已收藏"],
-      .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-      .Button--red,
-      .Button[aria-label="取消喜欢"],
-      .Button[aria-label="喜欢"]:is(:hover, :focus-visible)
-    )
-    svg {
-    fill: currentColor !important;
-  }
 `;
 
   const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
@@ -17713,31 +16118,23 @@ ${flavorRules}
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .SearchTabs .Tabs-link {
+  html[data-zb-theme] .SearchTabs .Tabs-link,
+  html[data-zb-theme] .SearchTabs-customFilterEntry {
     color: var(--zb-text-muted) !important;
     transition: color 0.16s ease !important;
   }
 
   html[data-zb-theme] .SearchTabs .Tabs-link:hover,
-  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
+  html[data-zb-theme] .SearchTabs .Tabs-link.is-active,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
     color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
     border-radius: 6px !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
-  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
-    color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme] .Search-container,
@@ -17750,23 +16147,6 @@ ${flavorRules}
     background-color: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
   html[data-zb-theme] .SearchMain > .ListShortcut,
   html[data-zb-theme] .SearchMain > .ListShortcut > .List {
     background-color: transparent !important;
@@ -17775,9 +16155,7 @@ ${flavorRules}
   html[data-zb-theme] .SearchMain .SearchResult-Card,
   html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
   }
@@ -17825,18 +16203,13 @@ ${flavorRules}
       .RichContent-inner,
       .RichContent-inner .RichText,
       .SearchItem-meta.Highlight
-    ) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    ) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     .SearchResult-Card
     .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
     -webkit-text-fill-color: var(--zb-text-muted) !important;
   }
 
@@ -17850,12 +16223,7 @@ ${flavorRules}
       > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
     )
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
     -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
   }
 
   html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
@@ -17869,9 +16237,7 @@ ${flavorRules}
     min-height: 58px !important;
     padding: 12px 16px !important;
     align-items: center !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text) !important;
     line-height: normal !important;
     box-shadow: var(--zb-shadow) !important;
@@ -17903,8 +16269,7 @@ ${flavorRules}
     padding: 5px 12px !important;
     align-items: center !important;
     justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
     font-weight: 400 !important;
@@ -17931,10 +16296,7 @@ ${flavorRules}
   html[data-zb-theme]
     .SearchMain
     .SearchSubTabs
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
+    .Tabs-link.is-active {${PRIMARY_BUTTON_STYLE}
     font-weight: 600 !important;
   }
 
@@ -17942,28 +16304,20 @@ ${flavorRules}
     .SearchMain
     .SearchSubTabs
     .Tabs-link.is-active:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
   }
 
   html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
     border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     [data-za-detail-view-path-module="SearchResultList"]:has(
       + .SearchNoContent-wrap
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ) {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme]
@@ -18011,8 +16365,7 @@ ${flavorRules}
     > div:first-child
     > div
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -18047,9 +16400,7 @@ ${flavorRules}
       + .SearchNoContent-wrap
     )
     > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -18079,8 +16430,7 @@ ${flavorRules}
     )
     > div:has(> div > .Button.Button--secondary)
     .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -18105,8 +16455,7 @@ ${flavorRules}
     > div:has(> div > .Button.Button--secondary)
     > div:last-child
     .Button:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -18129,13 +16478,7 @@ ${flavorRules}
     [data-za-detail-view-path-module="SearchResultList"]:has(
       a[href*="/kvip/sku/paper/"]
     )
-    > div:has(> div > div > .Zi--TriangleUp) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    > div:has(> div > div > .Zi--TriangleUp) {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme]
@@ -18158,8 +16501,7 @@ ${flavorRules}
     > div:has(> div > div > .Zi--TriangleUp)
     > div:first-child
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
   }
@@ -18186,8 +16528,7 @@ ${flavorRules}
     > div:first-child
     > div
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -18225,9 +16566,7 @@ ${flavorRules}
     )
     > div:has(> div > div > .Zi--TriangleUp)
     > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -18260,8 +16599,7 @@ ${flavorRules}
     > div:has(> div > div > .Zi--TriangleUp)
     > div:has(> div > .Button.Button--secondary)
     .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -18285,12 +16623,7 @@ ${flavorRules}
       a[href*="/kvip/sku/paper/"]
     )
     > div:has(> a[href*="/kvip/sku/paper/"]) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ${CARD_SURFACE_STYLE}
     overflow: hidden !important;
     transition: border-color 0.16s ease !important;
   }
@@ -18322,8 +16655,7 @@ ${flavorRules}
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
     font-weight: 600 !important;
     transition: color 0.16s ease !important;
   }
@@ -18348,8 +16680,7 @@ ${flavorRules}
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(5) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -18360,9 +16691,7 @@ ${flavorRules}
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(3)
-    span {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    span {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -18370,8 +16699,7 @@ ${flavorRules}
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(3)
     span:has(.ZDI--ArrowRight24) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
@@ -18383,8 +16711,7 @@ ${flavorRules}
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -18426,17 +16753,6 @@ ${flavorRules}
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: border-box !important;
-    border: 0 !important;
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
-  }
-
   html[data-zb-theme]
     .HotLanding
     .RichContent-actions.is-fixed
@@ -18448,80 +16764,14 @@ ${flavorRules}
   html[data-zb-theme]
     .HotLanding
     :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
     .VoteButton {
     border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme] .Search-container .HotSearchCard-title,
   html[data-zb-theme] .Search-container .HotSearchCard-itemText,
   html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
     color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
   }
 
   html[data-zb-theme] .Search-container .HotSearchCard-heat {
@@ -18558,18 +16808,6 @@ ${flavorRules}
     outline: 0 !important;
   }
 
-  html[data-zb-theme] .Search-container .HotSearchCard-tag {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 24px !important;
-    padding: 0 5px !important;
-    white-space: nowrap !important;
-  }
-
   html[data-zb-theme] .Search-container footer[role="contentinfo"],
   html[data-zb-theme]
     .Search-container
@@ -18599,13 +16837,7 @@ ${flavorRules}
       .Card:has(> .NumberBoard),
       .Card:has(.TopicRelativeBoard-item),
       .TopicFeedList
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ) {${CARD_SURFACE_STYLE}
     overflow: hidden !important;
     overflow: clip !important;
   }
@@ -18643,8 +16875,7 @@ ${flavorRules}
     background-color: var(--zb-primary-soft) !important;
     border-radius: 6px !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicActions .Button {
@@ -18660,63 +16891,15 @@ ${flavorRules}
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicActions
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--blue:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
     .Button--plain:is(:hover, :focus-visible),
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicActions
     .ShareMenu-toggler[aria-expanded="true"]
-    .Button {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .Button {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.Topic-pageHeader, .Topic-pageHeaderMain, .Topic-bar) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    :is(.Topic-pageHeader, .Topic-pageHeaderMain, .Topic-bar) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .Topic-bar {
@@ -18757,8 +16940,7 @@ ${flavorRules}
     background-color: transparent !important;
     border-radius: 6px !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -18794,15 +16976,13 @@ ${flavorRules}
     .Topic-headerLink:focus-visible {
     background-color: transparent !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .Topic-headerLink
     :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -18825,10 +17005,7 @@ ${flavorRules}
     text-underline-offset: 2px !important;
   }
 
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem {${SECTION_HEADER_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem:last-child {
@@ -18877,44 +17054,6 @@ ${flavorRules}
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedItem
     :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
     .VoteButton {
     box-sizing: border-box !important;
     min-height: 32px !important;
@@ -18934,40 +17073,7 @@ ${flavorRules}
       transparent
     ) !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem .ContentItem-more {
@@ -18980,8 +17086,7 @@ ${flavorRules}
     .ContentItem-more:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -18998,18 +17103,7 @@ ${flavorRules}
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedItem
     .Comments-container
-    :is(.InputLike, .Editable) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container
-    :is(.InputLike, .Editable):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    :is(.InputLike, .Editable):focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -19035,11 +17129,7 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .NumberBoard-item:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -19143,11 +17233,7 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .TopicRelativeBoard-link:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -19161,34 +17247,13 @@ ${flavorRules}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.ShareMenu-content, .ShareMenu-menuItems) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    :is(.ShareMenu-content, .ShareMenu-menuItems) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedList
     :is(.PlaceHolder, .PlaceHolder-inner) {
     background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
   }
 
 `;

@@ -128,10 +128,9 @@ describe("search page theme", () => {
   });
 
   it("themes hot-search sidebar cards and footer links", () => {
-    expectRule("html[data-zb-theme] .Search-container .HotSearchCard", [
-      "border: 1px solid var(--zb-border) !important;",
-      "border-radius: 12px !important;",
-    ]);
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] :is(.Card, .HotSearchCard) {\n    box-sizing: border-box !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 12px !important;",
+    );
     expectRule("html[data-zb-theme] .Search-container .HotSearchCard-item:focus-within", [
       "background-color: var(--zb-surface-raised) !important;",
       "box-shadow: inset 0 0 0 2px var(--zb-primary-soft) !important;",

@@ -1,9 +1,19 @@
+import {
+  CURRENT_COLOR_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  OUTLINED_PRIMARY_BUTTON_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
+  RAISED_MUTED_CONTROL_STYLE,
+  RAISED_TEXT_STYLE,
+  SECONDARY_TEXT_PAINT_STYLE,
+  SURFACE_TEXT_STYLE,
+  TEXT_PAINT_STYLE,
+} from "../shared-components.js";
+
 export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,
-  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-content {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card {
@@ -31,38 +41,32 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     :is(.ProfileHeader-name, .ProfileHeader-detailValue) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
-    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    :is(.ProfileHeader-headline, .ProfileHeader-info, .ProfileHeader-detailItem) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     :is(.ProfileHeader-detailLabel, .ProfileHeader-expandButton) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     .ProfileHeader-expandButton:hover {
     background-color: transparent !important;
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader
     .ProfileHeader-expandButton:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -75,8 +79,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     .ProfileHeader
     .ProfileHeader-iconWrapper
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-divider {
@@ -119,42 +122,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileHeader-buttons
     .FollowButton
-    + .Button {
-    background-color: transparent !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton
-    + .Button:hover {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileHeader-buttons
-    .Button:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    + .Button {${OUTLINED_PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain {
@@ -170,10 +138,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
-    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    :is(.ProfileMain-header, .ProfileMain-tabsWrapper, .ProfileMain-tabs) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain-header {
@@ -204,8 +169,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     .ProfileMain-tabs
     .Tabs-link:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -227,10 +191,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
+    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])) {${RAISED_MUTED_CONTROL_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -238,21 +199,6 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):hover {
     background-color: var(--zb-surface-hover) !important;
     color: var(--zb-primary) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button:has(:is(.Zi--Search, .ZDI--Search24, [class*="Search"])):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain-header
-    button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileMain .List-header {
@@ -329,20 +275,9 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     .ProfileMain
     .ContentItem-actions
     .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      color 0.16s ease !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -350,60 +285,6 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
     .ContentItem-actions
     .Button--iconOnly:not(.VoteButton) {
     min-width: 28px !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button
-    svg {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .ProfileMain
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -466,28 +347,9 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
-    :is(a[href="/creator"], a[href="/question/waiting"]):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-profile-page="true"]
-    .Profile-sideColumn
     :is(a[href="/creator"], a[href="/question/waiting"])
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -499,8 +361,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
       .NumberBoard-itemValue,
       .ProfileSideCreator-readCountNumber
     ) {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -511,8 +372,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
       .NumberBoard-itemName,
       .ProfileSideCreator-readCountTitle
     ) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
@@ -521,10 +381,7 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
       .NumberBoard-itemInner,
       .Profile-sideColumnItem,
       .Profile-lightItem
-    ) {
-    border-color: var(--zb-border) !important;
-  }
-
+    ),
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
     :is(
@@ -550,17 +407,14 @@ export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="t
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
-    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    :is(.NumberBoard-item.Button, .Profile-lightItem):hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]
     .Profile-sideColumn
     :is(.NumberBoard-item.Button, .Profile-lightItem):focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-profile-page="true"]

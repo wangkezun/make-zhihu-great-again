@@ -1,3 +1,14 @@
+import {
+  CURRENT_COLOR_ICON_STYLE,
+  PRIMARY_BORDER_FOCUS_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  RAISED_CONTROL_SURFACE_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  RAISED_TEXT_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+  SURFACE_TEXT_STYLE,
+} from "../shared-components.js";
+
 export const QUESTION_PAGE_STYLE = `  /* Question page */
   html[data-zb-theme] .QuestionHeader,
   html[data-zb-theme] .QuestionHeader-content,
@@ -5,10 +16,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
   html[data-zb-theme] .QuestionHeader-side,
   html[data-zb-theme] .QuestionHeader-footer,
   html[data-zb-theme] .QuestionHeader-footer-inner,
-  html[data-zb-theme] .QuestionHeader-footer-main {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionHeader-footer-main {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme] .QuestionHeader {
@@ -53,8 +61,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     .QuestionHeader
     .NumberBoard-item.Button:focus-visible {
     background-color: var(--zb-surface-raised) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people {
@@ -63,9 +70,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     border-radius: 8px !important;
   }
 
-  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionHeader .QuestionFollowStatus-people:hover {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme]
@@ -73,8 +78,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     .QuestionFollowStatus-people:focus-visible {
     background-color: var(--zb-surface-raised) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   /* Topic entity cards use generated class names. Target the semantic label
@@ -96,8 +100,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-text) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -307,9 +310,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     > div
     > div
     > div:has(> svg):has(a[href*="/roundtable/"]):has(a[href*="/topic/"])
-    a:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+    a:is(:hover, :focus-visible) {${RAISED_TEXT_STYLE}
     text-decoration: none !important;
   }
 
@@ -432,8 +433,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
   }
 
   html[data-zb-theme] .QuestionPage .RichText a.LinkCard {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 10px !important;
     color: var(--zb-text) !important;
     text-decoration: none !important;
@@ -486,9 +486,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     color: var(--zb-text) !important;
   }
 
-  html[data-zb-theme] .QuestionPage .RichText th {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme] .QuestionPage .RichText th {${RAISED_TEXT_STYLE}
   }
 
   html[data-zb-theme] .QuestionPage .RichText tr > :last-child {
@@ -544,13 +542,6 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
 
   html[data-zb-theme]
     .QuestionPage
-    a[href*="zhida_source=below_banner_question"]:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .QuestionPage
     a[href*="zhida_source=below_banner_question"]
     :is(svg, path) {
     color: var(--zb-primary) !important;
@@ -599,8 +590,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     .AuthorInfo
     .UserLink:focus-visible {
     border-radius: 6px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
@@ -622,8 +612,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
       > svg.Zi:is(.Zi--ArrowDown, .Zi--ArrowUp)
     )
     :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -658,8 +647,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
       a:has(> .ZDI--ColumnFill24):has(> .ZDI--ArrowRight16)
     )
     :is(div, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -694,8 +682,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
     > div:has(> svg[viewBox="0 0 26 10"]):has(
       div[style*="cursor: default"]
     ) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
   }
@@ -743,8 +730,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
         > .QuestionStatus-notification-inner
     ) {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
     box-shadow: var(--zb-shadow) !important;
@@ -788,8 +774,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionStatus-notification-actions
     .Button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
   }
 
@@ -810,8 +795,7 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionStatus-notification-closeButton
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"] .QuestionInvitation {
@@ -852,30 +836,19 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation-input:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .QuestionInvitation-input:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionInvitation-input
     :is(.Input, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-question-page="true"]
     .QuestionInvitation-content
     .AutoInviteItem-wrapper--desktop {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -953,19 +926,6 @@ export const QUESTION_PAGE_STYLE = `  /* Question page */
       border-color 0.16s ease,
       color 0.16s ease,
       box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-question-page="true"]
-    .QuestionInvitation
-    .AutoInviteItem-wrapper--desktop
-    .ContentItem-extra
-    .AutoInviteItem-button--closed.Button.Button--link:is(
-      :hover,
-      :focus-visible
-    ) {
-    background-color: var(--zb-primary-soft) !important;
-    border-color: var(--zb-primary-hover) !important;
-    color: var(--zb-primary-hover) !important;
   }
 
   html[data-zb-theme][data-zb-question-page="true"]

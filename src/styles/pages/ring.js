@@ -1,3 +1,19 @@
+import {
+  CARD_FRAME_STYLE,
+  CURRENT_COLOR_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_BORDER_FOCUS_STYLE,
+  PRIMARY_BUTTON_HOVER_STYLE,
+  PRIMARY_BUTTON_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  RAISED_CONTROL_SURFACE_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  SECTION_HEADER_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+  SURFACE_TEXT_ONLY_STYLE,
+  TRANSPARENT_TEXT_STYLE,
+} from "../shared-components.js";
+
 export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -65,9 +81,7 @@ export const RING_PAGE_STYLE = `
     min-height: 50px !important;
     padding: 12px 16px !important;
     gap: 16px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -95,8 +109,7 @@ export const RING_PAGE_STYLE = `
     div:has(> div > .css-f1fy25)
     > div:nth-of-type(2)
     > :is(.css-f1fy25, :hover) {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-index-page="true"]
@@ -129,9 +142,7 @@ export const RING_PAGE_STYLE = `
     min-height: 64px !important;
     padding: 10px 12px !important;
     overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     transition:
@@ -176,8 +187,7 @@ export const RING_PAGE_STYLE = `
     a[href*="/ring/host/"][href*="tab_id"]
     img {
     flex: 0 0 auto !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
   }
 
@@ -211,9 +221,7 @@ export const RING_PAGE_STYLE = `
     a[href^="/ring/host/"] {
     box-sizing: border-box !important;
     overflow: hidden !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     transition:
@@ -239,9 +247,7 @@ export const RING_PAGE_STYLE = `
     .App-main
     a[href^="/ring/host/"]:focus-visible {
     outline: 2px solid var(--zb-primary) !important;
-    outline-offset: 2px !important;
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    outline-offset: 2px !important;${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-index-page="true"]
@@ -334,18 +340,8 @@ export const RING_PAGE_STYLE = `
   html[data-zb-theme][data-zb-ring-index-page="true"]
     .App-main
     a[href^="/ring/host/"]
-    button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-index-page="true"]
-    .App-main
-    a[href^="/ring/host/"]
     button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
   }
 
@@ -386,8 +382,7 @@ export const RING_PAGE_STYLE = `
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
     content: "已加入" !important;
   }
 
@@ -500,8 +495,7 @@ export const RING_PAGE_STYLE = `
     padding: 6px 16px !important;
     align-items: center !important;
     justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-primary) !important;
     cursor: pointer !important;
@@ -552,8 +546,7 @@ export const RING_PAGE_STYLE = `
     > div:nth-child(2)
     > button
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
     white-space: inherit !important;
   }
 
@@ -565,20 +558,7 @@ export const RING_PAGE_STYLE = `
     > :nth-child(2)
     > div:nth-child(2)
     > button:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:first-child
-    > div:nth-child(2)
-    > :nth-child(2)
-    > div:nth-child(2)
-    > :is(:first-child, button):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -622,8 +602,7 @@ export const RING_PAGE_STYLE = `
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
     content: "已加入" !important;
   }
 
@@ -738,8 +717,7 @@ export const RING_PAGE_STYLE = `
     > :nth-child(4)
     :focus-visible {
     border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -759,9 +737,7 @@ export const RING_PAGE_STYLE = `
     > .List-item {
     box-sizing: border-box !important;
     margin-bottom: 12px !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
     overflow: clip !important;
@@ -809,9 +785,7 @@ export const RING_PAGE_STYLE = `
     > div:nth-child(2)
     > div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text) !important;
     overflow: hidden !important;
@@ -916,8 +890,7 @@ export const RING_PAGE_STYLE = `
     > div:first-child
     > div:nth-child(2)
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -927,19 +900,7 @@ export const RING_PAGE_STYLE = `
     > div
     > div:first-child
     > div:nth-child(2):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:first-child
-    > div:nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"][data-zb-ring-host-ready="true"]
@@ -1006,8 +967,7 @@ export const RING_PAGE_STYLE = `
     > :nth-child(2) {
     margin-top: 0 !important;
     padding: 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -1084,8 +1044,7 @@ export const RING_PAGE_STYLE = `
     > :nth-child(2)
     > :nth-child(2)
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1096,23 +1055,7 @@ export const RING_PAGE_STYLE = `
     > div:nth-child(2)
     > div:first-child
     > :nth-child(2)
-    > :nth-child(2):is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > :nth-child(2)
-    > :nth-child(2):focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    > :nth-child(2):is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1180,23 +1123,7 @@ export const RING_PAGE_STYLE = `
     > div:nth-child(2)
     > div:nth-child(3)
     > :nth-child(2)
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .App-main
-    > div:first-child
-    > div:nth-child(2)
-    > div
-    > div:nth-child(2)
-    > div:nth-child(3)
-    > :nth-child(2)
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    button:is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1223,9 +1150,7 @@ export const RING_PAGE_STYLE = `
     > div:nth-child(3)
     > :nth-child(3)
     a:is(:hover, :focus-visible)
-    img {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    img {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1248,81 +1173,7 @@ export const RING_PAGE_STYLE = `
     > div
     a:focus-visible {
     border-radius: 6px !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"] .PinItem a.LinkCard {
-    background: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 10px !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-    transition:
-      background-color 0.16s ease,
-      border-color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-wrapper {
-    background: transparent !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-title {
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    :is(.LinkCard-excerpt, .LinkCard-desc) {
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard
-    .LinkCard-image {
-    background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:is(:hover, :focus-visible) {
-    background: var(--zb-surface-hover) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-    text-decoration: none !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    a.LinkCard:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1338,97 +1189,19 @@ export const RING_PAGE_STYLE = `
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton {
-    box-sizing: border-box !important;
-    min-height: 32px !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .VoteButton:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .PinItem
-    .ContentItem-actions
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
     div:has(> .Modal-content input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    .Modal-content:has(input[placeholder="搜索你想邀请的人"]) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
-    > :first-child {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    > :first-child {${SECTION_HEADER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1444,8 +1217,7 @@ export const RING_PAGE_STYLE = `
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     .Input-wrapper {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     transition:
       border-color 0.16s ease,
@@ -1454,16 +1226,12 @@ export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    .Input-wrapper:focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .Input-wrapper:focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    input[placeholder="搜索你想邀请的人"] {
-    background-color: transparent !important;
-    color: var(--zb-text) !important;
+    input[placeholder="搜索你想邀请的人"] {${TRANSPARENT_TEXT_STYLE}
     caret-color: var(--zb-primary) !important;
   }
 
@@ -1477,9 +1245,7 @@ export const RING_PAGE_STYLE = `
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
-    > :nth-child(2) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > :nth-child(2) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1490,8 +1256,7 @@ export const RING_PAGE_STYLE = `
     > div
     > div
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -1540,9 +1305,7 @@ export const RING_PAGE_STYLE = `
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
     > div
     > :nth-child(2)
-    > :nth-child(3) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > :nth-child(3) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1591,17 +1354,7 @@ export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
     .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-host-page="true"]
-    .Modal-content:has(input[placeholder="搜索你想邀请的人"])
-    button:focus-visible {
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    button:is(:hover, :focus-visible) {${PRIMARY_BUTTON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-host-page="true"]
@@ -1616,8 +1369,7 @@ export const RING_PAGE_STYLE = `
   html[data-zb-theme][data-zb-ring-host-page="true"]
     div:has(> div > .Modal-content input[placeholder="搜索你想邀请的人"])
     > button[aria-label="关闭"] {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -1645,9 +1397,7 @@ export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -1669,16 +1419,14 @@ export const RING_PAGE_STYLE = `
     #TopstoryContent
     :is(a[href="/ring"], a[href*="/ring/host/"]):focus-visible {
     border-radius: 8px !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     #TopstoryContent
     a[href^="https://www.zhihu.com/pin/"]
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
   }
 
@@ -1758,8 +1506,7 @@ export const RING_PAGE_STYLE = `
     + div
     > div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-secondary) !important;
     transition:
       background-color 0.16s ease,
@@ -1778,8 +1525,7 @@ export const RING_PAGE_STYLE = `
     + div
     > div
     :where(div, span, svg) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -1825,17 +1571,6 @@ export const RING_PAGE_STYLE = `
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
     .Modal:has(.WritePinV2-Form)
-    .WritePinToolbar
-    .Button--plain:focus-visible,
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
-    .Modal-closeButton:focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    .Modal:has(.WritePinV2-Form)
     .Modal-closeButton {
     border-radius: 999px !important;
     color: var(--zb-text-muted) !important;
@@ -1859,8 +1594,7 @@ export const RING_PAGE_STYLE = `
     > div
     > div
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     box-shadow: var(--zb-shadow) !important;
     color: var(--zb-text-muted) !important;
     transition:
@@ -1886,9 +1620,7 @@ export const RING_PAGE_STYLE = `
     .List
     > .List-item {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     margin-bottom: 10px !important;
     overflow: hidden !important;
@@ -1936,16 +1668,7 @@ export const RING_PAGE_STYLE = `
     #TopstoryContent
     .PinItem
     button:not(.Button):hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .PinItem
-    button:not(.Button):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-ring-feeds-page="true"]
@@ -1973,16 +1696,6 @@ export const RING_PAGE_STYLE = `
     #TopstoryContent
     .List
     > .List-item
-    .ContentItem-actions
-    .Button:not(.VoteButton):focus-visible {
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
     :is(.ContentItem-more, .RichContent-inner a) {
     color: var(--zb-primary) !important;
   }
@@ -1995,44 +1708,4 @@ export const RING_PAGE_STYLE = `
     color: var(--zb-primary-hover) !important;
   }
 
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="已收藏"],
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible) {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(.Button--red, .Button[aria-label="取消喜欢"]),
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible) {
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-ring-feeds-page="true"]
-    #TopstoryContent
-    .List
-    > .List-item
-    :is(
-      .Button[aria-label="已收藏"],
-      .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-      .Button--red,
-      .Button[aria-label="取消喜欢"],
-      .Button[aria-label="喜欢"]:is(:hover, :focus-visible)
-    )
-    svg {
-    fill: currentColor !important;
-  }
 `;

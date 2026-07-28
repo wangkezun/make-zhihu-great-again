@@ -3,16 +3,21 @@ import { describe, expect, it } from "vitest";
 
 import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
+import { CROSS_PAGE_SURFACES_STYLE } from "../src/styles/components/cross-page-surfaces.js";
 import { HOME_PAGE_STYLE } from "../src/styles/pages/home.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import {
   createRuleExpectation,
+  createGroupedRuleExpectation,
   dispatchPageContext,
   expectStyleInjected,
   expectStyleRemoved,
 } from "./helpers/style-rules.js";
 
 const expectRule = createRuleExpectation(HOME_PAGE_STYLE);
+const expectSharedRule = createGroupedRuleExpectation(CROSS_PAGE_CONTROLS_STYLE);
+const expectSurfaceRule = createGroupedRuleExpectation(CROSS_PAGE_SURFACES_STYLE);
 
 describe("home page theme", () => {
   it("loads the extracted module only on home-feed routes", () => {
@@ -23,7 +28,9 @@ describe("home page theme", () => {
 
     feature.start();
 
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-home-page="true"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_CONTROLS_STYLE);
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_SURFACES_STYLE);
+    expect(HOME_PAGE_STYLE).not.toContain(".ContentItem-actions\n    .Button:not(.VoteButton)");
     expectStyleInjected(page, "zb-home-page-theme-style", HOME_PAGE_STYLE);
 
     page.window.history.pushState({}, "", "/hot");
@@ -77,7 +84,7 @@ describe("home page theme", () => {
       'html[data-zb-theme][data-zb-home-page="true"]\n    .Topstory-mainColumn\n    > .WriteArea\n    > div\n    > div:has(> img[src*="/heifetz/assets/"])::after',
       ["border-top-color: var(--zb-border) !important;"],
     );
-    expectRule(
+    expectSurfaceRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .Topstory-recommend\n    > .TopstoryItem',
       [
         "margin-bottom: 10px !important;",
@@ -86,11 +93,11 @@ describe("home page theme", () => {
         "box-shadow: var(--zb-shadow) !important;",
       ],
     );
-    expectRule(
+    expectSurfaceRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .Topstory-recommend\n    > .TopstoryItem:hover',
       ["border-color: var(--zb-border-strong) !important;"],
     );
-    expectRule(
+    expectSurfaceRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .Topstory-recommend\n    > .TopstoryItem:focus-visible',
       [
         "border-color: var(--zb-primary) !important;",
@@ -106,7 +113,7 @@ describe("home page theme", () => {
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-title:is(:hover, :focus-within),\n  html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-title\n    a:is(:hover, :focus-visible)',
       ["color: var(--zb-primary-hover) !important;"],
     );
-    expectRule(
+    expectSharedRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton)',
       [
         "min-height: 28px !important;",
@@ -114,33 +121,32 @@ describe("home page theme", () => {
         "border-radius: 6px !important;",
       ],
     );
-    expectRule(
-      'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-more',
+    expectSharedRule(
+      'html[data-zb-theme][data-zb-home-page="true"] .TopstoryItem .ContentItem-more',
       [
         "min-height: 28px !important;",
         "padding: 3px 8px !important;",
         "color: var(--zb-primary) !important;",
       ],
     );
-    expectRule(
+    expectSharedRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-more:is(:hover, :focus-visible)',
       [
         "background-color: var(--zb-primary-soft) !important;",
         "color: var(--zb-primary) !important;",
       ],
     );
-    expectRule(
-      'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-more:focus-visible',
-      ["box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;", "outline: 0 !important;"],
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] :focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;\n    outline: 0 !important;",
     );
-    expectRule(
+    expectSharedRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):not(.Button--blue):hover',
       [
         "background-color: var(--zb-surface-raised) !important;",
         "color: var(--zb-text) !important;",
       ],
     );
-    expectRule(
+    expectSharedRule(
       'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):not(.Button--blue):focus-visible',
       [
         "background-color: var(--zb-surface-raised) !important;",
@@ -153,13 +159,13 @@ describe("home page theme", () => {
 
   it("themes favorite and liked states within home cards", () => {
     expect(HOME_PAGE_STYLE).not.toContain(".TopstoryItem:is(:hover, :focus-within)");
-    expectRule(
-      'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="收藏"]:is(:hover, :focus-visible)\n    .Zi--Star,\n  html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]\n    .Zi--Star',
-      ["color: var(--zb-warning) !important;", "fill: currentColor !important;"],
+    expectSharedRule(
+      'html[data-zb-theme]\n    :is(.ContentItem-actions, .RichContent-actions)\n    .Button:is(\n      [aria-label="已收藏"],',
+      ["color: var(--zb-warning) !important;"],
     );
-    expectRule(
-      'html[data-zb-theme][data-zb-home-page="true"]\n    .TopstoryItem\n    .ContentItem-actions\n    .Button:is(\n      .Button--red,\n      .is-active,\n      [aria-label="取消喜欢"],\n      [aria-pressed="true"]\n    ):has(\n      :is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)\n    )\n    svg',
-      ["color: var(--zb-danger) !important;", "fill: currentColor !important;"],
+    expectSharedRule(
+      'html[data-zb-theme]\n    :is(.ContentItem-actions, .RichContent-actions)\n    .Button:is(\n      [aria-label="喜欢"]:is(:hover, :focus-visible),',
+      ["color: var(--zb-danger) !important;"],
     );
   });
 });

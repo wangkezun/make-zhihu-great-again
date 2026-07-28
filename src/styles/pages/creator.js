@@ -1,3 +1,13 @@
+import {
+  CURRENT_COLOR_ICON_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  RAISED_CONTROL_SURFACE_STYLE,
+  RAISED_PRIMARY_HOVER_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+  SURFACE_TEXT_ONLY_STYLE,
+  SURFACE_TEXT_STYLE,
+} from "../shared-components.js";
+
 export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
     color: var(--zb-text) !important;
   }
@@ -23,8 +33,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   html[data-zb-theme][data-zb-creator-page="true"]
     .CreatorIndex-BottomBox-Item
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -77,8 +86,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     > div:first-child
     :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
     svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -101,10 +109,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
       :hover,
       :focus-visible
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    ) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -178,10 +183,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   html[data-zb-theme][data-zb-creator-page="true"]
     .Creator-mainColumn
     > .Card
-    .Tabs {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    .Tabs {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -258,10 +260,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   html[data-zb-theme][data-zb-creator-page="true"]
     .Creator-mainColumn
     > .Card
-    .Tabs-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    .Tabs-link:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -275,8 +274,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     .Creator-mainColumn
     > .Card
     .Tabs-link.is-active {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
     font-weight: 500 !important;
     box-shadow: inset 0 0 0 1px
       color-mix(in srgb, var(--zb-primary) 35%, transparent) !important;
@@ -285,9 +283,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
     .Creator-mainColumn
     > .Card
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
@@ -297,8 +293,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     > .Tabs
     + div {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
   }
@@ -329,9 +324,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     > div
     > .Tabs
     + div
-    + div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    + div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"][data-zb-creator-associated-account-page="true"]
@@ -442,8 +435,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     box-sizing: border-box !important;
     height: 34px !important;
     padding: 0 10px 0 12px !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-secondary) !important;
     transition:
@@ -484,15 +476,6 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
-    .Creator-mainColumn
-    > .Card
-    .Select-button[role="combobox"]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-creator-page="true"]
     .Popover-content:has(> .Select-list) {
     background-color: var(--zb-surface) !important;
     border: 1px solid var(--zb-border) !important;
@@ -526,10 +509,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
   html[data-zb-theme][data-zb-creator-page="true"]
     .Popover-content
     > .Select-list
-    > .Select-option:is(:hover, :focus, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    > .Select-option:is(:hover, :focus, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -549,8 +529,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -631,8 +610,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     .CreationCardTitle-wrapper
     > div
     > div:first-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -736,10 +714,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
       .WriteArea + div + div + div > div,
       [role="complementary"] > div:not(.Card),
       [role="complementary"] > div:not(.Card):has(> div:only-child) > div
-    ) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    ) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -824,10 +799,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     + div
     + div
     > div
-    > div:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
+    > div:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]
@@ -866,8 +838,7 @@ export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="t
     > div
     > div:has(> .ZDI--Broadcast16)
     > div:last-child {
-    background-color: var(--zb-primary-soft) !important;
-    color: var(--zb-primary) !important;
+    ${SOFT_PRIMARY_STATE_STYLE}
   }
 
   html[data-zb-theme][data-zb-creator-page="true"]

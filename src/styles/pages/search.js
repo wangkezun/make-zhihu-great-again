@@ -1,3 +1,18 @@
+import {
+  CARD_FRAME_STYLE,
+  CARD_SURFACE_STYLE,
+  CURRENT_COLOR_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_BUTTON_HOVER_STYLE,
+  PRIMARY_BUTTON_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
+  RAISED_CONTROL_SURFACE_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  SECONDARY_TEXT_PAINT_STYLE,
+  SURFACE_TEXT_ONLY_STYLE,
+} from "../shared-components.js";
+
 export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     background-color: var(--zb-surface) !important;
     border-bottom: 1px solid var(--zb-border) !important;
@@ -5,31 +20,23 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     box-shadow: var(--zb-shadow) !important;
   }
 
-  html[data-zb-theme] .SearchTabs .Tabs-link {
+  html[data-zb-theme] .SearchTabs .Tabs-link,
+  html[data-zb-theme] .SearchTabs-customFilterEntry {
     color: var(--zb-text-muted) !important;
     transition: color 0.16s ease !important;
   }
 
   html[data-zb-theme] .SearchTabs .Tabs-link:hover,
-  html[data-zb-theme] .SearchTabs .Tabs-link.is-active {
+  html[data-zb-theme] .SearchTabs .Tabs-link.is-active,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
+  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
     color: var(--zb-primary) !important;
   }
 
   html[data-zb-theme] .SearchTabs .Tabs-link:focus-visible {
     border-radius: 6px !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry {
-    color: var(--zb-text-muted) !important;
-    transition: color 0.16s ease !important;
-  }
-
-  html[data-zb-theme] .SearchTabs-customFilterEntry:hover,
-  html[data-zb-theme] .SearchTabs-customFilterEntry:focus-visible {
-    color: var(--zb-primary) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme] .Search-container,
@@ -42,23 +49,6 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     background-color: var(--zb-surface) !important;
   }
 
-  html[data-zb-theme] .SearchMain .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme]
-    .SearchMain
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
-  }
-
   html[data-zb-theme] .SearchMain > .ListShortcut,
   html[data-zb-theme] .SearchMain > .ListShortcut > .List {
     background-color: transparent !important;
@@ -67,9 +57,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
   html[data-zb-theme] .SearchMain .SearchResult-Card,
   html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
   }
@@ -117,18 +105,13 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
       .RichContent-inner,
       .RichContent-inner .RichText,
       .SearchItem-meta.Highlight
-    ) {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    ) {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     .SearchResult-Card
     .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
     -webkit-text-fill-color: var(--zb-text-muted) !important;
   }
 
@@ -142,12 +125,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
       > .List-item h2 a:is([href*="/people/"], [href*="/org/"])
     )
     .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
     -webkit-text-fill-color: var(--zb-danger) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-danger-soft) !important;
   }
 
   html[data-zb-theme] .SearchMain .List > .Card:has(> .PlaceHolder) {
@@ -161,9 +139,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     min-height: 58px !important;
     padding: 12px 16px !important;
     align-items: center !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     color: var(--zb-text) !important;
     line-height: normal !important;
     box-shadow: var(--zb-shadow) !important;
@@ -195,8 +171,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     padding: 5px 12px !important;
     align-items: center !important;
     justify-content: center !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
     font-weight: 400 !important;
@@ -223,10 +198,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
   html[data-zb-theme]
     .SearchMain
     .SearchSubTabs
-    .Tabs-link.is-active {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
+    .Tabs-link.is-active {${PRIMARY_BUTTON_STYLE}
     font-weight: 600 !important;
   }
 
@@ -234,28 +206,20 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     .SearchMain
     .SearchSubTabs
     .Tabs-link.is-active:hover {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
+    ${PRIMARY_BUTTON_HOVER_STYLE}
     color: var(--ctp-crust) !important;
   }
 
   html[data-zb-theme] .SearchMain .SearchSubTabs .Tabs-link:focus-visible {
     border-color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme]
     .SearchMain
     [data-za-detail-view-path-module="SearchResultList"]:has(
       + .SearchNoContent-wrap
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ) {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme]
@@ -303,8 +267,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     > div:first-child
     > div
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -339,9 +302,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
       + .SearchNoContent-wrap
     )
     > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -371,8 +332,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     )
     > div:has(> div > .Button.Button--secondary)
     .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -397,8 +357,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     > div:has(> div > .Button.Button--secondary)
     > div:last-child
     .Button:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -421,13 +380,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     [data-za-detail-view-path-module="SearchResultList"]:has(
       a[href*="/kvip/sku/paper/"]
     )
-    > div:has(> div > div > .Zi--TriangleUp) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    > div:has(> div > div > .Zi--TriangleUp) {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme]
@@ -450,8 +403,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     > div:has(> div > div > .Zi--TriangleUp)
     > div:first-child
     > div {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 8px !important;
     color: var(--zb-text-muted) !important;
   }
@@ -478,8 +430,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     > div:first-child
     > div
     > svg {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -517,9 +468,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     )
     > div:has(> div > div > .Zi--TriangleUp)
     > div:has(> div > .Button.Button--secondary)
-    > div {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    > div {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme]
@@ -552,8 +501,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     > div:has(> div > div > .Zi--TriangleUp)
     > div:has(> div > .Button.Button--secondary)
     .Button--secondary:not(.Button--blue) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border) !important;
+    ${RAISED_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -577,12 +525,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
       a[href*="/kvip/sku/paper/"]
     )
     > div:has(> a[href*="/kvip/sku/paper/"]) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ${CARD_SURFACE_STYLE}
     overflow: hidden !important;
     transition: border-color 0.16s ease !important;
   }
@@ -614,8 +557,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
     font-weight: 600 !important;
     transition: color 0.16s ease !important;
   }
@@ -640,8 +582,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(5) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -652,9 +593,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(3)
-    span {
-    color: var(--zb-text-secondary) !important;
-    -webkit-text-fill-color: var(--zb-text-secondary) !important;
+    span {${SECONDARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme]
@@ -662,8 +601,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     a[href*="/kvip/sku/paper/"]
     > div:nth-child(3)
     span:has(.ZDI--ArrowRight24) {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme] .SearchMain a[href*="/kvip/sku/paper/"] em {
@@ -675,8 +613,7 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     .SearchMain
     a[href*="/kvip/sku/paper/"]
     :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme]
@@ -718,17 +655,6 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     color: var(--zb-text-muted) !important;
   }
 
-  html[data-zb-theme] .HotLanding .RichContent-actions.is-fixed {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    background-clip: border-box !important;
-    border: 0 !important;
-    border-top: 1px solid var(--zb-border) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 -6px 14px
-      color-mix(in srgb, var(--ctp-crust) 12%, transparent) !important;
-  }
-
   html[data-zb-theme]
     .HotLanding
     .RichContent-actions.is-fixed
@@ -740,80 +666,14 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
   html[data-zb-theme]
     .HotLanding
     :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
     .VoteButton {
     border-radius: 6px !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible)
-    .Zi--Star,
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button[aria-label="已收藏"]
-    .Zi--Star {
-    color: var(--zb-warning) !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme]
-    .HotLanding
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    )
-    :has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24))
-    svg {
-    color: var(--zb-danger) !important;
-    fill: currentColor !important;
   }
 
   html[data-zb-theme] .Search-container .HotSearchCard-title,
   html[data-zb-theme] .Search-container .HotSearchCard-itemText,
   html[data-zb-theme] .Search-container .HotSearchCard-itemLink {
     color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard {
-    box-sizing: border-box !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
   }
 
   html[data-zb-theme] .Search-container .HotSearchCard-heat {
@@ -848,18 +708,6 @@ export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
   html[data-zb-theme] .Search-container .HotSearchCard-itemLink:focus-visible {
     color: var(--zb-primary) !important;
     outline: 0 !important;
-  }
-
-  html[data-zb-theme] .Search-container .HotSearchCard-tag {
-    box-sizing: border-box !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 24px !important;
-    padding: 0 5px !important;
-    white-space: nowrap !important;
   }
 
   html[data-zb-theme] .Search-container footer[role="contentinfo"],

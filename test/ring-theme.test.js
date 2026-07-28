@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { PAGE_CONTEXT_CHANGE_EVENT } from "../src/features/page-context.js";
 import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import { RING_PAGE_STYLE } from "../src/styles/pages/ring.js";
 
@@ -48,7 +49,10 @@ describe("ring page theme", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).not.toContain("data-zb-ring-index-page");
     expect(CATPPUCCIN_THEME_STYLE).not.toContain("data-zb-ring-feeds-page");
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain("data-zb-ring-host-page");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_CONTROLS_STYLE);
+    expect(RING_PAGE_STYLE).not.toContain(
+      ".PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton):hover",
+    );
 
     dispatchPageContext(page, {
       ...context,
@@ -132,9 +136,8 @@ describe("ring page theme", () => {
         "margin-bottom: 10px !important;",
       ],
     );
-    expectRule(
-      'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    #TopstoryContent\n    .List\n    > .List-item\n    .ContentItem-actions\n    .Button:not(.VoteButton):focus-visible',
-      ["box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;", "outline: 0 !important;"],
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] :focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;\n    outline: 0 !important;",
     );
     expectRule(
       'html[data-zb-theme][data-zb-ring-feeds-page="true"]\n    .Modal:has(.WritePinV2-Form)\n    .WritePinV2-Form',

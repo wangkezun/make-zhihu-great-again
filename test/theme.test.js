@@ -294,7 +294,7 @@ describe("Catppuccin theme feature", () => {
       "width: 100% !important;\n    margin: -10px 0 !important;\n    padding: 10px 0 !important;\n    background-color: transparent !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton) {",
+      ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    .Button:not(.VoteButton)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".PinDetail\n    .PinItem\n    .ContentItem-actions\n    .VoteButton {",
@@ -327,10 +327,10 @@ describe("Catppuccin theme feature", () => {
       '.VoterList-content\n    :is(\n      .Skeleton,\n      [class*="skeleton" i],\n      .PlaceHolder,',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".VoterList-content .PlaceHolder-bg {\n    background: linear-gradient(",
+      "html[data-zb-theme] .PlaceHolder-bg {\n    background: linear-gradient(",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".VoterList-content\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {",
+      ".VoterList-content\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path),",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".VoterList-content img.Avatar {\n    background-color: var(--zb-surface-raised) !important;\n    border-radius: 50% !important;",
@@ -342,8 +342,10 @@ describe("Catppuccin theme feature", () => {
       ".VoterList-content\n    .FollowButton.Button--grey:is(:hover, :focus-visible)\n    :where(span, svg, path) {",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".PlaceHolder-inner");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-bg");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionPage .PlaceHolder-mask path");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] .PlaceHolder-bg");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".QuestionPage\n    :is(.PlaceHolder-mask, .PlaceHolder-mask path)",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.BounceLoading[style*="width: 60px"][style*="height: 18px"]',
     );
@@ -429,8 +431,9 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".hot-column-container .more {\n    box-sizing: border-box !important;",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] :focus-visible {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".hot-column-container .more:focus-visible {\n    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;",
+      "box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".hot-column-container .more :is(svg, path)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".recommend-column .subscrib-card");
@@ -606,13 +609,7 @@ describe("Catppuccin theme feature", () => {
       ".App-main .Chat .ChatUserListItem {\n    box-sizing: border-box !important;\n    width: calc(100% - 16px) !important;\n    margin: 4px 8px !important;\n    padding: 11px 12px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".App-main .Chat .ChatUserListItem::after {\n    display: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ChatListGroup-SectionTitle--bottomBorder::after {\n    display: none !important;",
-    );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ChatListGroup-SectionTitle--topBorder::before {\n    display: none !important;",
+      ".App-main .Chat .ChatUserListItem::after,\n  html[data-zb-theme]\n    .App-main\n    .Chat\n    .ChatListGroup-SectionTitle--bottomBorder::after,\n  html[data-zb-theme]\n    .App-main\n    .Chat\n    .ChatListGroup-SectionTitle--topBorder::before {\n    display: none !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "background-color: var(--zb-primary-soft) !important;\n    border-color: var(--zb-primary) !important;\n    box-shadow: none !important;",
@@ -659,13 +656,13 @@ describe("Catppuccin theme feature", () => {
       ".App-main .Chat .CardMessage > :last-child {\n    display: grid !important;\n    gap: 2px !important;\n    padding: 8px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".CardMessage\n    > :last-child\n    > div {\n    background-color: transparent !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 8px !important;",
+      ".CardMessage\n    > :last-child\n    > div,\n  html[data-zb-theme] .App-main .Chat .IconListMessage > div {\n    background-color: transparent !important;\n    border: 1px solid var(--zb-border) !important;\n    border-radius: 8px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> div:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-raised) !important;\n    border-color: var(--zb-primary) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".App-main .Chat .IconListMessage > div {\n    background-color: transparent !important;\n    border: 1px solid var(--zb-border) !important;",
+      ".App-main .Chat .IconListMessage > div {\n    overflow: hidden !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".IconListMessage\n    > div\n    :where(div, span) {\n    color: inherit !important;",
@@ -698,20 +695,19 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".App-main .Chat .InputBox > .ToolBar {\n    border-top-color: var(--zb-border) !important;",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".App-main .Chat .TextMessage {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".App-main .Chat .TextMessage {\n    background-color: var(--zb-surface-raised) !important;",
+      "background-color: var(--zb-surface-raised) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".App-main .Chat .MessagesBox .css-1oxfz4p {\n    box-sizing: border-box !important;\n    max-width: calc(100% - 32px) !important;\n    background-color: var(--zb-surface-raised) !important;",
+      ".App-main .Chat .MessagesBox .css-1oxfz4p {\n    box-sizing: border-box !important;\n    max-width: calc(100% - 32px) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal > div:has(> .Modal-content)");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".ChatBoxModal\n    :is(.Modal-content, .Chat-ChatBox, .MessagesBox, .InputBox)",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal .Chat-ChatBox > header");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".ChatBoxModal .TextMessage {\n    background-color: var(--zb-surface-raised) !important;",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".ChatBoxModal .TextMessage {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TextMessage.TextMessage-receiver");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".ChatBoxModal\n    :is(time, .Message-status, .InputBox-footerDesc)",
@@ -719,9 +715,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".ChatBoxModal .InputBox-input {\n    background-color: transparent !important;",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Emoticons.EmoticonTool-panel {\n    background-color: var(--zb-surface-raised) !important;",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Emoticons.EmoticonTool-panel {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Emoticons.EmoticonTool-panel .EmoticonsFooter {");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-action-menu-popover]\n    > .ActionMenu {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -798,10 +792,10 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".TopstoryItem-isFollow\n    .ContentItem-more");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '.TopstoryItem-isFollow\n    .ContentItem-actions\n    .Button[aria-label="已收藏"]',
+      ':is(.ContentItem-actions, .RichContent-actions)\n    .Button:is(\n      [aria-label="已收藏"],',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".TopstoryItem-isFollow\n    .ContentItem-actions\n    .Button:is(",
+      ':is(.ContentItem-actions, .RichContent-actions)\n    .Button:is(\n      [aria-label="喜欢"]:is(:hover, :focus-visible),',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Topstory-container > .Topstory-mainColumn + *\n    )\n    :is(\n      .CreatorEntrance-hint,",
@@ -840,9 +834,7 @@ describe("Catppuccin theme feature", () => {
       ".QuestionHeader-footer\n    .QuestionHeaderActions\n    .Button,",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-actions\n    > .Button {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".QuestionHeader-actions\n    > .Button:focus-visible",
-    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] :focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".QuestionHeader-actions\n    > .Button\n    svg");
     expect(CATPPUCCIN_THEME_STYLE).toContain("margin-left: 4px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -881,7 +873,7 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".AnswerAuthor-buttons\n    .Button:not(.FollowButton)",
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Button:not(.FollowButton):focus-visible");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] :focus-visible");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--blue");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".FollowButton.Button--grey");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
@@ -916,7 +908,14 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("gap: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("flex: 1 1 0 !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card] .NumberBoard-item");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .FollowButton.Button--grey");
+    expect(
+      CATPPUCCIN_THEME_STYLE.match(
+        /html\[data-zb-theme\]\s+\[data-zb-hover-card\]\s+\.NumberBoard-item:hover\s+\{/g,
+      ),
+    ).toHaveLength(1);
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] body .Button.FollowButton.Button--grey",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".HoverCard-buttons\n    .Button:not(.FollowButton)");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-hover-card-single-action]");
     expect(CATPPUCCIN_THEME_STYLE).not.toContain("div:has(> .HoverCard-item)");
@@ -956,7 +955,10 @@ describe("Catppuccin theme feature", () => {
       ".Button:is(.Button--withLabel, .Button--secondary) {\n    box-sizing: border-box !important;\n    border-radius: 6px !important;\n    color: var(--zb-text-secondary) !important;\n    min-height: 32px !important;\n    padding-inline: 10px !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".Comments-container\n    [data-id]\n    > .Button.Button--secondary {\n    background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border-strong) !important;\n    margin-top: -4px !important;",
+      ".Comments-container\n    [data-id]\n    > .Button.Button--secondary {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border-strong) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       ".Comments-container {\n    border: 0 !important;\n    border-radius: 8px !important;\n    box-shadow: none !important;\n    outline: 0 !important;",
@@ -992,14 +994,17 @@ describe("Catppuccin theme feature", () => {
       "> div:has(> .ZDI--ArrowRightSmall24)::before {\n    border: 0 !important;\n    content: none !important;\n    display: none !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:has(> .ZDI--ArrowRightSmall24):is(\n      :hover,\n      :focus-within,\n      :active\n    ) {\n    background-color: var(--zb-primary-soft) !important;",
+      "> div:has(> .ZDI--ArrowRightSmall24):is(\n      :hover,\n      :focus-within,\n      :active\n    ) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "background-color: var(--zb-primary-soft) !important;\n    color: var(--zb-primary) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container\n    .InputLike.Editable");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container [data-id] [data-id]::before");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.Comments-container\n    div:has(> div + svg[width="656"][height="44"])',
     );
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container .PlaceHolder-bg");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("html[data-zb-theme] .PlaceHolder-bg");
     expect(CATPPUCCIN_THEME_STYLE).toContain("opacity: 1 !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.Comments-container\n    div:has(\n      > .BounceLoading[style*="width: 60px"][style*="height: 18px"]\n    ) {\n    background-color: var(--zb-surface) !important;\n    border: 0 !important;\n    box-shadow: none !important;',
@@ -1023,7 +1028,7 @@ describe("Catppuccin theme feature", () => {
       '> div:has(> svg[width="26"][height="10"] + div)\n    > div\n    > div:is(:hover, :focus, :focus-visible)',
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      '> div:has(> svg[width="26"][height="10"] + div)\n    > svg\n    + div {\n    color: var(--zb-text) !important;',
+      '> div:has(> svg[width="26"][height="10"] + div)\n    > svg\n    + div {',
     );
 
     expect(
@@ -1105,13 +1110,13 @@ describe("Catppuccin theme feature", () => {
       ".QuestionAnswers-answerAdd\n    > .AnswerAdd\n    > div:nth-child(2) {\n    background-color: var(--zb-surface) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child {\n    background-color: var(--zb-surface) !important;\n    border: 1px solid var(--zb-border) !important;",
+      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child {",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child\n    > div:last-child\n    > div {\n    background-color: var(--zb-surface-raised) !important;\n    border: 1px solid var(--zb-border) !important;",
+      ".AIAssistantPanelV2-container\n    > div\n    > div:first-child\n    > div:last-child\n    > div {",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div\n    > div:first-child\n    :where(div, span, svg) {\n    color: var(--zb-text) !important;",
+      "> div\n    > div:first-child\n    :where(div, span, svg) {",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "> div\n    > :last-child {\n    color: var(--zb-text-muted) !important;",
@@ -1167,7 +1172,10 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain("body .TooltipContent.TooltipContent--white *");
     expect(CATPPUCCIN_THEME_STYLE).toContain("-webkit-text-fill-color: var(--zb-text) !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "button\n    :is(svg, path) {\n    color: inherit !important;\n    fill: currentColor !important;",
+      "html[data-zb-theme] :is(.Button, button) :where(svg, path) {",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "color: inherit !important;\n    fill: currentColor !important;",
     );
 
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Answers-select .Select-option");
@@ -1321,8 +1329,9 @@ describe("Catppuccin theme feature", () => {
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       "box-shadow: inset 0 0 0 1px var(--zb-primary) !important",
     );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("> div:first-child\n    span {");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
-      "> div:first-child\n    span {\n    color: var(--zb-text) !important;",
+      "color: var(--zb-text) !important;\n    -webkit-text-fill-color: var(--zb-text) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toMatch(
       /> div:nth-child\(2\) \{\s*background-color: transparent !important;/,

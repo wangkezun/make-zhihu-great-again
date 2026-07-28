@@ -2,6 +2,7 @@ import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createAnswerActionsStickyFeature } from "../src/features/answer-actions-sticky.js";
+import { PAGE_CONTEXT_CHANGE_EVENT } from "../src/features/page-context.js";
 import { ANSWER_ACTIONS_STICKY_STYLE } from "../src/styles/answer-actions-sticky.js";
 
 const activePages = [];
@@ -162,6 +163,33 @@ describe("answer actions sticky feature", () => {
     feature.destroy();
   });
 
+  it("skips action and content geometry reads for fully offscreen items", async () => {
+    const page = createPage();
+    const feature = createAnswerActionsStickyFeature(page.window);
+    feature.start();
+    const elements = setRects(page, {
+      actionRect: rect({ bottom: 1550, height: 54, top: 1496 }),
+      itemRect: rect({ bottom: 1560, height: 560, top: 1000 }),
+      richRect: rect({ bottom: 1560, height: 560, top: 1000 }),
+    });
+    let actionRectReads = 0;
+    let richRectReads = 0;
+    elements.action.getBoundingClientRect = () => {
+      actionRectReads += 1;
+      return rect({ bottom: 1550, height: 54, top: 1496 });
+    };
+    elements.richContent.getBoundingClientRect = () => {
+      richRectReads += 1;
+      return rect({ bottom: 1560, height: 560, top: 1000 });
+    };
+
+    await waitForFrame(page);
+
+    expect(actionRectReads).toBe(0);
+    expect(richRectReads).toBe(0);
+    feature.destroy();
+  });
+
   it("waits until a full operation-row height of the next answer is visible", async () => {
     const page = createPage();
     const feature = createAnswerActionsStickyFeature(page.window);
@@ -244,6 +272,82 @@ describe("answer actions sticky feature", () => {
     expect(action.classList.contains("zb-answer-actions-fixed")).toBe(false);
     expect(placeholder.isConnected).toBe(false);
     expect(page.window.document.getElementById("zb-answer-actions-sticky-style")).toBeNull();
+  });
+
+  it("stays inactive outside home and question routes", () => {
+    const page = createPage({ url: "https://www.zhihu.com/people/example" });
+    const feature = createAnswerActionsStickyFeature(page.window);
+
+    feature.start();
+
+    expect(page.window.document.querySelector(".zb-answer-actions-placeholder")).toBeNull();
+    expect(page.window.document.getElementById("zb-answer-actions-sticky-style")).toBeNull();
+    feature.destroy();
+  });
+
+  it("deactivates and reactivates across SPA route changes", () => {
+    const page = createPage();
+    const feature = createAnswerActionsStickyFeature(page.window);
+    feature.start();
+
+    expect(page.window.document.querySelector(".zb-answer-actions-placeholder")).not.toBeNull();
+
+    page.window.history.pushState({}, "", "/people/example");
+    page.window.dispatchEvent(
+      new page.window.CustomEvent(PAGE_CONTEXT_CHANGE_EVENT, {
+        detail: { home: false, question: false },
+      }),
+    );
+
+    expect(page.window.document.querySelector(".zb-answer-actions-placeholder")).toBeNull();
+    expect(page.window.document.getElementById("zb-answer-actions-sticky-style")).toBeNull();
+
+    page.window.history.pushState({}, "", "/");
+    page.window.dispatchEvent(
+      new page.window.CustomEvent(PAGE_CONTEXT_CHANGE_EVENT, {
+        detail: { home: true, question: false },
+      }),
+    );
+
+    expect(page.window.document.querySelector(".zb-answer-actions-placeholder")).not.toBeNull();
+    expect(page.window.document.getElementById("zb-answer-actions-sticky-style")).not.toBeNull();
+    feature.destroy();
+  });
+
+  it("observes child additions in the app root and class changes only on action rows", () => {
+    const page = createPage();
+    const root = page.window.document.createElement("div");
+    root.id = "root";
+    root.append(page.window.document.querySelector("main"));
+    page.window.document.body.append(root);
+    const NativeMutationObserver = page.window.MutationObserver;
+    const observeCalls = [];
+    page.window.MutationObserver = class extends NativeMutationObserver {
+      observe(target, options) {
+        observeCalls.push({ options, target });
+        return super.observe(target, options);
+      }
+    };
+    const feature = createAnswerActionsStickyFeature(page.window);
+
+    feature.start();
+
+    expect(observeCalls).toEqual(
+      expect.arrayContaining([
+        {
+          options: { childList: true, subtree: true },
+          target: root,
+        },
+        {
+          options: { attributeFilter: ["class"], attributes: true },
+          target: page.window.document.querySelector(".ContentItem-actions"),
+        },
+      ]),
+    );
+    expect(
+      observeCalls.some(({ options, target }) => target === root && options.attributes === true),
+    ).toBe(false);
+    feature.destroy();
   });
 
   it("defines a viewport-fixed operation row with reserved layout space", () => {

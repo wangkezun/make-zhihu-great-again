@@ -1,4 +1,5 @@
 import { ANSWER_ACTIONS_STICKY_STYLE } from "../styles/answer-actions-sticky.js";
+import { getPageContext, PAGE_CONTEXT_CHANGE_EVENT } from "./page-context.js";
 import { ensureStyle } from "./shared.js";
 
 const ACTION_SELECTOR =
@@ -33,6 +34,7 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   let animationFrameId;
   let mutationObserver;
   let resizeObserver;
+  let active = false;
   let scheduled = false;
   let started = false;
 
@@ -78,9 +80,14 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     };
     actions.add(action);
     actionState.set(action, state);
+    mutationObserver?.observe(action, {
+      attributeFilter: ["class"],
+      attributes: true,
+    });
     resizeObserver?.observe(item);
     resizeObserver?.observe(richContent);
     resizeObserver?.observe(action);
+    scheduleRefresh();
   };
 
   const scanActions = (root = browserDocument) => {
@@ -134,6 +141,11 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
 
     const viewportHeight = browserWindow.innerHeight;
     const itemRect = state.item.getBoundingClientRect();
+    if (itemRect.bottom <= 0 || itemRect.top >= viewportHeight) {
+      clearOwnedFixedState(action, state);
+      return;
+    }
+
     const richRect = state.richContent.getBoundingClientRect();
     if (isNativeFixed) {
       const actionStyle = browserWindow.getComputedStyle(action);
@@ -177,7 +189,7 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   };
 
   const scheduleRefresh = () => {
-    if (!started || scheduled) return;
+    if (!active || scheduled) return;
     scheduled = true;
     animationFrameId = browserWindow.requestAnimationFrame(refresh);
   };
@@ -195,7 +207,7 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
         return;
       }
 
-      shouldRefresh = true;
+      if (actions.size > 0) shouldRefresh = true;
       addedNodes.forEach((node) => {
         if (node.nodeType === 1) scanActions(node);
       });
@@ -204,15 +216,22 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
   };
 
   const setupObservers = () => {
-    const root = browserDocument.documentElement;
+    const root =
+      browserDocument.querySelector("#root") ??
+      browserDocument.body ??
+      browserDocument.documentElement;
     if (!root || mutationObserver) return;
 
     mutationObserver = new browserWindow.MutationObserver(handleMutations);
     mutationObserver.observe(root, {
-      attributeFilter: ["class"],
-      attributes: true,
       childList: true,
       subtree: true,
+    });
+    actions.forEach((action) => {
+      mutationObserver.observe(action, {
+        attributeFilter: ["class"],
+        attributes: true,
+      });
     });
 
     if (browserWindow.ResizeObserver) {
@@ -226,9 +245,9 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     }
   };
 
-  const start = () => {
-    if (started) return;
-    started = true;
+  const activate = () => {
+    if (active) return;
+    active = true;
     ensureStyle(browserDocument, STYLE_ID, ANSWER_ACTIONS_STICKY_STYLE);
     scanActions();
     setupObservers();
@@ -238,8 +257,9 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     scheduleRefresh();
   };
 
-  const destroy = () => {
-    started = false;
+  const deactivate = () => {
+    if (!active) return;
+    active = false;
     scheduled = false;
     mutationObserver?.disconnect();
     resizeObserver?.disconnect();
@@ -254,6 +274,32 @@ export const createAnswerActionsStickyFeature = (browserWindow) => {
     browserDocument.removeEventListener("DOMContentLoaded", scheduleRefresh);
     Array.from(actions).forEach(removeAction);
     browserDocument.getElementById(STYLE_ID)?.remove();
+  };
+
+  const updatePageState = (context = getPageContext(browserWindow)) => {
+    if (context.home || context.question) {
+      activate();
+    } else {
+      deactivate();
+    }
+  };
+
+  const handlePageContextChange = (event) => {
+    updatePageState(event.detail ?? getPageContext(browserWindow));
+  };
+
+  const start = () => {
+    if (started) return;
+    started = true;
+    browserWindow.addEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+    updatePageState();
+  };
+
+  const destroy = () => {
+    if (!started) return;
+    browserWindow.removeEventListener(PAGE_CONTEXT_CHANGE_EVENT, handlePageContextChange);
+    deactivate();
+    started = false;
   };
 
   return { destroy, start };

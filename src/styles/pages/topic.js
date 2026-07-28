@@ -1,16 +1,21 @@
+import {
+  CARD_SURFACE_STYLE,
+  CURRENT_COLOR_ICON_STYLE,
+  PRIMARY_BORDER_FOCUS_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  RAISED_PRIMARY_HOVER_STYLE,
+  SECTION_HEADER_STYLE,
+  SURFACE_TEXT_ONLY_STYLE,
+  SURFACE_TEXT_STYLE,
+} from "../shared-components.js";
+
 export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"]
     :is(
       .Card:has(.TopicMetaCard),
       .Card:has(> .NumberBoard),
       .Card:has(.TopicRelativeBoard-item),
       .TopicFeedList
-    ) {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    ) {${CARD_SURFACE_STYLE}
     overflow: hidden !important;
     overflow: clip !important;
   }
@@ -48,8 +53,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
     background-color: var(--zb-primary-soft) !important;
     border-radius: 6px !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicActions .Button {
@@ -65,63 +69,15 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicActions
-    .FollowButton.Button--blue {
-    background-color: var(--zb-primary) !important;
-    border-color: var(--zb-primary) !important;
-    color: var(--ctp-crust) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--blue:is(:hover, :focus-visible) {
-    background-color: var(--zb-primary-hover) !important;
-    border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text-muted) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .FollowButton.Button--grey:is(:hover, :focus-visible) {
-    background-color: var(--zb-danger-soft) !important;
-    border-color: var(--zb-danger) !important;
-    color: var(--zb-danger) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
     .Button--plain:is(:hover, :focus-visible),
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicActions
     .ShareMenu-toggler[aria-expanded="true"]
-    .Button {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .Button {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicActions
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.Topic-pageHeader, .Topic-pageHeaderMain, .Topic-bar) {
-    background-color: var(--zb-surface) !important;
-    border-color: var(--zb-border) !important;
-    color: var(--zb-text) !important;
+    :is(.Topic-pageHeader, .Topic-pageHeaderMain, .Topic-bar) {${SURFACE_TEXT_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .Topic-bar {
@@ -162,8 +118,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
     background-color: transparent !important;
     border-radius: 6px !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -199,15 +154,13 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
     .Topic-headerLink:focus-visible {
     background-color: transparent !important;
     color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .Topic-headerLink
     :where(span, svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${CURRENT_COLOR_ICON_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -230,10 +183,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
     text-underline-offset: 2px !important;
   }
 
-  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem {
-    background-color: var(--zb-surface) !important;
-    border-bottom: 1px solid var(--zb-border) !important;
-    color: var(--zb-text) !important;
+  html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem {${SECTION_HEADER_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem:last-child {
@@ -282,44 +232,6 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedItem
     :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton) {
-    box-sizing: border-box !important;
-    min-height: 28px !important;
-    padding: 4px 6px !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    color: var(--zb-text-muted) !important;
-    transition:
-      background-color 0.16s ease,
-      color 0.16s ease,
-      box-shadow 0.16s ease !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button:not(.VoteButton):hover {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    :is(
-      .Button:not(.VoteButton):focus-visible,
-      .ShareMenu-toggler[aria-expanded="true"] .Button
-    ) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
     .VoteButton {
     box-sizing: border-box !important;
     min-height: 32px !important;
@@ -339,40 +251,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
       transparent
     ) !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    :is(.ContentItem-actions, .RichContent-actions)
-    .Button
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="收藏"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="已收藏"] {
-    color: var(--zb-warning) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button[aria-label="喜欢"]:is(:hover, :focus-visible),
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Button:is(
-      .Button--red,
-      .is-active,
-      [aria-label="取消喜欢"],
-      [aria-pressed="true"]
-    ):has(:is(.Zi--Heart, .Zi--HeartFill, .ZDI--HeartFill24)) {
-    color: var(--zb-danger) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"] .TopicFeedItem .ContentItem-more {
@@ -385,8 +264,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
     .ContentItem-more:is(:hover, :focus-visible) {
     background-color: var(--zb-primary-soft) !important;
     color: var(--zb-primary-hover) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -403,18 +281,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedItem
     .Comments-container
-    :is(.InputLike, .Editable) {
-    background-color: var(--zb-surface-raised) !important;
-    border-color: var(--zb-border-strong) !important;
-    color: var(--zb-text) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedItem
-    .Comments-container
-    :is(.InputLike, .Editable):focus-within {
-    border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    :is(.InputLike, .Editable):focus-within {${PRIMARY_BORDER_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -440,11 +307,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .NumberBoard-item:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .NumberBoard-item:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -548,11 +411,7 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicRelativeBoard-link:is(:hover, :focus-visible) {
-    background-color: var(--zb-surface-raised) !important;
-    color: var(--zb-primary) !important;
-    outline: 0 !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
+    .TopicRelativeBoard-link:is(:hover, :focus-visible) {${RAISED_PRIMARY_HOVER_STYLE}${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
@@ -566,34 +425,13 @@ export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
-    :is(.ShareMenu-content, .ShareMenu-menuItems) {
-    background-color: var(--zb-surface) !important;
-    color: var(--zb-text) !important;
+    :is(.ShareMenu-content, .ShareMenu-menuItems) {${SURFACE_TEXT_ONLY_STYLE}
   }
 
   html[data-zb-theme][data-zb-topic-page="true"]
     .TopicFeedList
     :is(.PlaceHolder, .PlaceHolder-inner) {
     background-color: var(--zb-surface) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    .PlaceHolder-bg {
-    background: linear-gradient(
-      to right,
-      var(--zb-surface-raised) 0%,
-      var(--zb-surface-hover) 20%,
-      var(--zb-surface-raised) 40%,
-      var(--zb-surface-raised) 100%
-    ) !important;
-  }
-
-  html[data-zb-theme][data-zb-topic-page="true"]
-    .TopicFeedList
-    :is(.PlaceHolder-mask, .PlaceHolder-mask path) {
-    color: var(--zb-surface) !important;
-    fill: currentColor !important;
   }
 
 `;

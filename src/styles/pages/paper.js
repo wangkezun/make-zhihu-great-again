@@ -1,3 +1,13 @@
+import {
+  CARD_SURFACE_STYLE,
+  CARD_FRAME_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_FOCUS_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  TEXT_PAINT_STYLE,
+} from "../shared-components.js";
+
 export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"],
   html[data-zb-theme][data-zb-paper-page="true"] body,
   html[data-zb-theme][data-zb-paper-page="true"] body > div:first-child {
@@ -37,9 +47,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:first-child
     > div:last-child {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
+    ${CARD_FRAME_STYLE}
     box-shadow: var(--zb-shadow) !important;
   }
 
@@ -48,13 +56,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:first-child
     > div
-    > div:last-child {
-    box-sizing: border-box !important;
-    background-color: var(--zb-surface) !important;
-    border: 1px solid var(--zb-border) !important;
-    border-radius: 12px !important;
-    color: var(--zb-text) !important;
-    box-shadow: var(--zb-shadow) !important;
+    > div:last-child {${CARD_SURFACE_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -65,8 +67,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:last-child
     > div:last-child
     > div:first-child {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -77,8 +78,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:last-child
     > div:last-child
     > div:nth-child(2) {
-    color: var(--zb-text-muted) !important;
-    -webkit-text-fill-color: var(--zb-text-muted) !important;
+    ${MUTED_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -90,8 +90,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:last-child
     > div:last-child
     > div:first-child {
-    color: var(--zb-primary) !important;
-    -webkit-text-fill-color: var(--zb-primary) !important;
+    ${PRIMARY_TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -122,8 +121,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > section
     h2 {
-    color: var(--zb-text) !important;
-    -webkit-text-fill-color: var(--zb-text) !important;
+    ${TEXT_PAINT_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -208,8 +206,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     div:has(> section + section)
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:has(.ZDI--BookOpen24) {
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
   }
 
@@ -239,8 +236,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:has(> button .ZDI--BookOpen24):has(> button + button + button)
     > button:is(:hover, :focus-visible) {
     border-color: var(--zb-primary-hover) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-page="true"]
@@ -306,8 +302,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:has(input[size="1"])
     input {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     border-radius: 6px !important;
     color: var(--zb-text) !important;
     caret-color: var(--zb-primary) !important;
@@ -321,8 +316,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     > div:has(input[size="1"])
     input:focus-visible {
     border-color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-preview-page="true"]
@@ -375,8 +369,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     #app
     button[aria-label="下载"] {
     box-sizing: border-box !important;
-    background-color: var(--zb-surface-raised) !important;
-    border: 1px solid var(--zb-border-strong) !important;
+    ${RAISED_STRONG_CONTROL_SURFACE_STYLE}
     color: var(--zb-text-muted) !important;
     box-shadow: var(--zb-shadow) !important;
     transition:
@@ -398,16 +391,7 @@ export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"
     background-color: var(--zb-surface-hover) !important;
     border-color: var(--zb-primary) !important;
     color: var(--zb-primary) !important;
-    box-shadow: 0 0 0 2px var(--zb-primary-soft) !important;
-    outline: 0 !important;
-  }
-
-  html[data-zb-theme][data-zb-paper-preview-page="true"]
-    #app
-    button[aria-label]
-    :where(svg, path) {
-    color: inherit !important;
-    fill: currentColor !important;
+    ${PRIMARY_FOCUS_STYLE}
   }
 
   html[data-zb-theme][data-zb-paper-preview-page="true"] .pdfViewer .page {

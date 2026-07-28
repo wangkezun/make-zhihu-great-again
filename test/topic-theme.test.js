@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
+import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import { TOPIC_PAGE_STYLE } from "../src/styles/pages/topic.js";
 import {
@@ -13,6 +14,7 @@ import {
 } from "./helpers/style-rules.js";
 
 const expectRule = createRuleExpectation(TOPIC_PAGE_STYLE);
+const expectGlobalRule = createRuleExpectation(CATPPUCCIN_THEME_STYLE);
 
 describe("topic page theme", () => {
   it("loads only on topic routes and unloads after SPA navigation", () => {
@@ -34,9 +36,10 @@ describe("topic page theme", () => {
     page.window.close();
   });
 
-  it("keeps topic rules out of the always-loaded theme", () => {
-    expect(CATPPUCCIN_THEME_STYLE).not.toContain('[data-zb-topic-page="true"]');
+  it("keeps page structure lazy while sharing common controls globally", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(CROSS_PAGE_CONTROLS_STYLE);
     expect(CATPPUCCIN_THEME_STYLE).not.toContain(TOPIC_PAGE_STYLE);
+    expect(TOPIC_PAGE_STYLE).not.toContain(".Button:not(.VoteButton):hover");
   });
 
   it("themes the topic header, tabs and primary action", () => {
@@ -52,14 +55,11 @@ describe("topic page theme", () => {
       '  html[data-zb-theme][data-zb-topic-page="true"]\n    .Topic-tabs\n    .Tabs-link.is-active',
       ["color: var(--zb-primary) !important;", "font-weight: 500 !important;"],
     );
-    expectRule(
-      '  html[data-zb-theme][data-zb-topic-page="true"]\n    .TopicActions\n    .FollowButton.Button--blue',
-      [
-        "background-color: var(--zb-primary) !important;",
-        "border-color: var(--zb-primary) !important;",
-        "color: var(--ctp-crust) !important;",
-      ],
-    );
+    expectGlobalRule("  html[data-zb-theme] .Button--blue", [
+      "background-color: var(--zb-primary) !important;",
+      "border-color: var(--zb-primary) !important;",
+      "color: var(--ctp-crust) !important;",
+    ]);
   });
 
   it("themes feed cards, action buttons and the relative-topic board", () => {
@@ -85,9 +85,8 @@ describe("topic page theme", () => {
         "color: var(--zb-primary) !important;",
       ],
     );
-    expectRule(
-      '  html[data-zb-theme][data-zb-topic-page="true"]\n    .TopicFeedList\n    .PlaceHolder-bg',
-      ["background: linear-gradient(", "var(--zb-surface-hover) 20%"],
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "html[data-zb-theme] .PlaceHolder-bg {\n    background: linear-gradient(",
     );
   });
 });
