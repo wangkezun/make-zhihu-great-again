@@ -15400,4 +15400,268 @@ ${createPaletteVariables("mocha")}
     color: var(--zb-surface) !important;
     fill: currentColor !important;
   }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    .LevelInfoV2-creatorInfo {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a {
+    color: var(--zb-text-muted) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a
+    :where(div, span) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> .ReactCollapse--collapse)
+    > div:first-child {
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> .ReactCollapse--collapse)
+    > div:first-child
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child)
+    svg {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a[href="/creator"],
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(
+      a[href="/creator/account/rights"],
+      a[href="/creator/account/growth-level"]
+    ) {
+    color: var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    :is(a, div:has(> .ReactCollapse--collapse) > div:first-child):is(
+      :hover,
+      :focus-visible
+    ) {
+    background-color: var(--zb-surface-raised) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    a[href="/creator"] {
+    background-color: var(--zb-primary-soft) !important;
+    border-radius: 8px !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"]) {
+    z-index: 20 !important;
+    background: var(--zb-surface-raised) !important;
+    border: 1px solid var(--zb-border-strong) !important;
+    border-radius: 8px !important;
+    color: var(--zb-text-secondary) !important;
+    opacity: 1 !important;
+    box-shadow: var(--zb-shadow) !important;
+    isolation: isolate !important;
+    overflow: hidden !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a {
+    background-color: transparent !important;
+    color: var(--zb-text-secondary) !important;
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a
+    :where(div, span, svg) {
+    color: inherit !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a
+    svg {
+    fill: currentColor !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .Creator
+    > div:first-child
+    div:has(> a[href="/zvideo/upload-video"])
+    > a:is(:hover, :focus-visible) {
+    background-color: var(--zb-surface-hover) !important;
+    color: var(--zb-primary) !important;
+    outline: 0 !important;
+    box-shadow: inset 0 0 0 1px var(--zb-primary) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton {
+    background-color: var(--zb-surface-raised) !important;
+    background-image: linear-gradient(
+      to right,
+      var(--zb-surface-raised) 0%,
+      var(--zb-surface-hover) 25%,
+      var(--zb-surface-hover) 75%,
+      var(--zb-surface-raised) 100%
+    ) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"] .Creator .skeleton::after {
+    background-color: color-mix(
+      in srgb,
+      var(--zb-surface-hover) 80%,
+      transparent
+    ) !important;
+    box-shadow: 0 0 70px 70px
+      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div > div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    ) {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card):not(:has(> div:only-child)),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    ) {
+    box-shadow: var(--zb-shadow) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    .WriteArea
+    + div
+    > div:first-child
+    a[href^="/creator/analytics/work/"]
+    > div {
+    background-color: var(--zb-surface-raised) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    [role="complementary"]
+    > div:not(.Card):not(:has(> div:only-child))
+    > div:last-child {
+    background-color: var(--zb-surface) !important;
+    border-color: var(--zb-border) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    [role="complementary"]
+    > div:not(.Card):not(:has(> div:only-child))
+    > div:not(:has(a, button, img))
+    div[class]:empty {
+    background-color: var(--zb-surface-raised) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    :where(div, span, p, strong) {
+    color: var(--zb-text-muted) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    a {
+    color: var(--zb-text) !important;
+  }
+
+  html[data-zb-theme][data-zb-creator-page="true"]
+    .CreatorHome
+    :is(
+      .WriteArea + div,
+      .WriteArea + div + div > div > div,
+      .WriteArea + div + div + div > div,
+      [role="complementary"] > div:not(.Card),
+      [role="complementary"] > div:not(.Card):has(> div:only-child) > div
+    )
+    :is(a, button):is(:hover, :focus-visible) {
+    color: var(--zb-primary) !important;
+  }
 `;

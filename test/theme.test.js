@@ -1987,4 +1987,35 @@ describe("Catppuccin theme feature", () => {
     );
     feature.destroy();
   });
+
+  it("themes creator-center cards without relying on Emotion class hashes", () => {
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".LevelInfoV2-creatorInfo");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "div:has(> .ReactCollapse--collapse)\n    > div:first-child",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain('a[href="/creator"]');
+    expect(CATPPUCCIN_THEME_STYLE).toContain("fill: currentColor !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      'div:has(> a[href="/zvideo/upload-video"]) {\n    z-index: 20 !important;\n    background: var(--zb-surface-raised) !important;',
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain("opacity: 1 !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain("isolation: isolate !important");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> a:is(:hover, :focus-visible) {\n    background-color: var(--zb-surface-hover) !important;",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton {");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".Creator .skeleton::after");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "box-shadow: 0 0 70px 70px\n      color-mix(in srgb, var(--zb-surface-hover) 70%, transparent) !important",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "> div:not(:has(a, button, img))\n    div[class]:empty",
+    );
+    expect(CATPPUCCIN_THEME_STYLE).toContain(".WriteArea + div + div > div > div");
+    expect(CATPPUCCIN_THEME_STYLE).toContain('[role="complementary"] > div:not(.Card)');
+    expect(CATPPUCCIN_THEME_STYLE).not.toMatch(/data-zb-creator-page[\s\S]{0,500}\.css-[a-z0-9]+/);
+  });
 });
