@@ -481,10 +481,11 @@ export const COMMENTS_COMPONENT_STYLE = `  html[data-zb-theme] .Comments-contain
   }
 
   html[data-zb-theme] .Comments-container .InputLike.Editable {
-    background-color: var(--zb-surface) !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     box-sizing: border-box !important;
+    box-shadow: none !important;
     color: var(--zb-text) !important;
     padding-inline: 8px !important;
   }
@@ -786,10 +787,11 @@ export const COMMENTS_COMPONENT_STYLE = `  html[data-zb-theme] .Comments-contain
   html[data-zb-theme]
     [data-zb-comment-modal]
     .InputLike.Editable {
-    background-color: var(--zb-surface) !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     box-sizing: border-box !important;
+    box-shadow: none !important;
     color: var(--zb-text) !important;
     padding-inline: 8px !important;
   }

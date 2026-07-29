@@ -1057,6 +1057,12 @@ describe("Catppuccin theme feature", () => {
       "background-color: var(--zb-primary-soft) !important;\n    color: var(--zb-primary) !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container\n    .InputLike.Editable");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      ".Comments-container .InputLike.Editable {\n" +
+        "    background-color: transparent !important;\n" +
+        "    border: 0 !important;\n" +
+        "    border-radius: 0 !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Comments-container [data-id] [data-id]::before");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
       '.Comments-container\n    div:has(> div + svg[width="656"][height="44"])',
@@ -1107,6 +1113,13 @@ describe("Catppuccin theme feature", () => {
       "[data-zb-comment-modal]\n    [data-id]\n    > div:first-child {\n    animation: none !important;\n    background-color: transparent !important;",
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    .InputLike.Editable");
+    expect(CATPPUCCIN_THEME_STYLE).toContain(
+      "[data-zb-comment-modal]\n" +
+        "    .InputLike.Editable {\n" +
+        "    background-color: transparent !important;\n" +
+        "    border: 0 !important;\n" +
+        "    border-radius: 0 !important;",
+    );
     expect(CATPPUCCIN_THEME_STYLE).toContain("padding-inline: 8px !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain("[data-zb-comment-modal]\n    [data-id]");
     expect(CATPPUCCIN_THEME_STYLE).toContain(
