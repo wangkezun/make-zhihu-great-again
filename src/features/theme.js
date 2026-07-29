@@ -156,6 +156,12 @@ export const createThemeFeature = (browserWindow, settings) => {
   };
 
   const markCommentModal = (modalContent) => {
+    if (modalContent.querySelector(".Ask-form")) {
+      modalContent.removeAttribute(COMMENT_MODAL_ATTRIBUTE);
+      markedCommentModals.delete(modalContent);
+      return;
+    }
+
     const isCommentModal =
       modalContent.querySelector(".CommentContent") ||
       (modalContent.querySelector(".InputLike.Editable") &&

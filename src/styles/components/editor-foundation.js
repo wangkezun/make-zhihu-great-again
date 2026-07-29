@@ -1,8 +1,6 @@
-import {
-  PRIMARY_BORDER_FOCUS_STYLE,
-  RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  THIN_SCROLLBAR_STYLE,
-} from "../shared-components.js";
+import { PRIMARY_BORDER_FOCUS_STYLE } from "../shared/actions.js";
+import { THIN_SCROLLBAR_STYLE } from "../shared/content.js";
+import { RAISED_STRONG_CONTROL_SURFACE_STYLE } from "../shared/surfaces.js";
 
 export const EDITOR_FOUNDATION_COMPONENT_STYLE = `  html[data-zb-theme] .Modal .Ask-form .AskTitle-input,
   html[data-zb-theme] .Modal .Ask-form .AskDetail-input {

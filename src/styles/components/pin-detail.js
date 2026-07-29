@@ -1,4 +1,5 @@
-import { CURRENT_COLOR_ICON_STYLE, PRIMARY_BUTTON_STYLE } from "../shared-components.js";
+import { PRIMARY_BUTTON_STYLE } from "../shared/actions.js";
+import { CURRENT_COLOR_ICON_STYLE } from "../shared/content.js";
 
 export const PIN_DETAIL_COMPONENT_STYLE = `  html[data-zb-theme] .PinItem .PinToolbar-actions {
     background-color: var(--zb-surface) !important;

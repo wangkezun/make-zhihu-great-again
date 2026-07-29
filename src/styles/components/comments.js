@@ -1,12 +1,11 @@
+import { PRIMARY_BORDER_FOCUS_STYLE, SOFT_PRIMARY_STATE_STYLE } from "../shared/actions.js";
+import { SKELETON_SHIMMER_STYLE } from "../shared/feedback.js";
 import {
-  PRIMARY_BORDER_FOCUS_STYLE,
   RAISED_CONTROL_SURFACE_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  SKELETON_SHIMMER_STYLE,
-  SOFT_PRIMARY_STATE_STYLE,
   SURFACE_TEXT_STYLE,
   TRANSPARENT_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const COMMENTS_COMPONENT_STYLE = `  html[data-zb-theme] .Comments-container::before,
   html[data-zb-theme] .Comments-container::after {

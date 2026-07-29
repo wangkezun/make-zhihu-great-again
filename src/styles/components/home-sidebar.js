@@ -1,13 +1,14 @@
+import { PRIMARY_FOCUS_STYLE, SOFT_PRIMARY_STATE_STYLE } from "../shared/actions.js";
 import {
   CURRENT_COLOR_ICON_STYLE,
-  PRIMARY_FOCUS_STYLE,
-  RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  RAISED_TEXT_STYLE,
-  SOFT_PRIMARY_STATE_STYLE,
-  SURFACE_TEXT_STYLE,
   TEXT_PAINT_STYLE,
   THIN_SCROLLBAR_STYLE,
-} from "../shared-components.js";
+} from "../shared/content.js";
+import {
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  RAISED_TEXT_STYLE,
+  SURFACE_TEXT_STYLE,
+} from "../shared/surfaces.js";
 
 export const HOME_SIDEBAR_COMPONENT_STYLE = `  html[data-zb-theme] .Topstory-container > .Topstory-mainColumn + *,
   html[data-zb-theme] [data-zb-home-sidebar] {

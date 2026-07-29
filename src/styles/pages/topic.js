@@ -1,13 +1,15 @@
 import {
-  CARD_SURFACE_STYLE,
-  CURRENT_COLOR_ICON_STYLE,
   PRIMARY_BORDER_FOCUS_STYLE,
   PRIMARY_FOCUS_STYLE,
   RAISED_PRIMARY_HOVER_STYLE,
+} from "../shared/actions.js";
+import { CURRENT_COLOR_ICON_STYLE } from "../shared/content.js";
+import {
+  CARD_SURFACE_STYLE,
   SECTION_HEADER_STYLE,
   SURFACE_TEXT_ONLY_STYLE,
   SURFACE_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const TOPIC_PAGE_STYLE = `  html[data-zb-theme][data-zb-topic-page="true"]
     :is(

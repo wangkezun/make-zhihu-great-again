@@ -1,12 +1,14 @@
 import {
-  CURRENT_COLOR_ICON_STYLE,
   PRIMARY_FOCUS_STYLE,
-  RAISED_CONTROL_SURFACE_STYLE,
   RAISED_PRIMARY_HOVER_STYLE,
   SOFT_PRIMARY_STATE_STYLE,
+} from "../shared/actions.js";
+import { CURRENT_COLOR_ICON_STYLE } from "../shared/content.js";
+import {
+  RAISED_CONTROL_SURFACE_STYLE,
   SURFACE_TEXT_ONLY_STYLE,
   SURFACE_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const CREATOR_PAGE_STYLE = `  html[data-zb-theme][data-zb-creator-page="true"] .CreatorHome {
     color: var(--zb-text) !important;

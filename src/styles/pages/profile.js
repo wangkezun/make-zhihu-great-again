@@ -1,15 +1,16 @@
 import {
-  CURRENT_COLOR_ICON_STYLE,
-  MUTED_TEXT_PAINT_STYLE,
   OUTLINED_PRIMARY_BUTTON_STYLE,
   PRIMARY_FOCUS_STYLE,
-  PRIMARY_TEXT_PAINT_STYLE,
   RAISED_MUTED_CONTROL_STYLE,
-  RAISED_TEXT_STYLE,
+} from "../shared/actions.js";
+import {
+  CURRENT_COLOR_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
   SECONDARY_TEXT_PAINT_STYLE,
-  SURFACE_TEXT_STYLE,
   TEXT_PAINT_STYLE,
-} from "../shared-components.js";
+} from "../shared/content.js";
+import { RAISED_TEXT_STYLE, SURFACE_TEXT_STYLE } from "../shared/surfaces.js";
 
 export const PROFILE_PAGE_STYLE = `  html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader > .Card,
   html[data-zb-theme][data-zb-profile-page="true"] .ProfileHeader-wrapper,

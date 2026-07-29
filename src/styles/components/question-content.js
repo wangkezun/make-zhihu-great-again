@@ -1,14 +1,14 @@
+import { OUTLINED_PRIMARY_BUTTON_STYLE, SOFT_PRIMARY_STATE_STYLE } from "../shared/actions.js";
 import {
-  CARD_FRAME_STYLE,
   CURRENT_COLOR_ICON_STYLE,
-  OUTLINED_PRIMARY_BUTTON_STYLE,
   PRIMARY_TEXT_PAINT_STYLE,
+  TEXT_PAINT_STYLE,
+} from "../shared/content.js";
+import {
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
   RAISED_TEXT_STYLE,
-  SOFT_PRIMARY_STATE_STYLE,
-  TEXT_PAINT_STYLE,
   TRANSPARENT_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const QUESTION_CONTENT_COMPONENT_STYLE = `  html[data-zb-theme] .QuestionHeader-footer .Button:not(.Button--blue),
   html[data-zb-theme] .QuestionHeaderActions .Button:not(.Button--blue) {
@@ -687,6 +687,7 @@ export const QUESTION_CONTENT_COMPONENT_STYLE = `  html[data-zb-theme] .Question
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,
   html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper > .List {
     background-color: transparent !important;
+    border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -714,18 +715,12 @@ export const QUESTION_CONTENT_COMPONENT_STYLE = `  html[data-zb-theme] .Question
     .List-item {
     box-sizing: border-box !important;
     margin-bottom: 10px !important;
-    ${CARD_FRAME_STYLE}
+    background-color: var(--zb-surface) !important;
+    border: 0 !important;
+    border-radius: 12px !important;
     box-shadow: var(--zb-shadow) !important;
     overflow: hidden !important;
     overflow: clip !important;
-    transition: border-color 0.16s ease !important;
-  }
-
-  html[data-zb-theme]
-    .Question-mainColumn
-    .AnswersNavWrapper
-    .List-item:hover {
-    border-color: var(--zb-border-strong) !important;
   }
 
   html[data-zb-theme]

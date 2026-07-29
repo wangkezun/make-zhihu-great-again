@@ -19,6 +19,22 @@ export default [
     },
   },
   {
+    files: ["src/styles/components/**/*.js", "src/styles/pages/**/*.js"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../shared-components.js",
+              message: "请直接依赖 shared/actions、content、feedback 或 surfaces 模块。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       "rollup.config.js",
       "vitest.config.js",

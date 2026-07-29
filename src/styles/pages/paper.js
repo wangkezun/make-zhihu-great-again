@@ -1,12 +1,14 @@
+import { PRIMARY_FOCUS_STYLE } from "../shared/actions.js";
+import {
+  MUTED_TEXT_PAINT_STYLE,
+  PRIMARY_TEXT_PAINT_STYLE,
+  TEXT_PAINT_STYLE,
+} from "../shared/content.js";
 import {
   CARD_SURFACE_STYLE,
   CARD_FRAME_STYLE,
-  MUTED_TEXT_PAINT_STYLE,
-  PRIMARY_FOCUS_STYLE,
-  PRIMARY_TEXT_PAINT_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  TEXT_PAINT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const PAPER_PAGE_STYLE = `  html[data-zb-theme][data-zb-paper-page="true"],
   html[data-zb-theme][data-zb-paper-page="true"] body,

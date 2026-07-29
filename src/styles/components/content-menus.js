@@ -1,4 +1,4 @@
-import { RAISED_TEXT_STYLE, SURFACE_TEXT_STYLE } from "../shared-components.js";
+import { RAISED_TEXT_STYLE, SURFACE_TEXT_STYLE } from "../shared/surfaces.js";
 
 export const CONTENT_MENUS_COMPONENT_STYLE = `  html[data-zb-theme] .Answers-select,
   html[data-zb-theme] .Answers-select .Select-option {

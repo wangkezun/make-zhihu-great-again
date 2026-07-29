@@ -162,9 +162,27 @@ describe("Catppuccin theme feature", () => {
     await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
     expect(fallbackModal.hasAttribute("data-zb-comment-modal")).toBe(true);
 
+    const askModal = page.window.document.createElement("div");
+    askModal.className = "Modal-content";
+    askModal.innerHTML = `
+      <form class="Ask-form">
+        <img class="Avatar">
+        <div class="InputLike AskDetail-input Editable"></div>
+      </form>
+    `;
+    page.window.document.body.append(askModal);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(askModal.hasAttribute("data-zb-comment-modal")).toBe(false);
+
+    fallbackModal.append(page.window.document.createElement("form"));
+    fallbackModal.lastElementChild.className = "Ask-form";
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    expect(fallbackModal.hasAttribute("data-zb-comment-modal")).toBe(false);
+
     feature.destroy();
     expect(commentModal.hasAttribute("data-zb-comment-modal")).toBe(false);
     expect(fallbackModal.hasAttribute("data-zb-comment-modal")).toBe(false);
+    expect(askModal.hasAttribute("data-zb-comment-modal")).toBe(false);
   });
 
   it("marks action-menu popovers without a relational selector", async () => {
@@ -896,7 +914,7 @@ describe("Catppuccin theme feature", () => {
     );
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .AnswersNavWrapper > .List");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item {");
-    expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item:hover");
+    expect(CATPPUCCIN_THEME_STYLE).not.toContain(".AnswersNavWrapper\n    .List-item:hover");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".AnswersNavWrapper\n    .List-item::after");
     expect(CATPPUCCIN_THEME_STYLE).toContain("display: none !important");
     expect(CATPPUCCIN_THEME_STYLE).toContain(".Question-mainColumn .MoreAnswers .List-headerText");

@@ -1,17 +1,21 @@
 import {
-  CARD_FRAME_STYLE,
-  CARD_SURFACE_STYLE,
-  CURRENT_COLOR_ICON_STYLE,
-  MUTED_TEXT_PAINT_STYLE,
   PRIMARY_BUTTON_HOVER_STYLE,
   PRIMARY_BUTTON_STYLE,
   PRIMARY_FOCUS_STYLE,
+} from "../shared/actions.js";
+import {
+  CURRENT_COLOR_ICON_STYLE,
+  MUTED_TEXT_PAINT_STYLE,
   PRIMARY_TEXT_PAINT_STYLE,
+  SECONDARY_TEXT_PAINT_STYLE,
+} from "../shared/content.js";
+import {
+  CARD_FRAME_STYLE,
+  CARD_SURFACE_STYLE,
   RAISED_CONTROL_SURFACE_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  SECONDARY_TEXT_PAINT_STYLE,
   SURFACE_TEXT_ONLY_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const SEARCH_PAGE_STYLE = `  html[data-zb-theme] .SearchTabs {
     background-color: var(--zb-surface) !important;

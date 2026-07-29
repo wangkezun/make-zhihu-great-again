@@ -7,11 +7,11 @@ import {
   CONTENT_MORE_STYLE,
   FOLLOWING_BUTTON_DANGER_STYLE,
   FOLLOWING_BUTTON_STYLE,
-  HOT_SEARCH_TAG_LAYOUT_STYLE,
   OUTLINED_PRIMARY_BUTTON_HOVER_STYLE,
   PRIMARY_BUTTON_HOVER_STYLE,
   PRIMARY_BUTTON_STYLE,
-} from "../shared-components.js";
+} from "../shared/actions.js";
+import { HOT_SEARCH_TAG_LAYOUT_STYLE } from "../shared/content.js";
 
 export const CROSS_PAGE_CONTROLS_STYLE = `
   html[data-zb-theme] body .Button.FollowButton.Button--blue {${PRIMARY_BUTTON_STYLE}

@@ -1,11 +1,11 @@
+import { CURRENT_COLOR_ICON_STYLE } from "../shared/content.js";
 import {
   CARD_FRAME_STYLE,
   CARD_SURFACE_STYLE,
-  CURRENT_COLOR_ICON_STYLE,
   RAISED_CONTROL_SURFACE_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
   SURFACE_TEXT_ONLY_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const DISCOVERY_COMPONENT_STYLE = `  html[data-zb-theme]
     .Topstory-mainColumnCard:is(

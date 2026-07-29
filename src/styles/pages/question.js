@@ -1,13 +1,15 @@
 import {
-  CURRENT_COLOR_ICON_STYLE,
   PRIMARY_BORDER_FOCUS_STYLE,
   PRIMARY_FOCUS_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+} from "../shared/actions.js";
+import { CURRENT_COLOR_ICON_STYLE } from "../shared/content.js";
+import {
   RAISED_CONTROL_SURFACE_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
   RAISED_TEXT_STYLE,
-  SOFT_PRIMARY_STATE_STYLE,
   SURFACE_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const QUESTION_PAGE_STYLE = `  /* Question page */
   html[data-zb-theme] .QuestionHeader,

@@ -1,14 +1,18 @@
 import {
-  CARD_FRAME_STYLE,
-  MUTED_TEXT_PAINT_STYLE,
   PRIMARY_BUTTON_HOVER_STYLE,
   PRIMARY_BUTTON_STYLE,
   PRIMARY_FOCUS_STYLE,
-  RAISED_STRONG_CONTROL_SURFACE_STYLE,
-  RAISED_TEXT_STYLE,
+} from "../shared/actions.js";
+import {
+  MUTED_TEXT_PAINT_STYLE,
   SECONDARY_TEXT_PAINT_STYLE,
   TEXT_PAINT_STYLE,
-} from "../shared-components.js";
+} from "../shared/content.js";
+import {
+  CARD_FRAME_STYLE,
+  RAISED_STRONG_CONTROL_SURFACE_STYLE,
+  RAISED_TEXT_STYLE,
+} from "../shared/surfaces.js";
 
 export const COLUMN_PAGE_STYLE = `  html[data-zb-theme][data-zb-column-page="true"]
     .App-main

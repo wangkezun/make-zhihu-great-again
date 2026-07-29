@@ -1,15 +1,17 @@
 import {
   PRIMARY_BORDER_FOCUS_STYLE,
   PRIMARY_BUTTON_STYLE,
+  SOFT_PRIMARY_STATE_STYLE,
+} from "../shared/actions.js";
+import {
   RAISED_CONTROL_SURFACE_STYLE,
   RAISED_STRONG_CONTROL_SURFACE_STYLE,
   RAISED_TEXT_STYLE,
   SECTION_HEADER_STYLE,
-  SOFT_PRIMARY_STATE_STYLE,
   SURFACE_TEXT_ONLY_STYLE,
   SURFACE_TEXT_STYLE,
   TRANSPARENT_TEXT_STYLE,
-} from "../shared-components.js";
+} from "../shared/surfaces.js";
 
 export const QUESTION_EDITOR_COMPONENT_STYLE = `  html[data-zb-theme] .QuestionPage .AnswerFormPortalContainer,
   html[data-zb-theme] .QuestionPage .QuestionAnswers-statusWrapper,

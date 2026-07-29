@@ -6,11 +6,13 @@ import { createPageStylesFeature } from "../src/features/page-styles.js";
 import { CATPPUCCIN_THEME_STYLE } from "../src/styles/catppuccin-theme.js";
 import { CROSS_PAGE_CONTROLS_STYLE } from "../src/styles/components/cross-page-controls.js";
 import { CROSS_PAGE_SURFACES_STYLE } from "../src/styles/components/cross-page-surfaces.js";
+import { QUESTION_CONTENT_COMPONENT_STYLE } from "../src/styles/components/question-content.js";
 import { PAGE_STYLE_ENTRIES } from "../src/styles/pages/index.js";
 import { QUESTION_PAGE_STYLE } from "../src/styles/pages/question.js";
 import { createGroupedRuleExpectation } from "./helpers/style-rules.js";
 
 const expectSurfaceRule = createGroupedRuleExpectation(CROSS_PAGE_SURFACES_STYLE);
+const expectQuestionContentRule = createGroupedRuleExpectation(QUESTION_CONTENT_COMPONENT_STYLE);
 
 const expectRule = (selector, declarations) => {
   const ruleStart = QUESTION_PAGE_STYLE.indexOf(`${selector} {`);
@@ -89,6 +91,29 @@ describe("question page theme", () => {
       "background-color: var(--zb-surface-raised) !important;",
       "border-color: var(--zb-border) !important;",
     ]);
+  });
+
+  it("keeps answer islands borderless while preserving their surface hierarchy", () => {
+    expectQuestionContentRule("html[data-zb-theme] .Question-mainColumn .AnswersNavWrapper,", [
+      "background-color: transparent !important;",
+      "border: 0 !important;",
+      "box-shadow: none !important;",
+    ]);
+    expectQuestionContentRule(
+      "html[data-zb-theme]\n" +
+        "    .Question-mainColumn\n" +
+        "    .AnswersNavWrapper\n" +
+        "    .List-item",
+      [
+        "background-color: var(--zb-surface) !important;",
+        "border: 0 !important;",
+        "border-radius: 12px !important;",
+        "box-shadow: var(--zb-shadow) !important;",
+      ],
+    );
+    expect(QUESTION_CONTENT_COMPONENT_STYLE).not.toContain(
+      ".AnswersNavWrapper\n    .List-item:hover",
+    );
   });
 
   it("themes question status and invitation overlays within the page scope", () => {

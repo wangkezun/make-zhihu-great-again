@@ -1,4 +1,5 @@
-import { CARD_FRAME_STYLE, SKELETON_SHIMMER_STYLE } from "../shared-components.js";
+import { SKELETON_SHIMMER_STYLE } from "../shared/feedback.js";
+import { CARD_FRAME_STYLE } from "../shared/surfaces.js";
 
 export const LOADING_FEEDBACK_COMPONENT_STYLE = `  html[data-zb-theme] blockquote {
     border-color: var(--ctp-lavender) !important;
